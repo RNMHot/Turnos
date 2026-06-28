@@ -1,0 +1,234 @@
+@page "/events-columns"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject EventService EventSvc
+@inject PersonService PersonSvc
+@inject AssignmentService AssignmentSvc
+@inject AuthenticationStateProvider AuthState
+
+<PageTitle>Events Board - Turnos</PageTitle>
+
+<div class="events-columns-container">
+    <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+        <h4 class="m-0">Eventos Activos</h4>
+        @if (dropMessage is not null)
+        {
+            <span class="badge @(dropSuccess ? "bg-success" : "bg-danger")">@dropMessage</span>
+        }
+    </div>
+
+    <div class="events-columns-board">
+        <div class="personnel-panel">
+            <div class="panel-header">
+                <strong>Personal Disponible</strong>
+                <input class="form-control form-control-sm mt-1"
+                       placeholder="Búsqueda..."
+                       @bind="personSearch"
+                       @bind:event="oninput"
+                       @bind:after="FilterPersonnel" />
+            </div>
+            <div class="panel-body">
+                @if (filteredPersonnel.Count == 0)
+                {
+                    <div class="text-muted small px-1">No available people for current active events.</div>
+                }
+                else
+                {
+                    @foreach (var person in filteredPersonnel)
+                    {
+                        <div class="person-chip @GetRoleClass(person)"
+                             draggable="true"
+                             @ondragstart="() => OnPersonDragStart(person)"
+                             title="@GetRoleLabel(person)">
+                            <i class="bi bi-person-fill me-1"></i>
+                            <span>@person.FullName</span>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+
+        <div class="events-columns-wrapper">
+            @if (activeEvents.Count == 0)
+            {
+                <div class="alert alert-light border">No active events to display.</div>
+            }
+            else
+            {
+                <div class="events-columns-grid">
+                    @foreach (var ev in activeEvents)
+                    {
+                        var localStart = ev.StartDateTime.ToLocalTime();
+                        var localEnd = ev.EndDateTime.ToLocalTime();
+
+                        <section class="event-column">
+                            <header class="event-column-header @GetEventClass(ev)">
+                                <div class="event-title">@ev.EventName</div>
+                                <div class="event-meta">@localStart.ToString("ddd, MMM d")</div>
+                                <div class="event-meta">@localStart.ToString("h:mm tt") - @localEnd.ToString("h:mm tt")</div>
+                                <div class="event-meta">@(ev.Company?.Name ?? "-")</div>
+                                <div class="event-meta">@FormatRequirements(ev)</div>
+                            </header>
+
+                            <div class="event-column-body @(draggedPerson is not null ? "drop-target-active" : "")"
+                                   @ondragover="OnDragOver"
+                                 @ondragover:preventDefault="true"
+                                   @ondrop:preventDefault="true"
+                                 @ondrop="() => OnDropOnEvent(ev)">
+                                <div class="small text-muted mb-2">Colocar persona aquí para asignar</div>
+
+                                @if (ev.Assignments.Count == 0)
+                                {
+                                    <div class="small text-muted">No hay asignaciones aún</div>
+                                }
+                                else
+                                {
+                                    @foreach (var a in ev.Assignments.Where(a => a.Status != AssignmentStatus.Cancelled))
+                                    {
+                                        <div class="assignment-row d-flex align-items-center justify-content-between gap-2">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="assignment-name">@a.Person.FullName</span>
+                                                <span class="badge @GetStatusBadge(a.Status)">@a.Status</span>
+                                            </div>
+                                            <button class="btn btn-sm btn-outline-danger"
+                                                    title="Eliminar asignación"
+                                                    @onclick="() => RemoveAssignment(a.AssignmentId)">
+                                                <i class="bi bi-x"></i>
+                                            </button>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </section>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Event> activeEvents = new();
+    private List<Person> availablePersonnel = new();
+    private List<Person> filteredPersonnel = new();
+    private string personSearch = "";
+    private Person? draggedPerson;
+    private string? dropMessage;
+    private bool dropSuccess;
+    private string currentUserId = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        currentUserId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        activeEvents = await EventSvc.GetActiveWithAssignmentsAsync();
+
+        var allPeople = await PersonSvc.GetAllWithAvailabilityAsync(active: true);
+        availablePersonnel = allPeople;
+
+        FilterPersonnel();
+    }
+
+    private void FilterPersonnel()
+    {
+        filteredPersonnel = string.IsNullOrWhiteSpace(personSearch)
+            ? availablePersonnel
+            : availablePersonnel
+                .Where(p => p.FullName.Contains(personSearch, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+    }
+
+    private void OnPersonDragStart(Person person) => draggedPerson = person;
+
+    private static void OnDragOver(DragEventArgs _) { }
+
+    private async Task OnDropOnEvent(Event ev)
+    {
+        if (draggedPerson is null)
+        {
+            return;
+        }
+
+        var assignment = new Assignment
+        {
+            EventId = ev.EventId,
+            PersonId = draggedPerson.PersonId,
+            StartDateTime = ev.StartDateTime,
+            EndDateTime = ev.EndDateTime,
+            Status = AssignmentStatus.Assigned
+        };
+
+        var (success, errMsg) = await AssignmentSvc.CreateAsync(assignment, currentUserId);
+        dropSuccess = success;
+        dropMessage = success
+            ? $"Asignado {draggedPerson.FullName} a {ev.EventName}"
+            : errMsg;
+        draggedPerson = null;
+
+        if (success)
+        {
+            await LoadData();
+        }
+
+        _ = Task.Delay(4000).ContinueWith(_ =>
+        {
+            dropMessage = null;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private async Task RemoveAssignment(int assignmentId)
+    {
+        await AssignmentSvc.DeleteAsync(assignmentId, currentUserId);
+        await LoadData();
+    }
+
+    private static string GetRoleClass(Person p)
+    {
+        var roles = p.PersonRoles.Select(r => r.Role?.Name).ToList();
+        bool isUsher = roles.Contains("Usher");
+        bool isSup = roles.Contains("Supervisor");
+        return (isUsher, isSup) switch
+        {
+            (true, true) => "role-both",
+            (false, true) => "role-supervisor",
+            _ => "role-usher"
+        };
+    }
+
+    private static string GetRoleLabel(Person p)
+    {
+        var roles = p.PersonRoles.Select(r => r.Role?.Name ?? "").Where(r => r != "User");
+        return string.Join(" / ", roles);
+    }
+
+    private static string GetEventClass(Event ev)
+    {
+        return ev.Assignments.Any(a => a.Status != AssignmentStatus.Cancelled)
+            ? "event-staffed"
+            : "event-unstaffed";
+    }
+
+    private static string GetStatusBadge(AssignmentStatus status) => status switch
+    {
+        AssignmentStatus.Confirmed => "bg-success",
+        AssignmentStatus.Assigned => "bg-primary",
+        AssignmentStatus.Offered => "bg-warning text-dark",
+        AssignmentStatus.Accepted => "bg-info",
+        AssignmentStatus.Declined => "bg-danger",
+        AssignmentStatus.Completed => "bg-secondary",
+        AssignmentStatus.Cancelled => "bg-danger",
+        _ => "bg-secondary"
+    };
+
+    private static string FormatRequirements(Event ev)
+    {
+        var otherLabel = string.IsNullOrWhiteSpace(ev.RequiredOtherLabel) ? "Otro" : ev.RequiredOtherLabel;
+        return $"Sup: {ev.RequiredSupervisors} | Ushers: {ev.RequiredUshers} | {otherLabel}: {ev.RequiredOther}";
+    }
+}

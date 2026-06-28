@@ -1,0 +1,77 @@
+@page "/companies/new"
+@page "/companies/{Id:int}"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject CompanyService CompanySvc
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Nav
+
+<PageTitle>@(Id == 0 ? "New Company" : "Edit Company") — Turnos</PageTitle>
+
+<div class="d-flex align-items-center gap-2 mb-3">
+    <a href="/companies" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i></a>
+    <h4 class="mb-0">@(Id == 0 ? "New Company" : "Edit Company")</h4>
+</div>
+
+<div class="card shadow-sm" style="max-width:600px">
+    <div class="card-body">
+        <EditForm Model="company" OnValidSubmit="Save">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" />
+
+            <div class="mb-3">
+                <label class="form-label">Company Name *</label>
+                <InputText @bind-Value="company.Name" class="form-control" />
+                <ValidationMessage For="() => company.Name" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Contact Name</label>
+                <InputText @bind-Value="company.ContactName" class="form-control" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Phone</label>
+                <InputText @bind-Value="company.PhoneNumber" class="form-control" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Email</label>
+                <InputText @bind-Value="company.Email" class="form-control" type="email" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Notes</label>
+                <InputTextArea @bind-Value="company.Notes" class="form-control" rows="3" />
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary" disabled="@saving">@(saving ? "Saving…" : "Save")</button>
+                <a href="/companies" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Company company = new();
+    private bool saving;
+    private string userId = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+        if (Id != 0)
+        {
+            var existing = await CompanySvc.GetByIdAsync(Id);
+            if (existing is not null) company = existing;
+        }
+    }
+
+    private async Task Save()
+    {
+        saving = true;
+        if (Id == 0) await CompanySvc.CreateAsync(company, userId);
+        else await CompanySvc.UpdateAsync(company, userId);
+        Nav.NavigateTo("/companies");
+    }
+}

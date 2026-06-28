@@ -1,0 +1,62 @@
+@page "/companies"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject CompanyService CompanySvc
+@inject AuthenticationStateProvider AuthState
+
+<PageTitle>Companies — Turnos</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-building me-2"></i>Companies</h4>
+    <a href="/companies/new" class="btn btn-primary btn-sm"><i class="bi bi-plus me-1"></i>Add Company</a>
+</div>
+
+<input class="form-control form-control-sm mb-3" style="max-width:280px" placeholder="Search…" @bind="search" @bind:event="oninput" @bind:after="Load" />
+
+<div class="table-responsive">
+    <table class="table table-hover table-sm align-middle">
+        <thead class="table-light">
+            <tr><th>Name</th><th>Contact</th><th>Phone</th><th>Email</th><th></th></tr>
+        </thead>
+        <tbody>
+            @foreach (var c in companies)
+            {
+                <tr>
+                    <td>@c.Name</td>
+                    <td>@c.ContactName</td>
+                    <td>@c.PhoneNumber</td>
+                    <td>@c.Email</td>
+                    <td class="text-end">
+                        <a href="/companies/@c.CompanyId" class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></a>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => Delete(c)"><i class="bi bi-trash"></i></button>
+                    </td>
+                </tr>
+            }
+            @if (!companies.Any())
+            {
+                <tr><td colspan="5" class="text-muted text-center py-4">No companies found.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private List<Company> companies = new();
+    private string search = "";
+    private string userId = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+        await Load();
+    }
+
+    private async Task Load() => companies = await CompanySvc.GetAllAsync(search);
+
+    private async Task Delete(Company c)
+    {
+        await CompanySvc.DeleteAsync(c.CompanyId, userId);
+        await Load();
+    }
+}

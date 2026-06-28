@@ -1,0 +1,134 @@
+@page "/personnel/new"
+@page "/personnel/{Id:int}"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject PersonService PersonSvc
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Nav
+
+<PageTitle>@(Id == 0 ? "New Person" : "Edit Person") — Turnos</PageTitle>
+
+<div class="d-flex align-items-center gap-2 mb-3">
+    <a href="/personnel" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i></a>
+    <h4 class="mb-0">@(Id == 0 ? "New Person" : "Edit Person")</h4>
+</div>
+
+@if (loading)
+{
+    <p class="text-muted">Loading…</p>
+}
+else
+{
+    <div class="card shadow-sm" style="max-width:600px">
+        <div class="card-body">
+            <EditForm Model="person" OnValidSubmit="Save">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger" />
+
+                @if (!string.IsNullOrEmpty(saveError))
+                {
+                    <div class="alert alert-danger">@saveError</div>
+                }
+
+                <div class="mb-3">
+                    <label class="form-label">Full Name *</label>
+                    <InputText @bind-Value="person.FullName" class="form-control" />
+                    <ValidationMessage For="() => person.FullName" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Phone Number *</label>
+                    <InputText @bind-Value="person.PhoneNumber" class="form-control" placeholder="+1 555 000 0000" />
+                    <ValidationMessage For="() => person.PhoneNumber" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <InputText @bind-Value="person.Email" class="form-control" type="email" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Roles</label>
+                    <div class="d-flex gap-3">
+                        @foreach (var role in allRoles)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="role_@role.RoleId"
+                                       checked="@selectedRoleIds.Contains(role.RoleId)"
+                                       @onchange="e => ToggleRole(role.RoleId, (bool)e.Value!)" />
+                                <label class="form-check-label" for="role_@role.RoleId">@role.Name</label>
+                            </div>
+                        }
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Notes</label>
+                    <InputTextArea @bind-Value="person.Notes" class="form-control" rows="3" />
+                </div>
+                <div class="mb-3 form-check">
+                    <InputCheckbox @bind-Value="person.Active" class="form-check-input" id="active" />
+                    <label class="form-check-label" for="active">Active</label>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary" disabled="@saving">
+                        @(saving ? "Saving…" : "Save")
+                    </button>
+                    <a href="/personnel" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Person person = new() { Active = true };
+    private List<Role> allRoles = new();
+    private List<int> selectedRoleIds = new();
+    private bool loading = true;
+    private bool saving;
+    private string? saveError;
+    private string userId = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+        allRoles = await PersonSvc.GetRolesAsync();
+
+        if (Id != 0)
+        {
+            var existing = await PersonSvc.GetByIdAsync(Id);
+            if (existing is not null)
+            {
+                person = existing;
+                selectedRoleIds = existing.PersonRoles.Select(pr => pr.RoleId).ToList();
+            }
+        }
+        loading = false;
+    }
+
+    private void ToggleRole(int roleId, bool selected)
+    {
+        if (selected) { if (!selectedRoleIds.Contains(roleId)) selectedRoleIds.Add(roleId); }
+        else selectedRoleIds.Remove(roleId);
+    }
+
+    private async Task Save()
+    {
+        saving = true;
+        saveError = null;
+        try
+        {
+            if (Id == 0)
+                await PersonSvc.CreateAsync(person, selectedRoleIds, userId);
+            else
+                await PersonSvc.UpdateAsync(person, selectedRoleIds, userId);
+            Nav.NavigateTo("/personnel");
+        }
+        catch (Exception ex)
+        {
+            saveError = ex.Message;
+            saving = false;
+        }
+    }
+}

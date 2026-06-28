@@ -1,0 +1,114 @@
+@rendermode InteractiveServer
+@inject WhatsAppService WhatsApp
+@inject EventService EventSvc
+
+<div class="modal fade @(Show ? "show d-block" : "")" tabindex="-1" style="background: rgba(0,0,0,0.4)">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-whatsapp text-success me-2"></i>Send WhatsApp Message</h5>
+                <button class="btn-close" @onclick="Close"></button>
+            </div>
+            <div class="modal-body">
+                @if (sent)
+                {
+                    <div class="alert alert-success">Message sent successfully!</div>
+                }
+                else if (!string.IsNullOrEmpty(error))
+                {
+                    <div class="alert alert-danger">@error</div>
+                }
+                else
+                {
+                    <div class="mb-3">
+                        <label class="form-label">Template</label>
+                        <select class="form-select" @bind="selectedTemplate" @bind:after="OnTemplateChanged">
+                            <option value="">— Custom message —</option>
+                            <option value="OpenAssignment">Open Assignment (request availability)</option>
+                            <option value="AssignmentNotification">Assignment Notification</option>
+                            <option value="EventReminder">Event Reminder</option>
+                            <option value="SupervisorDetails">Supervisor Details</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Message</label>
+                        <textarea class="form-control" rows="4" @bind="messageBody"></textarea>
+                    </div>
+                    @if (PersonId is null && EventId.HasValue)
+                    {
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="sendAll" @bind="sendToAll" />
+                            <label class="form-check-label" for="sendAll">Send to all assigned personnel</label>
+                        </div>
+                    }
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="Close">Cancel</button>
+                @if (!sent)
+                {
+                    <button class="btn btn-success" @onclick="Send" disabled="@sending">
+                        <i class="bi bi-send me-1"></i> @(sending ? "Sending…" : "Send")
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool Show { get; set; }
+    [Parameter] public int? PersonId { get; set; }
+    [Parameter] public int? EventId { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private string selectedTemplate = "";
+    private string messageBody = "";
+    private bool sendToAll;
+    private bool sending;
+    private bool sent;
+    private string? error;
+    private Event? currentEvent;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (EventId.HasValue)
+            currentEvent = await EventSvc.GetByIdAsync(EventId.Value);
+    }
+
+    private void OnTemplateChanged()
+    {
+        if (string.IsNullOrEmpty(selectedTemplate) || currentEvent is null) return;
+        var person = new Person { FullName = "Personnel" };
+        messageBody = WhatsApp.BuildTemplateMessage(selectedTemplate, currentEvent, person);
+    }
+
+    private async Task Send()
+    {
+        if (string.IsNullOrWhiteSpace(messageBody)) { error = "Message cannot be empty."; return; }
+        sending = true;
+        error = null;
+        try
+        {
+            if (sendToAll && EventId.HasValue)
+                await WhatsApp.SendToAllAssignedAsync(EventId.Value, selectedTemplate ?? "Custom", messageBody);
+            else if (PersonId.HasValue)
+                await WhatsApp.SendMessageAsync(PersonId.Value, selectedTemplate ?? "Custom", messageBody, EventId);
+            sent = true;
+        }
+        catch (Exception ex)
+        {
+            error = $"Failed: {ex.Message}";
+        }
+        sending = false;
+    }
+
+    private async Task Close()
+    {
+        sent = false;
+        error = null;
+        messageBody = "";
+        selectedTemplate = "";
+        await OnClose.InvokeAsync();
+    }
+}

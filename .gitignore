@@ -1,0 +1,15 @@
+# Build artifacts
+bin/
+obj/
+
+# User/IDE files
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Logs
+*.log
+
+# ASP.NET / .NET local settings
+appsettings.Development.json

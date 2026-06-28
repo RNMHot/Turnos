@@ -1,0 +1,132 @@
+@page "/personnel"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject PersonService PersonSvc
+@inject ExcelExportService Excel
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Nav
+
+<PageTitle>Personnel — Turnos</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-people me-2"></i>Personnel</h4>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-success btn-sm" @onclick="ExportExcel"><i class="bi bi-file-earmark-excel me-1"></i>Export</button>
+        <a href="/personnel/new" class="btn btn-primary btn-sm"><i class="bi bi-plus me-1"></i>Add Person</a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="d-flex gap-2 mb-3 flex-wrap">
+    <input class="form-control form-control-sm" style="max-width:220px" placeholder="Search name / phone…" @bind="search" @bind:event="oninput" @bind:after="Load" />
+    <select class="form-select form-select-sm" style="max-width:150px" @bind="filterRoleId" @bind:after="Load">
+        <option value="">All roles</option>
+        @foreach (var role in roles)
+        {
+            <option value="@role.RoleId">@role.Name</option>
+        }
+    </select>
+    <select class="form-select form-select-sm" style="max-width:130px" @bind="filterActive" @bind:after="Load">
+        <option value="">All status</option>
+        <option value="true">Active</option>
+        <option value="false">Inactive</option>
+    </select>
+</div>
+
+@if (loading)
+{
+    <p class="text-muted">Loading…</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-hover table-sm align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Name</th>
+                    <th>Phone</th>
+                    <th>Email</th>
+                    <th>Roles</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var p in persons)
+                {
+                    <tr class="@(!p.Active ? "table-secondary text-muted" : "")">
+                        <td>@p.FullName</td>
+                        <td>@p.PhoneNumber</td>
+                        <td>@p.Email</td>
+                        <td>@string.Join(", ", p.PersonRoles.Select(r => r.Role?.Name))</td>
+                        <td>
+                            @if (p.Active)
+                            {
+                                <span class="badge bg-success">Active</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Inactive</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <a href="/personnel/@p.PersonId/availability" class="btn btn-sm btn-outline-info me-1" title="Availability">
+                                <i class="bi bi-calendar3"></i>
+                            </a>
+                            <a href="/personnel/@p.PersonId" class="btn btn-sm btn-outline-primary me-1">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => Deactivate(p)" title="Deactivate">
+                                <i class="bi bi-person-x"></i>
+                            </button>
+                        </td>
+                    </tr>
+                }
+                @if (!persons.Any())
+                {
+                    <tr><td colspan="6" class="text-muted text-center py-4">No personnel found.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<Person> persons = new();
+    private List<Role> roles = new();
+    private string search = "";
+    private string filterActive = "";
+    private int? filterRoleId;
+    private bool loading = true;
+    private string userId = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+        roles = await PersonSvc.GetRolesAsync();
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        loading = true;
+        bool? active = filterActive == "true" ? true : filterActive == "false" ? false : null;
+        persons = await PersonSvc.GetAllAsync(search, filterRoleId, active);
+        loading = false;
+    }
+
+    private async Task Deactivate(Person p)
+    {
+        await PersonSvc.SoftDeleteAsync(p.PersonId, userId);
+        await Load();
+    }
+
+    private async Task ExportExcel()
+    {
+        var bytes = Excel.ExportPersons(persons);
+        await JS.InvokeVoidAsync("downloadFile", "personnel.xlsx", Convert.ToBase64String(bytes));
+    }
+
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+}

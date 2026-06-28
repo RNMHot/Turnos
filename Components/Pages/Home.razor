@@ -1,0 +1,343 @@
+@page "/"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject EventService EventSvc
+@inject PersonService PersonSvc
+@inject AssignmentService AssignmentSvc
+@inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Nav
+
+<PageTitle>Schedule — Turnos</PageTitle>
+
+<div class="schedule-container">
+    <!-- Top toolbar -->
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <button class="btn btn-outline-secondary btn-sm" @onclick="PrevWeek"><i class="bi bi-chevron-left"></i></button>
+        <button class="btn btn-outline-primary btn-sm" @onclick="GoToday">Today</button>
+        <button class="btn btn-outline-secondary btn-sm" @onclick="NextWeek"><i class="bi bi-chevron-right"></i></button>
+        <span class="fw-semibold">@WeekLabel</span>
+        @if (dropMessage is not null)
+        {
+            <span class="ms-3 badge @(dropSuccess ? "bg-success" : "bg-danger")">@dropMessage</span>
+        }
+    </div>
+
+    <div class="schedule-board">
+        <!-- Left panel: personnel list -->
+        <div class="personnel-panel">
+            <div class="panel-header">
+                <strong>Staff</strong>
+                <input class="form-control form-control-sm mt-1" placeholder="Search…" @bind="personSearch" @bind:event="oninput" @bind:after="FilterPersonnel" />
+            </div>
+            <div class="panel-body">
+                @foreach (var person in filteredPersonnel)
+                {
+                    var roleClass = GetRoleClass(person);
+                    var dimmed = !person.Active ? "dimmed" : "";
+                    <div class="person-chip @roleClass @dimmed"
+                         draggable="true"
+                         @ondragstart="() => OnPersonDragStart(person)"
+                         title="@GetRoleLabel(person)">
+                        <i class="bi bi-person-fill me-1"></i>
+                        <span>@person.FullName</span>
+                        @if (!person.Active)
+                        {
+                            <span class="badge bg-secondary ms-1" style="font-size:10px">Inactive</span>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Weekly grid -->
+        <div class="week-grid-wrapper">
+            <div class="week-grid">
+                <!-- Day headers -->
+                <div class="grid-corner"></div>
+                @for (int d = 0; d < 7; d++)
+                {
+                    var day = weekStart.AddDays(d);
+                    var isToday = day.Date == DateTime.Today;
+                    <div class="day-header @(isToday ? "today" : "")">
+                        <div class="day-name">@day.ToString("ddd")</div>
+                        <div class="day-date">@day.ToString("MMM d")</div>
+                    </div>
+                }
+
+                <!-- Time slots -->
+                @for (int hour = 6; hour <= 23; hour++)
+                {
+                    <div class="time-label">@DateTime.Today.AddHours(hour).ToString("h tt")</div>
+                    @for (int d = 0; d < 7; d++)
+                    {
+                        var day = weekStart.AddDays(d);
+                        var slotStart = day.Date.AddHours(hour);
+                        var slotEnd = slotStart.AddHours(1);
+                        var slotEvents = GetEventsForSlot(day, hour);
+
+                        <div class="time-slot @(draggedPerson != null ? "drop-target-active" : "")"
+                             @ondragover:preventDefault="true"
+                             @ondrop="() => OnDropOnSlot(slotStart)">
+                            @foreach (var ev in slotEvents)
+                            {
+                                var heightPx = GetEventHeightPx(ev);
+                                <div class="event-block @GetEventClass(ev)"
+                                     style="height:@(heightPx.ToString("F0"))px"
+                                     @onclick="() => OpenEventDetail(ev)">
+                                    <div class="event-name">@ev.EventName</div>
+                                    <div class="event-company small">@ev.Company?.Name</div>
+                                    <div class="small text-opacity-75">
+                                        @ev.StartDateTime.ToLocalTime().ToString("h:mm tt") – @ev.EndDateTime.ToLocalTime().ToString("h:mm tt")
+                                    </div>
+                                    <div class="small text-opacity-75">
+                                        @FormatRequirements(ev)
+                                    </div>
+                                    <div class="event-assignments small">
+                                        @foreach (var a in ev.Assignments.Where(a => a.Status != AssignmentStatus.Cancelled))
+                                        {
+                                            <span class="assignment-badge">@a.Person.FullName</span>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Event detail modal -->
+@if (selectedEvent is not null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.4)">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@selectedEvent.EventName</h5>
+                    <button class="btn-close" @onclick="() => selectedEvent = null"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Company:</strong> @selectedEvent.Company?.Name</p>
+                    <p><strong>Time:</strong> @selectedEvent.StartDateTime.ToLocalTime().ToString("MMM d, h:mm tt") – @selectedEvent.EndDateTime.ToLocalTime().ToString("h:mm tt")</p>
+                    <p><strong>Required Team:</strong> @FormatRequirements(selectedEvent)</p>
+                    <p>
+                        <strong>Location:</strong> @(selectedEvent.Location?.Name ?? "—")
+                        @if (selectedEvent.Location?.Latitude.HasValue == true)
+                        {
+                            <a href="https://maps.google.com/?q=@selectedEvent.Location.Latitude,@selectedEvent.Location.Longitude"
+                               target="_blank" rel="noopener" class="ms-2 small text-muted text-decoration-none">
+                                <i class="bi bi-pin-map"></i> Map
+                            </a>
+                        }
+                    </p>
+                    @if (!string.IsNullOrEmpty(selectedEvent.Notes))
+                    {
+                        <p><strong>Notes:</strong> @selectedEvent.Notes</p>
+                    }
+                    <hr />
+                    <h6>Assignments</h6>
+                    @foreach (var a in selectedEvent.Assignments)
+                    {
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <span class="@GetRoleClass(a.Person) px-2 py-1 rounded small">@a.Person.FullName</span>
+                            <span class="badge @GetStatusBadge(a.Status)">@a.Status</span>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveAssignment(a.AssignmentId)">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <a href="/events/@selectedEvent.EventId" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-pencil me-1"></i> Edit Event
+                    </a>
+                    <button class="btn btn-outline-success btn-sm" @onclick="OpenMessageModal">
+                        <i class="bi bi-whatsapp me-1"></i> Send Message
+                    </button>
+                    <button class="btn btn-secondary" @onclick="() => selectedEvent = null">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<MessageModal Show="showMessageModal" EventId="selectedEvent?.EventId" OnClose="CloseMessageModal" />
+
+@code {
+    private DateTime weekStart;
+    private List<Event> weekEvents = new();
+    private List<Person> allPersonnel = new();
+    private List<Person> filteredPersonnel = new();
+    private string personSearch = "";
+    private Person? draggedPerson;
+    private Event? selectedEvent;
+    private bool showMessageModal;
+    private string? dropMessage;
+    private bool dropSuccess;
+    private string currentUserId = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        weekStart = GetMonday(DateTime.Today);
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        currentUserId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        weekEvents = await EventSvc.GetForWeekAsync(weekStart);
+
+        if (!weekEvents.Any())
+        {
+            var allActiveEvents = await EventSvc.GetActiveWithAssignmentsAsync();
+            var nearestEvent = allActiveEvents
+                .OrderBy(e => Math.Abs((NormalizeToLocal(e.StartDateTime) - DateTime.Now).TotalMinutes))
+                .FirstOrDefault();
+
+            if (nearestEvent is not null)
+            {
+                weekStart = GetMonday(NormalizeToLocal(nearestEvent.StartDateTime));
+                weekEvents = await EventSvc.GetForWeekAsync(weekStart);
+            }
+        }
+
+        allPersonnel = await PersonSvc.GetAllAsync();
+        FilterPersonnel();
+    }
+
+    private void FilterPersonnel()
+    {
+        filteredPersonnel = string.IsNullOrWhiteSpace(personSearch)
+            ? allPersonnel
+            : allPersonnel.Where(p => p.FullName.Contains(personSearch, StringComparison.OrdinalIgnoreCase)).ToList();
+    }
+
+    private string WeekLabel => $"{weekStart:MMM d} – {weekStart.AddDays(6):MMM d, yyyy}";
+
+    private async Task PrevWeek() { weekStart = weekStart.AddDays(-7); await LoadData(); }
+    private async Task NextWeek() { weekStart = weekStart.AddDays(7); await LoadData(); }
+    private async Task GoToday() { weekStart = GetMonday(DateTime.Today); await LoadData(); }
+
+    private static DateTime GetMonday(DateTime date)
+    {
+        int diff = (7 + (date.DayOfWeek - DayOfWeek.Monday)) % 7;
+        return date.AddDays(-diff).Date;
+    }
+
+    private List<Event> GetEventsForSlot(DateTime day, int hour)
+    {
+        return weekEvents.Where(e =>
+        {
+            var start = NormalizeToLocal(e.StartDateTime);
+            return start.Date == day.Date && start.Hour == hour;
+        }).ToList();
+    }
+
+    // Pixel height = duration × slot height, so event block spans its full time range
+    private static double GetEventHeightPx(Event ev)
+    {
+        const int slotPx = 56;
+        var duration = NormalizeToLocal(ev.EndDateTime) - NormalizeToLocal(ev.StartDateTime);
+        return Math.Max(slotPx - 6, duration.TotalHours * slotPx - 6);
+    }
+
+    private void OnPersonDragStart(Person person) => draggedPerson = person;
+
+    private async Task OnDropOnSlot(DateTime slotStart)
+    {
+        if (draggedPerson is null) return;
+
+        // Compare in local time so drop targets match displayed event positions
+        var ev = weekEvents.FirstOrDefault(e =>
+            NormalizeToLocal(e.StartDateTime) <= slotStart &&
+            NormalizeToLocal(e.EndDateTime) > slotStart);
+        if (ev is null) { draggedPerson = null; return; }
+
+        var assignment = new Assignment
+        {
+            EventId = ev.EventId,
+            PersonId = draggedPerson.PersonId,
+            StartDateTime = ev.StartDateTime,
+            EndDateTime = ev.EndDateTime,
+            Status = AssignmentStatus.Assigned
+        };
+
+        var (success, errMsg) = await AssignmentSvc.CreateAsync(assignment, currentUserId);
+        dropSuccess = success;
+        dropMessage = success ? $"Assigned {draggedPerson.FullName} to {ev.EventName}" : errMsg;
+        draggedPerson = null;
+
+        if (success) await LoadData();
+
+        _ = Task.Delay(4000).ContinueWith(_ => { dropMessage = null; InvokeAsync(StateHasChanged); });
+    }
+
+    private void OpenEventDetail(Event ev) => selectedEvent = ev;
+
+    private async Task RemoveAssignment(int id)
+    {
+        await AssignmentSvc.DeleteAsync(id, currentUserId);
+        await LoadData();
+        if (selectedEvent is not null)
+            selectedEvent = weekEvents.FirstOrDefault(e => e.EventId == selectedEvent.EventId);
+    }
+
+    private void OpenMessageModal() => showMessageModal = true;
+    private void CloseMessageModal() => showMessageModal = false;
+
+    private static string GetRoleClass(Person p)
+    {
+        var roles = p.PersonRoles.Select(r => r.Role?.Name).ToList();
+        bool isUsher = roles.Contains("Usher");
+        bool isSup = roles.Contains("Supervisor");
+        return (isUsher, isSup) switch
+        {
+            (true, true) => "role-both",
+            (false, true) => "role-supervisor",
+            _ => "role-usher"
+        };
+    }
+
+    private static string GetRoleLabel(Person p)
+    {
+        var roles = p.PersonRoles.Select(r => r.Role?.Name ?? "").Where(r => r != "User");
+        return string.Join(" / ", roles);
+    }
+
+    private static string GetEventClass(Event ev)
+    {
+        return ev.Assignments.Any() ? "event-staffed" : "event-unstaffed";
+    }
+
+    private static string GetStatusBadge(AssignmentStatus status) => status switch
+    {
+        AssignmentStatus.Confirmed => "bg-success",
+        AssignmentStatus.Assigned => "bg-primary",
+        AssignmentStatus.Offered => "bg-warning text-dark",
+        AssignmentStatus.Accepted => "bg-info",
+        AssignmentStatus.Declined => "bg-danger",
+        AssignmentStatus.Completed => "bg-secondary",
+        AssignmentStatus.Cancelled => "bg-danger",
+        _ => "bg-secondary"
+    };
+
+    private static string FormatRequirements(Event ev)
+    {
+        var otherLabel = string.IsNullOrWhiteSpace(ev.RequiredOtherLabel) ? "Other" : ev.RequiredOtherLabel;
+        return $"Supervisors: {ev.RequiredSupervisors}, Ushers: {ev.RequiredUshers}, {otherLabel}: {ev.RequiredOther}";
+    }
+
+    private static DateTime NormalizeToLocal(DateTime value)
+    {
+        return value.Kind switch
+        {
+            DateTimeKind.Utc => value.ToLocalTime(),
+            DateTimeKind.Local => value,
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Local)
+        };
+    }
+}

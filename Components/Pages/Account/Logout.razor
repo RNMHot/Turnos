@@ -1,0 +1,9 @@
+@page "/account/logout"
+@inject NavigationManager Nav
+
+@* Redirect to the controller GET endpoint which signs out and redirects *@
+
+@code {
+    protected override void OnInitialized()
+        => Nav.NavigateTo("/account/signout", forceLoad: true);
+}

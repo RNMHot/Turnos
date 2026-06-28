@@ -1,0 +1,72 @@
+@page "/messagelog"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject AppDbContext Db
+
+<PageTitle>Message Log — Turnos</PageTitle>
+
+<h4 class="mb-3"><i class="bi bi-whatsapp text-success me-2"></i>Message Log</h4>
+
+<div class="d-flex gap-2 mb-3 flex-wrap">
+    <input type="date" class="form-control form-control-sm" style="max-width:150px" @bind="filterFrom" @bind:after="Load" />
+    <input type="date" class="form-control form-control-sm" style="max-width:150px" @bind="filterTo" @bind:after="Load" />
+    <select class="form-select form-select-sm" style="max-width:150px" @bind="filterStatus" @bind:after="Load">
+        <option value="">All statuses</option>
+        <option value="Sent">Sent</option>
+        <option value="Failed">Failed</option>
+        <option value="Pending">Pending</option>
+    </select>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-sm align-middle">
+        <thead class="table-light">
+            <tr><th>Sent</th><th>Person</th><th>Event</th><th>Type</th><th>Message</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var m in messages)
+            {
+                <tr>
+                    <td class="text-nowrap">@m.SentDateTime.ToString("MMM d, h:mm tt")</td>
+                    <td>@m.Person?.FullName</td>
+                    <td>@(m.Event?.EventName ?? "—")</td>
+                    <td><span class="badge bg-secondary">@m.MessageType</span></td>
+                    <td class="text-muted small" style="max-width:280px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">@m.MessageBody</td>
+                    <td>
+                        <span class="badge @(m.DeliveryStatus == "Sent" ? "bg-success" : m.DeliveryStatus == "Failed" ? "bg-danger" : "bg-warning text-dark")">
+                            @m.DeliveryStatus
+                        </span>
+                    </td>
+                </tr>
+            }
+            @if (!messages.Any())
+            {
+                <tr><td colspan="6" class="text-muted text-center py-4">No messages found.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private List<MessageLog> messages = new();
+    private DateTime? filterFrom;
+    private DateTime? filterTo;
+    private string filterStatus = "";
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    private async Task Load()
+    {
+        var query = Db.MessageLogs
+            .Include(m => m.Person)
+            .Include(m => m.Event)
+            .AsQueryable();
+
+        if (filterFrom.HasValue) query = query.Where(m => m.SentDateTime >= filterFrom.Value);
+        if (filterTo.HasValue) query = query.Where(m => m.SentDateTime <= filterTo.Value.AddDays(1));
+        if (!string.IsNullOrEmpty(filterStatus)) query = query.Where(m => m.DeliveryStatus == filterStatus);
+
+        messages = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
+            .ToListAsync(query.OrderByDescending(m => m.SentDateTime).Take(200));
+    }
+}

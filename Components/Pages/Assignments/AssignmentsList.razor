@@ -1,0 +1,110 @@
+@page "/assignments"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject AssignmentService AssignmentSvc
+@inject ExcelExportService Excel
+@inject AuthenticationStateProvider AuthState
+@inject IJSRuntime JS
+
+<PageTitle>Assignments — Turnos</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-person-check me-2"></i>Assignments</h4>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-success btn-sm" @onclick="ExportExcel"><i class="bi bi-file-earmark-excel me-1"></i>Export</button>
+        <a href="/assignments/new" class="btn btn-primary btn-sm"><i class="bi bi-plus me-1"></i>Add Assignment</a>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(statusMsg))
+{
+    <div class="alert alert-info">@statusMsg</div>
+}
+
+<div class="table-responsive">
+    <table class="table table-hover table-sm align-middle">
+        <thead class="table-light">
+            <tr><th>Person</th><th>Event</th><th>Company</th><th>Start</th><th>End</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+            @foreach (var a in assignments)
+            {
+                <tr>
+                    <td>@a.Person?.FullName</td>
+                    <td>@a.Event?.EventName</td>
+                    <td>@a.Event?.Company?.Name</td>
+                    <td>@a.StartDateTime.ToString("MMM d, h:mm tt")</td>
+                    <td>@a.EndDateTime.ToString("h:mm tt")</td>
+                    <td>
+                        <select class="form-select form-select-sm" style="width:130px"
+                                value="@a.Status"
+                                @onchange="e => UpdateStatus(a.AssignmentId, Enum.Parse<AssignmentStatus>(e.Value!.ToString()!))">
+                            @foreach (var s in Enum.GetValues<AssignmentStatus>())
+                            {
+                                <option value="@s" selected="@(a.Status == s)">@s</option>
+                            }
+                        </select>
+                    </td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-outline-success me-1" @onclick="() => OpenMessage(a)" title="Send WhatsApp">
+                            <i class="bi bi-whatsapp"></i>
+                        </button>
+                        <a href="/assignments/@a.AssignmentId" class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></a>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => Delete(a)"><i class="bi bi-trash"></i></button>
+                    </td>
+                </tr>
+            }
+            @if (!assignments.Any())
+            {
+                <tr><td colspan="7" class="text-muted text-center py-4">No assignments found.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<MessageModal Show="showMessage" PersonId="messagePersonId" EventId="messageEventId" OnClose="CloseMessage" />
+
+@code {
+    private List<Assignment> assignments = new();
+    private string? statusMsg;
+    private string userId = "";
+    private bool showMessage;
+    private int? messagePersonId;
+    private int? messageEventId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+        await Load();
+    }
+
+    private async Task Load() => assignments = await AssignmentSvc.GetAllAsync();
+
+    private async Task UpdateStatus(int id, AssignmentStatus status)
+    {
+        await AssignmentSvc.UpdateStatusAsync(id, status, userId);
+        await Load();
+    }
+
+    private async Task Delete(Assignment a)
+    {
+        await AssignmentSvc.DeleteAsync(a.AssignmentId, userId);
+        await Load();
+    }
+
+    private void OpenMessage(Assignment a)
+    {
+        messagePersonId = a.PersonId;
+        messageEventId = a.EventId;
+        showMessage = true;
+    }
+
+    private void CloseMessage() => showMessage = false;
+
+    private async Task ExportExcel()
+    {
+        var bytes = Excel.ExportAssignments(assignments);
+        await JS.InvokeVoidAsync("downloadFile", "assignments.xlsx", Convert.ToBase64String(bytes));
+    }
+}

@@ -1,0 +1,60 @@
+@page "/auditlog"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject AuditService AuditSvc
+
+<PageTitle>Audit Log — Turnos</PageTitle>
+
+<h4 class="mb-3"><i class="bi bi-clock-history me-2"></i>Audit Log</h4>
+
+<div class="d-flex gap-2 mb-3 flex-wrap">
+    <input class="form-control form-control-sm" style="max-width:200px" placeholder="Entity type…" @bind="filterEntity" @bind:after="Load" />
+    <input type="date" class="form-control form-control-sm" style="max-width:150px" @bind="filterFrom" @bind:after="Load" />
+    <input type="date" class="form-control form-control-sm" style="max-width:150px" @bind="filterTo" @bind:after="Load" />
+</div>
+
+<div class="table-responsive">
+    <table class="table table-sm align-middle">
+        <thead class="table-light">
+            <tr><th>Timestamp</th><th>User</th><th>Action</th><th>Entity</th><th>ID</th><th>Details</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var a in logs)
+            {
+                <tr>
+                    <td class="text-nowrap">@a.Timestamp.ToString("MMM d, HH:mm")</td>
+                    <td class="text-muted small">@a.UserId[..Math.Min(12, a.UserId.Length)]…</td>
+                    <td>
+                        <span class="badge @(a.Action == "Create" ? "bg-success" : a.Action == "Delete" ? "bg-danger" : "bg-primary")">
+                            @a.Action
+                        </span>
+                    </td>
+                    <td>@a.EntityType</td>
+                    <td>@a.EntityId</td>
+                    <td class="text-muted small">@a.Details</td>
+                </tr>
+            }
+            @if (!logs.Any())
+            {
+                <tr><td colspan="6" class="text-muted text-center py-4">No audit entries found.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private List<AuditLog> logs = new();
+    private string filterEntity = "";
+    private DateTime? filterFrom;
+    private DateTime? filterTo;
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    private async Task Load()
+    {
+        logs = await AuditSvc.GetLogsAsync(
+            entityType: string.IsNullOrWhiteSpace(filterEntity) ? null : filterEntity,
+            from: filterFrom,
+            to: filterTo);
+    }
+}

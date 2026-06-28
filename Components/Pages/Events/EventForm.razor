@@ -1,0 +1,182 @@
+@page "/events/new"
+@page "/events/{Id:int}"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject EventService EventSvc
+@inject CompanyService CompanySvc
+@inject LocationService LocationSvc
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Nav
+
+<PageTitle>@(Id == 0 ? "Nuevo Evento" : "Editar Evento") — Turnos</PageTitle>
+
+<div class="d-flex align-items-center gap-2 mb-3">
+    <a href="/events" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i></a>
+    <h4 class="mb-0">@(Id == 0 ? "Nuevo Evento" : "Editar Evento")</h4>
+</div>
+
+<div class="card shadow-sm" style="max-width:700px">
+    <div class="card-body">
+        <EditForm Model="ev" OnValidSubmit="Save">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" />
+
+            <div class="row g-3">
+                <div class="col-12">
+                    <label class="form-label">Nombre de evento *</label>
+                    <InputText @bind-Value="ev.EventName" class="form-control" />
+                    <ValidationMessage For="() => ev.EventName" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Cliente *</label>
+                    <InputSelect @bind-Value="ev.CompanyId" class="form-select">
+                        <option value="0">— Seleccionar cliente —</option>
+                        @foreach (var c in companies)
+                        {
+                            <option value="@c.CompanyId">@c.Name</option>
+                        }
+                    </InputSelect>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Localización</label>
+                    <InputSelect @bind-Value="ev.LocationId" class="form-select">
+                        <option value="">— Sin localización —</option>
+                        @foreach (var l in locations)
+                        {
+                            <option value="@l.LocationId">@l.Name</option>
+                        }
+                    </InputSelect>
+                    @if (ev.LocationId.HasValue)
+                    {
+                        var sel = locations.FirstOrDefault(l => l.LocationId == ev.LocationId);
+                        if (sel?.Latitude.HasValue == true)
+                        {
+                            <a href="https://maps.google.com/?q=@sel.Latitude,@sel.Longitude"
+                               target="_blank" rel="noopener"
+                               class="small text-muted text-decoration-none">
+                                <i class="bi bi-pin-map me-1"></i>Ver en el mapa
+                            </a>
+                        }
+                    }
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Fecha y hora de inicio</label>
+                    <input type="datetime-local" class="form-control" @bind="startLocal" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Fecha y hora de fin</label>
+                    <input type="datetime-local" class="form-control" @bind="endLocal" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Supervisores requeridos</label>
+                    <InputNumber @bind-Value="ev.RequiredSupervisors" class="form-control" />
+                    <ValidationMessage For="() => ev.RequiredSupervisors" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Ushers requeridos</label>
+                    <InputNumber @bind-Value="ev.RequiredUshers" class="form-control" />
+                    <ValidationMessage For="() => ev.RequiredUshers" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Otros requeridos</label>
+                    <InputNumber @bind-Value="ev.RequiredOther" class="form-control" />
+                    <ValidationMessage For="() => ev.RequiredOther" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Etiqueta de otros</label>
+                    <InputText @bind-Value="ev.RequiredOtherLabel" class="form-control" />
+                    <ValidationMessage For="() => ev.RequiredOtherLabel" />
+                </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        <InputCheckbox @bind-Value="ev.IsRecurring" class="form-check-input" id="recurring" />
+                        <label class="form-check-label" for="recurring">Evento recurrente</label>
+                    </div>
+                </div>
+                @if (ev.IsRecurring)
+                {
+                    <div class="col-md-6">
+                        <label class="form-label">Patrón de recurrencia</label>
+                        <InputSelect @bind-Value="ev.RecurrencePattern" class="form-select">
+                            <option value="Weekly">Semanal</option>
+                            <option value="Monthly">Mensual</option>
+                            <option value="SelectedWeekdays">Días de la semana seleccionados</option>
+                        </InputSelect>
+                    </div>
+                }
+                <div class="col-12">
+                    <label class="form-label">Notas</label>
+                    <InputTextArea @bind-Value="ev.Notes" class="form-control" rows="3" />
+                </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        <InputCheckbox @bind-Value="ev.Active" class="form-check-input" id="active" />
+                        <label class="form-check-label" for="active">Activo</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2 mt-3">
+                <button type="submit" class="btn btn-primary" disabled="@saving">@(saving ? "Guardando…" : "Guardar")</button>
+                <a href="/events" class="btn btn-outline-secondary">Cancelar</a>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Event ev = new()
+    {
+        Active = true,
+        StartDateTime = DateTime.UtcNow,
+        EndDateTime = DateTime.UtcNow.AddHours(4),
+        RequiredOtherLabel = "Otros"
+    };
+    private List<Company> companies = new();
+    private List<Location> locations = new();
+    private bool saving;
+    private string userId = "";
+    private DateTime startLocal;
+    private DateTime endLocal;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+        companies = await CompanySvc.GetAllAsync();
+        locations = await LocationSvc.GetAllAsync();
+
+        if (Id != 0)
+        {
+            var existing = await EventSvc.GetByIdAsync(Id);
+            if (existing is not null) ev = existing;
+        }
+        if (string.IsNullOrWhiteSpace(ev.RequiredOtherLabel))
+            ev.RequiredOtherLabel = "Otros";
+        startLocal = ToLocalInputTime(ev.StartDateTime);
+        endLocal = ToLocalInputTime(ev.EndDateTime);
+    }
+
+    private async Task Save()
+    {
+        saving = true;
+        ev.StartDateTime = DateTime.SpecifyKind(startLocal, DateTimeKind.Local).ToUniversalTime();
+        ev.EndDateTime = DateTime.SpecifyKind(endLocal, DateTimeKind.Local).ToUniversalTime();
+
+        if (Id == 0) await EventSvc.CreateAsync(ev, userId);
+        else await EventSvc.UpdateAsync(ev, userId);
+        Nav.NavigateTo("/events");
+    }
+
+    private static DateTime ToLocalInputTime(DateTime value)
+    {
+        return value.Kind switch
+        {
+            DateTimeKind.Utc => value.ToLocalTime(),
+            DateTimeKind.Local => value,
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Local)
+        };
+    }
+}

@@ -1,0 +1,118 @@
+@page "/events"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject EventService EventSvc
+@inject CompanyService CompanySvc
+@inject ExcelExportService Excel
+@inject AuthenticationStateProvider AuthState
+@inject IJSRuntime JS
+
+<PageTitle>Eventos — Turnos</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-calendar-event me-2"></i>Eventos</h4>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-success btn-sm" @onclick="ExportExcel"><i class="bi bi-file-earmark-excel me-1"></i>Exportar</button>
+        <a href="/events/new" class="btn btn-primary btn-sm"><i class="bi bi-plus me-1"></i>Agregar Evento</a>
+    </div>
+</div>
+
+<div class="d-flex gap-2 mb-3 flex-wrap">
+    <input class="form-control form-control-sm" style="max-width:220px" placeholder="Búsqueda…" @bind="search" @bind:event="oninput" @bind:after="Load" />
+    <select class="form-select form-select-sm" style="max-width:180px" @bind="filterCompanyId" @bind:after="Load">
+        <option value="">Clientes</option>
+        @foreach (var c in companies)
+        {
+            <option value="@c.CompanyId">@c.Name</option>
+        }
+    </select>
+    <input type="date" class="form-control form-control-sm" style="max-width:150px" @bind="filterFrom" @bind:after="Load" />
+    <input type="date" class="form-control form-control-sm" style="max-width:150px" @bind="filterTo" @bind:after="Load" />
+    <select class="form-select form-select-sm" style="max-width:130px" @bind="filterActive" @bind:after="Load">
+        <option value="">Todos los estados</option>
+        <option value="true">Activo</option>
+        <option value="false">Inactivo</option>
+    </select>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-hover table-sm align-middle">
+        <thead class="table-light">
+            <tr><th>Evento</th><th>Cliente</th><th>Inicio</th><th>Fin</th><th>Requerido</th><th>Ubicación</th><th>Estado</th><th></th></tr>
+        </thead>
+        <tbody>
+            @foreach (var e in events)
+            {
+                <tr class="@(!e.Active ? "table-secondary text-muted" : "")">
+                    <td>@e.EventName @(e.IsRecurring ? "<span class='badge bg-info text-dark ms-1'>Recurrente</span>" : "")</td>
+                    <td>@e.Company?.Name</td>
+                    <td>@e.StartDateTime.ToString("MMM d, h:mm tt")</td>
+                    <td>@e.EndDateTime.ToString("h:mm tt")</td>
+                    <td>@FormatRequirements(e)</td>
+                    <td>@e.Location</td>
+                    <td>
+                        @if (e.Active)
+                        {
+                            <span class="badge bg-success">Activo</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Inactivo</span>
+                        }
+                    </td>
+                    <td class="text-end">
+                        <a href="/events/@e.EventId" class="btn btn-sm btn-outline-primary me-1" title="Editar"><i class="bi bi-pencil"></i></a>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => Deactivate(e)" title="Eliminar"><i class="bi bi-x-circle"></i></button>
+                    </td>
+                </tr>
+            }
+            @if (!events.Any())
+            {
+                <tr><td colspan="8" class="text-muted text-center py-4">No se encontraron eventos.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private List<Event> events = new();
+    private List<Company> companies = new();
+    private string search = "";
+    private int? filterCompanyId;
+    private DateTime? filterFrom;
+    private DateTime? filterTo;
+    private string filterActive = "true";
+    private string userId = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+        companies = await CompanySvc.GetAllAsync();
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        bool? active = filterActive == "true" ? true : filterActive == "false" ? false : null;
+        events = await EventSvc.GetAllAsync(search, filterCompanyId, filterFrom, filterTo, active);
+    }
+
+    private async Task Deactivate(Event e)
+    {
+        await EventSvc.DeactivateAsync(e.EventId, userId);
+        await Load();
+    }
+
+    private async Task ExportExcel()
+    {
+        var bytes = Excel.ExportEvents(events);
+        await JS.InvokeVoidAsync("downloadFile", "events.xlsx", Convert.ToBase64String(bytes));
+    }
+
+    private static string FormatRequirements(Event ev)
+    {
+        var otherLabel = string.IsNullOrWhiteSpace(ev.RequiredOtherLabel) ? "Otro" : ev.RequiredOtherLabel;
+        return $"Sup: {ev.RequiredSupervisors}, Ushers: {ev.RequiredUshers}, {otherLabel}: {ev.RequiredOther}";
+    }
+}

@@ -1,0 +1,103 @@
+@page "/locations"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject LocationService LocationSvc
+@inject AuthenticationStateProvider AuthState
+
+<PageTitle>Locations — Turnos</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-geo-alt me-2"></i>Locations</h4>
+    <a href="/locations/new" class="btn btn-primary btn-sm"><i class="bi bi-plus me-1"></i>Add Location</a>
+</div>
+
+<input class="form-control form-control-sm mb-3" style="max-width:280px"
+       placeholder="Search…" @bind="search" @bind:event="oninput" @bind:after="Load" />
+
+@if (deleteError is not null)
+{
+    <div class="alert alert-warning alert-dismissible py-2">
+        @deleteError
+        <button class="btn-close" @onclick="() => deleteError = null"></button>
+    </div>
+}
+
+<div class="table-responsive">
+    <table class="table table-hover table-sm align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>Name</th>
+                <th>Address</th>
+                <th>Coordinates</th>
+                <th>Parking</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var loc in locations)
+            {
+                <tr>
+                    <td class="fw-semibold">@loc.Name</td>
+                    <td class="text-muted small">@Truncate(loc.Address, 60)</td>
+                    <td class="small">
+                        @if (loc.Latitude.HasValue && loc.Longitude.HasValue)
+                        {
+                            <a href="https://maps.google.com/?q=@loc.Latitude,@loc.Longitude"
+                               target="_blank" rel="noopener"
+                               class="text-decoration-none text-muted"
+                               title="Open in Google Maps">
+                                <i class="bi bi-pin-map me-1"></i>
+                                @loc.Latitude.Value.ToString("F5"), @loc.Longitude.Value.ToString("F5")
+                            </a>
+                        }
+                        else
+                        {
+                            <span class="text-muted">—</span>
+                        }
+                    </td>
+                    <td class="text-muted small">@Truncate(loc.ParkingInfo, 50)</td>
+                    <td class="text-end">
+                        <a href="/locations/@loc.LocationId" class="btn btn-sm btn-outline-primary me-1">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => Delete(loc)">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            }
+            @if (!locations.Any())
+            {
+                <tr><td colspan="5" class="text-muted text-center py-4">No locations found.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private List<Location> locations = new();
+    private string search = "";
+    private string userId = "";
+    private string? deleteError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+        await Load();
+    }
+
+    private async Task Load() => locations = await LocationSvc.GetAllAsync(search);
+
+    private async Task Delete(Location loc)
+    {
+        var ok = await LocationSvc.DeleteAsync(loc.LocationId, userId);
+        if (!ok)
+            deleteError = $"\"{loc.Name}\" is assigned to one or more events and cannot be deleted. Remove it from those events first.";
+        else
+            await Load();
+    }
+
+    private static string? Truncate(string? value, int max) =>
+        value is null ? null : value.Length <= max ? value : value[..max] + "…";
+}
