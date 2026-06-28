@@ -6,11 +6,11 @@
 @inject AuthenticationStateProvider AuthState
 @inject NavigationManager Nav
 
-<PageTitle>@(Id == 0 ? "New Location" : "Edit Location") — Turnos</PageTitle>
+<PageTitle>@(Id == 0 ? "Nueva Localidad" : "Editar Localidad") — Turnos</PageTitle>
 
 <div class="d-flex align-items-center gap-2 mb-3">
     <a href="/locations" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i></a>
-    <h4 class="mb-0">@(Id == 0 ? "New Location" : "Edit Location")</h4>
+    <h4 class="mb-0">@(Id == 0 ? "Nueva Localidad" : "Editar Localidad")</h4>
 </div>
 
 <div class="card shadow-sm" style="max-width:680px">
@@ -21,28 +21,28 @@
 
             <div class="row g-3">
                 <div class="col-12">
-                    <label class="form-label">Location Name *</label>
-                    <InputText @bind-Value="loc.Name" class="form-control" placeholder="e.g. Convention Center Hall A" />
+                    <label class="form-label">Nombre de la Localidad *</label>
+                    <InputText @bind-Value="loc.Name" class="form-control" placeholder="e.g. Salón A del Centro de Convenciones" />
                     <ValidationMessage For="() => loc.Name" />
                 </div>
 
                 <div class="col-12">
-                    <label class="form-label">Address</label>
+                    <label class="form-label">Dirección</label>
                     <InputTextArea @bind-Value="loc.Address" class="form-control" rows="2"
-                                   placeholder="Street, city, state, ZIP…" />
+                                   placeholder="Calle, ciudad, estado, código postal…" />
                 </div>
 
                 <div class="col-md-5">
-                    <label class="form-label">Latitude</label>
+                    <label class="form-label">Latitud</label>
                     <InputNumber @bind-Value="loc.Latitude" class="form-control"
                                  placeholder="e.g. 25.774772" />
-                    <div class="form-text">Decimal degrees (positive = North)</div>
+                    <div class="form-text">Grados decimales (positivo = Norte)</div>
                 </div>
                 <div class="col-md-5">
-                    <label class="form-label">Longitude</label>
+                    <label class="form-label">Longitud</label>
                     <InputNumber @bind-Value="loc.Longitude" class="form-control"
                                  placeholder="e.g. -80.185942" />
-                    <div class="form-text">Decimal degrees (negative = West)</div>
+                    <div class="form-text">Grados decimales (negativo = Oeste)</div>
                 </div>
                 <div class="col-md-2 d-flex align-items-end pb-1">
                     @if (loc.Latitude.HasValue && loc.Longitude.HasValue)
@@ -50,24 +50,24 @@
                         <a href="https://maps.google.com/?q=@loc.Latitude,@loc.Longitude"
                            target="_blank" rel="noopener"
                            class="btn btn-outline-secondary btn-sm w-100"
-                           title="Preview on Google Maps">
-                            <i class="bi bi-map"></i> Map
+                           title="Ver en Google Maps">
+                            <i class="bi bi-map"></i> Mapa
                         </a>
                     }
                 </div>
 
                 <div class="col-12">
-                    <label class="form-label">Parking Information</label>
+                    <label class="form-label">Información de Estacionamiento</label>
                     <InputTextArea @bind-Value="loc.ParkingInfo" class="form-control" rows="3"
-                                   placeholder="Describe parking options, costs, entrances…" />
+                                   placeholder="Describe las opciones de estacionamiento, costos, entradas…" />
                 </div>
             </div>
 
             <div class="d-flex gap-2 mt-3">
                 <button type="submit" class="btn btn-primary" disabled="@saving">
-                    @(saving ? "Saving…" : "Save")
+                    @(saving ? "Guardando…" : "Guardar")
                 </button>
-                <a href="/locations" class="btn btn-outline-secondary">Cancel</a>
+                <a href="/locations" class="btn btn-outline-secondary">Cancelar</a>
             </div>
         </EditForm>
     </div>

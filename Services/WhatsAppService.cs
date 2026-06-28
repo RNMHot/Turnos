@@ -58,7 +58,7 @@ public class WhatsAppService
     {
         var assignments = await _db.Assignments
             .Include(a => a.Person)
-            .Where(a => a.EventId == eventId && a.Status != AssignmentStatus.Cancelled && a.Status != AssignmentStatus.Declined)
+            .Where(a => a.EventId == eventId && a.Status != AssignmentStatus.Cancelado && a.Status != AssignmentStatus.Rechazado)
             .ToListAsync();
 
         foreach (var assignment in assignments)

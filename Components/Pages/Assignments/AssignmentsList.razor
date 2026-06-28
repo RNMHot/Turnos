@@ -6,13 +6,13 @@
 @inject AuthenticationStateProvider AuthState
 @inject IJSRuntime JS
 
-<PageTitle>Assignments — Turnos</PageTitle>
+<PageTitle>Asignaciones — Turnos</PageTitle>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0"><i class="bi bi-person-check me-2"></i>Assignments</h4>
+    <h4 class="mb-0"><i class="bi bi-person-check me-2"></i>Asignaciones</h4>
     <div class="d-flex gap-2">
-        <button class="btn btn-outline-success btn-sm" @onclick="ExportExcel"><i class="bi bi-file-earmark-excel me-1"></i>Export</button>
-        <a href="/assignments/new" class="btn btn-primary btn-sm"><i class="bi bi-plus me-1"></i>Add Assignment</a>
+        <button class="btn btn-outline-success btn-sm" @onclick="ExportExcel"><i class="bi bi-file-earmark-excel me-1"></i>Exportar</button>
+        <a href="/assignments/new" class="btn btn-primary btn-sm"><i class="bi bi-plus me-1"></i>Nueva Asignación</a>
     </div>
 </div>
 
@@ -24,7 +24,7 @@
 <div class="table-responsive">
     <table class="table table-hover table-sm align-middle">
         <thead class="table-light">
-            <tr><th>Person</th><th>Event</th><th>Company</th><th>Start</th><th>End</th><th>Status</th><th></th></tr>
+            <tr><th>Persona</th><th>Evento</th><th>Compañía</th><th>Inicio</th><th>Fin</th><th>Estado</th><th></th></tr>
         </thead>
         <tbody>
             @foreach (var a in assignments)

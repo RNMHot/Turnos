@@ -1,0 +1,9 @@
+* text=auto
+
+*.sln text eol=crlf
+*.csproj text eol=crlf
+*.razor text eol=crlf
+*.cs text eol=crlf
+*.json text eol=crlf
+*.md text eol=lf
+*.sh text eol=lf

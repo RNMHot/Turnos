@@ -94,7 +94,9 @@
                                         @FormatRequirements(ev)
                                     </div>
                                     <div class="event-assignments small">
-                                        @foreach (var a in ev.Assignments.Where(a => a.Status != AssignmentStatus.Cancelled))
+                                        @foreach (var a in ev.Assignments.Where(a => a.Status != AssignmentStatus.Cancelado))
+                                        {
+                                            <span class="assignment
                                         {
                                             <span class="assignment-badge">@a.Person.FullName</span>
                                         }
@@ -263,12 +265,12 @@
             PersonId = draggedPerson.PersonId,
             StartDateTime = ev.StartDateTime,
             EndDateTime = ev.EndDateTime,
-            Status = AssignmentStatus.Assigned
+            Status = AssignmentStatus.Asignado
         };
 
         var (success, errMsg) = await AssignmentSvc.CreateAsync(assignment, currentUserId);
         dropSuccess = success;
-        dropMessage = success ? $"Assigned {draggedPerson.FullName} to {ev.EventName}" : errMsg;
+        dropMessage = success ? $"Asignado {draggedPerson.FullName} a {ev.EventName}" : errMsg;
         draggedPerson = null;
 
         if (success) await LoadData();
@@ -315,20 +317,20 @@
 
     private static string GetStatusBadge(AssignmentStatus status) => status switch
     {
-        AssignmentStatus.Confirmed => "bg-success",
-        AssignmentStatus.Assigned => "bg-primary",
-        AssignmentStatus.Offered => "bg-warning text-dark",
-        AssignmentStatus.Accepted => "bg-info",
-        AssignmentStatus.Declined => "bg-danger",
-        AssignmentStatus.Completed => "bg-secondary",
-        AssignmentStatus.Cancelled => "bg-danger",
+        AssignmentStatus.Confirmado => "bg-success",
+        AssignmentStatus.Asignado => "bg-primary",
+        AssignmentStatus.Ofrecido => "bg-warning text-dark",
+        AssignmentStatus.Aceptado => "bg-info",
+        AssignmentStatus.Rechazado => "bg-danger",
+        AssignmentStatus.Completado => "bg-secondary",
+        AssignmentStatus.Cancelado => "bg-danger",
         _ => "bg-secondary"
     };
 
     private static string FormatRequirements(Event ev)
     {
-        var otherLabel = string.IsNullOrWhiteSpace(ev.RequiredOtherLabel) ? "Other" : ev.RequiredOtherLabel;
-        return $"Supervisors: {ev.RequiredSupervisors}, Ushers: {ev.RequiredUshers}, {otherLabel}: {ev.RequiredOther}";
+        var otherLabel = string.IsNullOrWhiteSpace(ev.RequiredOtherLabel) ? "Otro" : ev.RequiredOtherLabel;
+        return $"Supervisores: {ev.RequiredSupervisors}, Ushers: {ev.RequiredUshers}, {otherLabel}: {ev.RequiredOther}";
     }
 
     private static DateTime NormalizeToLocal(DateTime value)

@@ -30,15 +30,15 @@
     <input type="date" class="form-control form-control-sm" style="max-width:150px" @bind="filterTo" @bind:after="Load" />
     <select class="form-select form-select-sm" style="max-width:130px" @bind="filterActive" @bind:after="Load">
         <option value="">Todos los estados</option>
-        <option value="true">Activo</option>
-        <option value="false">Inactivo</option>
+        <option value="true">Activos</option>
+        <option value="false">Inactivos</option>
     </select>
 </div>
 
 <div class="table-responsive">
     <table class="table table-hover table-sm align-middle">
         <thead class="table-light">
-            <tr><th>Evento</th><th>Cliente</th><th>Inicio</th><th>Fin</th><th>Requerido</th><th>Ubicación</th><th>Estado</th><th></th></tr>
+            <tr><th>Evento</th><th>Cliente</th><th>Inicio</th><th>Fin</th><th>Personal</th><th>Localización</th><th>Estado</th><th></th></tr>
         </thead>
         <tbody>
             @foreach (var e in events)
@@ -49,7 +49,7 @@
                     <td>@e.StartDateTime.ToString("MMM d, h:mm tt")</td>
                     <td>@e.EndDateTime.ToString("h:mm tt")</td>
                     <td>@FormatRequirements(e)</td>
-                    <td>@e.Location</td>
+                    <td>@(e.Location?.Name ?? "—")</td>
                     <td>
                         @if (e.Active)
                         {

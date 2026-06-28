@@ -93,8 +93,8 @@ public class AssignmentService
     {
         var query = _db.Assignments.Where(a =>
             a.PersonId == personId &&
-            a.Status != AssignmentStatus.Cancelled &&
-            a.Status != AssignmentStatus.Declined &&
+            a.Status != AssignmentStatus.Cancelado &&
+            a.Status != AssignmentStatus.Rechazado &&
             a.StartDateTime < end && a.EndDateTime > start);
 
         if (excludeId.HasValue)

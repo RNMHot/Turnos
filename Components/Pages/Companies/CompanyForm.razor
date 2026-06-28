@@ -6,11 +6,11 @@
 @inject AuthenticationStateProvider AuthState
 @inject NavigationManager Nav
 
-<PageTitle>@(Id == 0 ? "New Company" : "Edit Company") — Turnos</PageTitle>
+<PageTitle>@(Id == 0 ? "Nuevo Cliente" : "Editar Cliente") — Turnos</PageTitle>
 
 <div class="d-flex align-items-center gap-2 mb-3">
     <a href="/companies" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i></a>
-    <h4 class="mb-0">@(Id == 0 ? "New Company" : "Edit Company")</h4>
+    <h4 class="mb-0">@(Id == 0 ? "Nuevo Cliente" : "Editar Cliente")</h4>
 </div>
 
 <div class="card shadow-sm" style="max-width:600px">
@@ -20,16 +20,16 @@
             <ValidationSummary class="text-danger" />
 
             <div class="mb-3">
-                <label class="form-label">Company Name *</label>
+                <label class="form-label">Nombre del Cliente *</label>
                 <InputText @bind-Value="company.Name" class="form-control" />
                 <ValidationMessage For="() => company.Name" />
             </div>
             <div class="mb-3">
-                <label class="form-label">Contact Name</label>
+                <label class="form-label">Nombre del Contacto</label>
                 <InputText @bind-Value="company.ContactName" class="form-control" />
             </div>
             <div class="mb-3">
-                <label class="form-label">Phone</label>
+                <label class="form-label">Teléfono</label>
                 <InputText @bind-Value="company.PhoneNumber" class="form-control" />
             </div>
             <div class="mb-3">
@@ -37,13 +37,13 @@
                 <InputText @bind-Value="company.Email" class="form-control" type="email" />
             </div>
             <div class="mb-3">
-                <label class="form-label">Notes</label>
+                <label class="form-label">Notas</label>
                 <InputTextArea @bind-Value="company.Notes" class="form-control" rows="3" />
             </div>
 
             <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-primary" disabled="@saving">@(saving ? "Saving…" : "Save")</button>
-                <a href="/companies" class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary" disabled="@saving">@(saving ? "Guardando…" : "Guardar")</button>
+                <a href="/companies" class="btn btn-outline-secondary">Cancelar</a>
             </div>
         </EditForm>
     </div>

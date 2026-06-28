@@ -83,7 +83,7 @@
                                 }
                                 else
                                 {
-                                    @foreach (var a in ev.Assignments.Where(a => a.Status != AssignmentStatus.Cancelled))
+                                    @foreach (var a in ev.Assignments.Where(a => a.Status != AssignmentStatus.Cancelado))
                                     {
                                         <div class="assignment-row d-flex align-items-center justify-content-between gap-2">
                                             <div class="d-flex align-items-center gap-2">
@@ -160,7 +160,7 @@
             PersonId = draggedPerson.PersonId,
             StartDateTime = ev.StartDateTime,
             EndDateTime = ev.EndDateTime,
-            Status = AssignmentStatus.Assigned
+            Status = AssignmentStatus.Asignado
         };
 
         var (success, errMsg) = await AssignmentSvc.CreateAsync(assignment, currentUserId);
@@ -209,20 +209,20 @@
 
     private static string GetEventClass(Event ev)
     {
-        return ev.Assignments.Any(a => a.Status != AssignmentStatus.Cancelled)
+        return ev.Assignments.Any(a => a.Status != AssignmentStatus.Cancelado)
             ? "event-staffed"
             : "event-unstaffed";
     }
 
     private static string GetStatusBadge(AssignmentStatus status) => status switch
     {
-        AssignmentStatus.Confirmed => "bg-success",
-        AssignmentStatus.Assigned => "bg-primary",
-        AssignmentStatus.Offered => "bg-warning text-dark",
-        AssignmentStatus.Accepted => "bg-info",
-        AssignmentStatus.Declined => "bg-danger",
-        AssignmentStatus.Completed => "bg-secondary",
-        AssignmentStatus.Cancelled => "bg-danger",
+        AssignmentStatus.Confirmado => "bg-success",
+        AssignmentStatus.Asignado => "bg-primary",
+        AssignmentStatus.Ofrecido => "bg-warning text-dark",
+        AssignmentStatus.Aceptado => "bg-info",
+        AssignmentStatus.Rechazado => "bg-danger",
+        AssignmentStatus.Completado => "bg-secondary",
+        AssignmentStatus.Cancelado => "bg-danger",
         _ => "bg-secondary"
     };
 

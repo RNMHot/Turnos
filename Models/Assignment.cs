@@ -2,14 +2,14 @@ namespace Turnos.Models;
 
 public enum AssignmentStatus
 {
-    Open,
-    Offered,
-    Accepted,
-    Declined,
-    Assigned,
-    Confirmed,
-    Completed,
-    Cancelled
+    Disponible,
+    Ofrecido,
+    Aceptado,
+    Rechazado,
+    Asignado,
+    Confirmado,
+    Completado,
+    Cancelado
 }
 
 public class Assignment
@@ -25,7 +25,7 @@ public class Assignment
     public DateTime StartDateTime { get; set; }
     public DateTime EndDateTime { get; set; }
 
-    public AssignmentStatus Status { get; set; } = AssignmentStatus.Open;
+    public AssignmentStatus Status { get; set; } = AssignmentStatus.Disponible;
 
     public string? Notes { get; set; }
 }

@@ -6,16 +6,16 @@
 @inject AuthenticationStateProvider AuthState
 @inject NavigationManager Nav
 
-<PageTitle>@(Id == 0 ? "New Person" : "Edit Person") — Turnos</PageTitle>
+<PageTitle>@(Id == 0 ? "Nueva Persona" : "Editar Persona") — Turnos</PageTitle>
 
 <div class="d-flex align-items-center gap-2 mb-3">
     <a href="/personnel" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i></a>
-    <h4 class="mb-0">@(Id == 0 ? "New Person" : "Edit Person")</h4>
+    <h4 class="mb-0">@(Id == 0 ? "Nueva Persona" : "Editar Persona")</h4>
 </div>
 
 @if (loading)
 {
-    <p class="text-muted">Loading…</p>
+    <p class="text-muted">Cargando…</p>
 }
 else
 {
@@ -31,12 +31,12 @@ else
                 }
 
                 <div class="mb-3">
-                    <label class="form-label">Full Name *</label>
+                    <label class="form-label">Nombre completo *</label>
                     <InputText @bind-Value="person.FullName" class="form-control" />
                     <ValidationMessage For="() => person.FullName" />
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Phone Number *</label>
+                    <label class="form-label">Número de teléfono *</label>
                     <InputText @bind-Value="person.PhoneNumber" class="form-control" placeholder="+1 555 000 0000" />
                     <ValidationMessage For="() => person.PhoneNumber" />
                 </div>
@@ -59,19 +59,19 @@ else
                     </div>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Notes</label>
+                    <label class="form-label">Notas</label>
                     <InputTextArea @bind-Value="person.Notes" class="form-control" rows="3" />
                 </div>
                 <div class="mb-3 form-check">
                     <InputCheckbox @bind-Value="person.Active" class="form-check-input" id="active" />
-                    <label class="form-check-label" for="active">Active</label>
+                    <label class="form-check-label" for="active">Activo</label>
                 </div>
 
                 <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-primary" disabled="@saving">
-                        @(saving ? "Saving…" : "Save")
+                        @(saving ? "Guardando…" : "Guardar")
                     </button>
-                    <a href="/personnel" class="btn btn-outline-secondary">Cancel</a>
+                    <a href="/personnel" class="btn btn-outline-secondary">Cancelar</a>
                 </div>
             </EditForm>
         </div>

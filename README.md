@@ -13,6 +13,14 @@ Turnos is a Blazor Server application for planning and managing event staffing (
 ## Prerequisites
 
 - .NET SDK 9.0+
+- Visual Studio Community 2022 (17.10+) with ASP.NET and web development workload (optional)
+
+## Open In Either IDE
+
+- VS Code: open the folder and run `dotnet run` from the integrated terminal.
+- Visual Studio Community: open `Turnos.sln` and start with F5 or Ctrl+F5.
+
+You can switch back and forth between both IDEs. Keep using the same Git branch/repository and avoid committing user-specific IDE files (`.vs/`, `.vscode/`, `*.user`, `*.suo`).
 
 ## Getting Started
 
@@ -48,6 +56,12 @@ Build:
 
 ```bash
 dotnet build
+```
+
+Build solution (Visual Studio compatible):
+
+```bash
+dotnet build Turnos.sln
 ```
 
 Run in Development environment:

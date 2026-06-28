@@ -60,25 +60,25 @@
                     }
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Fecha y hora de inicio</label>
+                    <label class="form-label">Inicio</label>
                     <input type="datetime-local" class="form-control" @bind="startLocal" />
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Fecha y hora de fin</label>
+                    <label class="form-label">Fin</label>
                     <input type="datetime-local" class="form-control" @bind="endLocal" />
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Supervisores requeridos</label>
+                    <label class="form-label">Supervisores</label>
                     <InputNumber @bind-Value="ev.RequiredSupervisors" class="form-control" />
                     <ValidationMessage For="() => ev.RequiredSupervisors" />
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Ushers requeridos</label>
+                    <label class="form-label">Ushers</label>
                     <InputNumber @bind-Value="ev.RequiredUshers" class="form-control" />
                     <ValidationMessage For="() => ev.RequiredUshers" />
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Otros requeridos</label>
+                    <label class="form-label">Otros</label>
                     <InputNumber @bind-Value="ev.RequiredOther" class="form-control" />
                     <ValidationMessage For="() => ev.RequiredOther" />
                 </div>
@@ -90,7 +90,7 @@
                 <div class="col-12">
                     <div class="form-check">
                         <InputCheckbox @bind-Value="ev.IsRecurring" class="form-check-input" id="recurring" />
-                        <label class="form-check-label" for="recurring">Evento recurrente</label>
+                        <label class="form-check-label" for="recurring">Evento es recurrente</label>
                     </div>
                 </div>
                 @if (ev.IsRecurring)
