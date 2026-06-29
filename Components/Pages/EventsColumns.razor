@@ -62,7 +62,7 @@
                         var localEnd = ev.EndDateTime.ToLocalTime();
 
                         <section class="event-column">
-                            <header class="event-column-header @GetEventClass(ev)">
+                            <header class="event-column-header @GetEventClass(ev)" style="cursor:pointer" @onclick="() => OpenEventDetail(ev)">
                                 <div class="event-title">@ev.EventName</div>
                                 <div class="event-meta">@localStart.ToString("ddd, MMM d")</div>
                                 <div class="event-meta">@localStart.ToString("h:mm tt") - @localEnd.ToString("h:mm tt")</div>
@@ -107,12 +107,70 @@
     </div>
 </div>
 
+@if (selectedEvent is not null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.4)">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@selectedEvent.EventName</h5>
+                    <button class="btn-close" @onclick="() => selectedEvent = null"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Company:</strong> @selectedEvent.Company?.Name</p>
+                    <p><strong>Time:</strong> @selectedEvent.StartDateTime.ToLocalTime().ToString("MMM d, h:mm tt") – @selectedEvent.EndDateTime.ToLocalTime().ToString("h:mm tt")</p>
+                    <p><strong>Required Team:</strong> @FormatRequirements(selectedEvent)</p>
+                    <p>
+                        <strong>Location:</strong> @(selectedEvent.Location?.Name ?? "—")
+                        @if (selectedEvent.Location?.Latitude.HasValue == true)
+                        {
+                            <a href="https://maps.google.com/?q=@selectedEvent.Location.Latitude,@selectedEvent.Location.Longitude"
+                               target="_blank" rel="noopener" class="ms-2 small text-muted text-decoration-none">
+                                <i class="bi bi-pin-map"></i> Map
+                            </a>
+                        }
+                    </p>
+                    @if (!string.IsNullOrEmpty(selectedEvent.Notes))
+                    {
+                        <p><strong>Notes:</strong> @selectedEvent.Notes</p>
+                    }
+                    <hr />
+                    <h6>Assignments</h6>
+                    @foreach (var a in selectedEvent.Assignments)
+                    {
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <span class="@GetRoleClass(a.Person) px-2 py-1 rounded small">@a.Person.FullName</span>
+                            <span class="badge @GetStatusBadge(a.Status)">@a.Status</span>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveAssignment(a.AssignmentId)">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <a href="/events/@selectedEvent.EventId" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-pencil me-1"></i> Edit Event
+                    </a>
+                    <button class="btn btn-outline-success btn-sm" @onclick="OpenMessageModal">
+                        <i class="bi bi-whatsapp me-1"></i> Send Message
+                    </button>
+                    <button class="btn btn-secondary" @onclick="() => selectedEvent = null">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<MessageModal Show="showMessageModal" EventId="selectedEvent?.EventId" OnClose="CloseMessageModal" />
+
 @code {
     private List<Event> activeEvents = new();
     private List<Person> availablePersonnel = new();
     private List<Person> filteredPersonnel = new();
     private string personSearch = "";
     private Person? draggedPerson;
+    private Event? selectedEvent;
+    private bool showMessageModal;
     private string? dropMessage;
     private bool dropSuccess;
     private string currentUserId = "";
@@ -186,7 +244,13 @@
     {
         await AssignmentSvc.DeleteAsync(assignmentId, currentUserId);
         await LoadData();
+        if (selectedEvent is not null)
+            selectedEvent = activeEvents.FirstOrDefault(e => e.EventId == selectedEvent.EventId);
     }
+
+    private void OpenEventDetail(Event ev) => selectedEvent = ev;
+    private void OpenMessageModal() => showMessageModal = true;
+    private void CloseMessageModal() => showMessageModal = false;
 
     private static string GetRoleClass(Person p)
     {

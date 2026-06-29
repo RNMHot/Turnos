@@ -44,7 +44,7 @@
             @foreach (var e in events)
             {
                 <tr class="@(!e.Active ? "table-secondary text-muted" : "")">
-                    <td>@e.EventName @(e.IsRecurring ? "<span class='badge bg-info text-dark ms-1'>Recurrente</span>" : "")</td>
+                    <td>@e.EventName</td>
                     <td>@e.Company?.Name</td>
                     <td>@e.StartDateTime.ToString("MMM d, h:mm tt")</td>
                     <td>@e.EndDateTime.ToString("h:mm tt")</td>
