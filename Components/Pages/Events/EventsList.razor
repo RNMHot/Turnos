@@ -28,7 +28,7 @@
     </select>
     <input type="date" class="form-control form-control-sm" style="max-width:150px" @bind="filterFrom" @bind:after="Load" />
     <input type="date" class="form-control form-control-sm" style="max-width:150px" @bind="filterTo" @bind:after="Load" />
-    <select class="form-select form-select-sm" style="max-width:130px" @bind="filterActive" @bind:after="Load">
+    <select class="form-select form-select-sm" style="max-width:160px" @bind="filterActive" @bind:after="Load">
         <option value="">Todos los estados</option>
         <option value="true">Activos</option>
         <option value="false">Inactivos</option>
@@ -87,8 +87,8 @@
                     <p>¿Deseas eliminar el evento <strong>@pendingDelete.EventName</strong>?</p>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-danger btn-sm" @onclick="ConfirmDelete">Sí</button>
-                    <button class="btn btn-secondary btn-sm" @onclick="() => pendingDelete = null">No</button>
+                    <button class="btn btn-danger rnm-btn-lg" @onclick="ConfirmDelete">Sí</button>
+                    <button class="btn btn-secondary rnm-btn-lg" @onclick="() => pendingDelete = null">No</button>
                 </div>
             </div>
         </div>

@@ -44,7 +44,7 @@ public class CompanyService
     {
         var company = await _db.Companies.FindAsync(id);
         if (company is null) return;
-        _db.Companies.Remove(company);
+        company.Deleted = true;
         await _db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Delete", "Company", id, $"Deleted {company.Name}");
     }

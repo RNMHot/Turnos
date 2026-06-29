@@ -123,7 +123,8 @@ public class EventService
         var ev = await _db.Events.FindAsync(id);
         if (ev is null) return;
         ev.Active = false;
+        ev.Deleted = true;
         await _db.SaveChangesAsync();
-        await _audit.LogAsync(actorUserId, "Delete", "Event", id, $"Deactivated {ev.EventName}");
+        await _audit.LogAsync(actorUserId, "Delete", "Event", id, $"Deleted {ev.EventName}");
     }
 }

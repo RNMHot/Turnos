@@ -40,6 +40,21 @@ Server=tcp:<server-name>.database.windows.net,1433;Initial Catalog=TurnosDb;Pers
 - If the connection string is missing or invalid, the app will fail during startup because it applies EF Core migrations immediately.
 - WhatsApp and calendar features are optional; if the secrets are empty, those features simply do not send messages.
 
+## Troubleshooting generic "Error" page on Azure
+
+If the site loads an error page with a request ID (without stack trace), check these first:
+
+1. In App Service > Configuration > Application settings, set:
+   - `ConnectionStrings__DefaultConnection`
+   - `ASPNETCORE_ENVIRONMENT=Production`
+2. Verify the SQL connection string is valid (server, database, user, password).
+3. In Azure SQL, allow App Service outbound access in SQL firewall rules.
+4. In App Service > Monitoring > Log stream, look for:
+   - `Database initialization failed...`
+   - `Could not build app-specific claims...`
+
+These log entries indicate the app is running but cannot reach Azure SQL or authenticate with it.
+
 ## If you want CLI deployment later
 
 Azure CLI is not installed in this workspace, so I could not run a direct subscription deploy from here. If you install it, the next step is usually to create the App Service, set the connection string, and deploy the published output or a zip package.

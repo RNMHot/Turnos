@@ -19,6 +19,8 @@ public class Person
 
     public bool CheckInOnly { get; set; }
 
+    public bool Deleted { get; set; }
+
     public string? Notes { get; set; }
 
     public ICollection<PersonRole> PersonRoles { get; set; } = new List<PersonRole>();

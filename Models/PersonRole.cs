@@ -7,4 +7,6 @@ public class PersonRole
 
     public int RoleId { get; set; }
     public Role Role { get; set; } = null!;
+
+    public bool Deleted { get; set; }
 }

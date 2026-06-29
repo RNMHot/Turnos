@@ -30,7 +30,7 @@ public class AvailabilityService
     {
         var a = await _db.Availabilities.FindAsync(id);
         if (a is null) return;
-        _db.Availabilities.Remove(a);
+        a.Deleted = true;
         await _db.SaveChangesAsync();
     }
 

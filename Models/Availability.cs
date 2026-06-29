@@ -23,4 +23,6 @@ public class Availability
     public DateTime? SpecificDate { get; set; }
 
     public bool IsUnavailable { get; set; } = false;
+
+    public bool Deleted { get; set; }
 }

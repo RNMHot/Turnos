@@ -63,7 +63,10 @@ public class PersonService
 
     public async Task UpdateAsync(Person person, List<int> roleIds, string actorUserId)
     {
-        var existing = await _db.PersonRoles.Where(pr => pr.PersonId == person.PersonId).ToListAsync();
+        var existing = await _db.PersonRoles
+            .IgnoreQueryFilters()
+            .Where(pr => pr.PersonId == person.PersonId)
+            .ToListAsync();
         _db.PersonRoles.RemoveRange(existing);
 
         foreach (var rid in roleIds)
@@ -80,8 +83,9 @@ public class PersonService
         var person = await _db.Persons.FindAsync(id);
         if (person is null) return;
         person.Active = false;
+        person.Deleted = true;
         await _db.SaveChangesAsync();
-        await _audit.LogAsync(actorUserId, "Delete", "Person", id, $"Deactivated {person.FullName}");
+        await _audit.LogAsync(actorUserId, "Delete", "Person", id, $"Deleted {person.FullName}");
     }
 
     public async Task<List<Role>> GetRolesAsync() => await _db.StaffRoles.ToListAsync();

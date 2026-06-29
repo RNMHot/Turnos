@@ -75,7 +75,7 @@ public class AssignmentService
     {
         var a = await _db.Assignments.FindAsync(id);
         if (a is null) return;
-        _db.Assignments.Remove(a);
+        a.Deleted = true;
         await _db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Delete", "Assignment", id, "Deleted assignment");
     }

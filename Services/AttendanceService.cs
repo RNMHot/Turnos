@@ -96,7 +96,7 @@ public class AttendanceService
         var attendance = await _db.Attendances.FindAsync(id);
         if (attendance is null) return;
 
-        _db.Attendances.Remove(attendance);
+        attendance.Deleted = true;
         await _db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Delete", "Attendance", id, "Attendance deleted");
     }
@@ -240,7 +240,7 @@ public class AttendanceService
         if (attendanceBreak is null) return;
 
         var attendance = await _db.Attendances.FindAsync(attendanceBreak.AttendanceId);
-        _db.AttendanceBreaks.Remove(attendanceBreak);
+        attendanceBreak.Deleted = true;
         if (attendance is not null)
             attendance.UpdatedAt = DateTime.UtcNow;
 

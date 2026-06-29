@@ -34,6 +34,8 @@ public class Event
 
     public bool Active { get; set; } = true;
 
+    public bool Deleted { get; set; }
+
     public bool IsRecurring { get; set; } = false;
 
     [MaxLength(500)]

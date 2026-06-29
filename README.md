@@ -47,8 +47,8 @@ The app applies migrations and seeds initial data at startup.
 - Connection string key: `ConnectionStrings:DefaultConnection`
 
 Behavior by environment:
-- Development uses SQLite.
-- Non-development uses SQL Server.
+- Development uses SQL Server LocalDB by default.
+- Non-development uses SQL Server (for example Azure SQL).
 
 ## Publishing To Azure
 

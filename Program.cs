@@ -8,8 +8,16 @@ using Turnos.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (builder.Environment.IsDevelopment() &&
+    !string.IsNullOrWhiteSpace(connectionString) &&
+    connectionString.Contains("YOUR_AZURE_SQL_SERVER", StringComparison.OrdinalIgnoreCase))
+{
+    connectionString = "Server=(localdb)\\MSSQLLocalDB;Database=TurnosDb;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true";
+}
+
 builder.Services.AddDbContext<AppDbContext>(o =>
-    o.UseSqlServer(connectionString)
+    o.UseSqlServer(connectionString, sql =>
+        sql.EnableRetryOnFailure(maxRetryCount: 5))
      .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
 
 // ASP.NET Identity
@@ -70,6 +78,8 @@ builder.Services.AddScoped<ExcelExportService>();
 
 var app = builder.Build();
 
+var startupLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
@@ -87,6 +97,14 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 // Run migrations and seed on startup
-await DbSeeder.SeedAsync(app.Services);
+try
+{
+    await DbSeeder.SeedAsync(app.Services);
+}
+catch (Exception ex)
+{
+    startupLogger.LogError(ex,
+    "Database initialization failed. Verify ConnectionStrings:DefaultConnection for the current environment.");
+}
 
 app.Run();

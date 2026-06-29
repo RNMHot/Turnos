@@ -52,7 +52,7 @@ public class LocationService
         var inUse = await _db.Events.AnyAsync(e => e.LocationId == id);
         if (inUse) return false; // caller should show an error
 
-        _db.Locations.Remove(location);
+        location.Deleted = true;
         await _db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Delete", "Location", id, $"Deleted {location.Name}");
         return true;

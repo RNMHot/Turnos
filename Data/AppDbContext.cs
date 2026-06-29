@@ -26,6 +26,20 @@ public class AppDbContext : IdentityDbContext
     {
         base.OnModelCreating(builder);
 
+        builder.Entity<Person>().HasQueryFilter(p => !p.Deleted);
+        builder.Entity<Company>().HasQueryFilter(c => !c.Deleted);
+        builder.Entity<Event>().HasQueryFilter(e => !e.Deleted);
+        builder.Entity<Location>().HasQueryFilter(l => !l.Deleted);
+        builder.Entity<Role>().HasQueryFilter(r => !r.Deleted);
+        builder.Entity<Assignment>().HasQueryFilter(a => !a.Deleted);
+        builder.Entity<Attendance>().HasQueryFilter(a => !a.Deleted);
+        builder.Entity<AttendanceBreak>().HasQueryFilter(b => !b.Deleted);
+        builder.Entity<PersonRole>().HasQueryFilter(pr => !pr.Deleted);
+        builder.Entity<Availability>().HasQueryFilter(a => !a.Deleted);
+        builder.Entity<AuditLog>().HasQueryFilter(l => !l.Deleted);
+        builder.Entity<MessageLog>().HasQueryFilter(m => !m.Deleted);
+        builder.Entity<Record>().HasQueryFilter(r => !r.Deleted);
+
         builder.Entity<PersonRole>()
             .HasKey(pr => new { pr.PersonId, pr.RoleId });
 

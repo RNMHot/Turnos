@@ -21,6 +21,8 @@ public class Attendance
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    public bool Deleted { get; set; }
+
     public ICollection<AttendanceBreak> Breaks { get; set; } = new List<AttendanceBreak>();
 }
 
@@ -36,4 +38,6 @@ public class AttendanceBreak
 
     [MaxLength(200)]
     public string? Notes { get; set; }
+
+    public bool Deleted { get; set; }
 }

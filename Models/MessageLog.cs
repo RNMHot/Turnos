@@ -22,4 +22,6 @@ public class MessageLog
 
     [MaxLength(100)]
     public string DeliveryStatus { get; set; } = "Pending";
+
+    public bool Deleted { get; set; }
 }

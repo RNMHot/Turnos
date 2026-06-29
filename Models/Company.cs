@@ -20,5 +20,7 @@ public class Company
 
     public string? Notes { get; set; }
 
+    public bool Deleted { get; set; }
+
     public ICollection<Event> Events { get; set; } = new List<Event>();
 }

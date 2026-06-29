@@ -21,4 +21,6 @@ public class Record
 
     public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedDate { get; set; } = DateTime.UtcNow;
+
+    public bool Deleted { get; set; }
 }

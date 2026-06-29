@@ -9,5 +9,7 @@ public class Role
     [Required, MaxLength(50)]
     public string Name { get; set; } = string.Empty;
 
+    public bool Deleted { get; set; }
+
     public ICollection<PersonRole> PersonRoles { get; set; } = new List<PersonRole>();
 }

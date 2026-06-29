@@ -28,4 +28,6 @@ public class Assignment
     public AssignmentStatus Status { get; set; } = AssignmentStatus.Disponible;
 
     public string? Notes { get; set; }
+
+    public bool Deleted { get; set; }
 }

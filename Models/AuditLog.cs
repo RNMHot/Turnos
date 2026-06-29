@@ -21,4 +21,6 @@ public class AuditLog
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 
     public string? Details { get; set; }
+
+    public bool Deleted { get; set; }
 }
