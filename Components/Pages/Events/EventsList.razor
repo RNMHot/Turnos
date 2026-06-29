@@ -62,7 +62,7 @@
                     </td>
                     <td class="text-end">
                         <a href="/events/@e.EventId" class="btn btn-sm btn-outline-primary me-1" title="Editar"><i class="bi bi-pencil"></i></a>
-                        <button class="btn btn-sm btn-outline-danger" @onclick="() => Deactivate(e)" title="Eliminar"><i class="bi bi-x-circle"></i></button>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => pendingDelete = e" title="Eliminar"><i class="bi bi-x-circle"></i></button>
                     </td>
                 </tr>
             }
@@ -74,6 +74,27 @@
     </table>
 </div>
 
+@if (pendingDelete is not null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.4)">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmar eliminación</h5>
+                    <button class="btn-close" @onclick="() => pendingDelete = null"></button>
+                </div>
+                <div class="modal-body">
+                    <p>¿Deseas eliminar el evento <strong>@pendingDelete.EventName</strong>?</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-danger btn-sm" @onclick="ConfirmDelete">Sí</button>
+                    <button class="btn btn-secondary btn-sm" @onclick="() => pendingDelete = null">No</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private List<Event> events = new();
     private List<Company> companies = new();
@@ -81,8 +102,9 @@
     private int? filterCompanyId;
     private DateTime? filterFrom;
     private DateTime? filterTo;
-    private string filterActive = "true";
+    private string filterActive = "";
     private string userId = "";
+    private Event? pendingDelete;
 
     protected override async Task OnInitializedAsync()
     {
@@ -98,9 +120,11 @@
         events = await EventSvc.GetAllAsync(search, filterCompanyId, filterFrom, filterTo, active);
     }
 
-    private async Task Deactivate(Event e)
+    private async Task ConfirmDelete()
     {
-        await EventSvc.DeactivateAsync(e.EventId, userId);
+        if (pendingDelete is null) return;
+        await EventSvc.DeactivateAsync(pendingDelete.EventId, userId);
+        pendingDelete = null;
         await Load();
     }
 

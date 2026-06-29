@@ -82,8 +82,9 @@
                             @foreach (var ev in slotEvents)
                             {
                                 var heightPx = GetEventHeightPx(ev);
+                                var posStyle = GetEventPositionStyle(ev);
                                 <div class="event-block @GetEventClass(ev)"
-                                     style="height:@(heightPx.ToString("F0"))px"
+                                     style="height:@(heightPx.ToString("F0"))px;@posStyle"
                                      @onclick="() => OpenEventDetail(ev)">
                                     <div class="event-name">@ev.EventName</div>
                                     <div class="event-company small">@ev.Company?.Name</div>
@@ -209,6 +210,7 @@
 
         allPersonnel = await PersonSvc.GetAllAsync(active: true);
         FilterPersonnel();
+        ComputeAllLayouts();
     }
 
     private void FilterPersonnel()
@@ -346,5 +348,75 @@
             DateTimeKind.Local => value,
             _ => DateTime.SpecifyKind(value, DateTimeKind.Local)
         };
+    }
+
+    // ── Overlap layout ──────────────────────────────────────────────────────
+
+    private Dictionary<int, (int Col, int Total)> _eventLayouts = new();
+
+    private void ComputeAllLayouts()
+    {
+        _eventLayouts.Clear();
+        for (int d = 0; d < 7; d++)
+        {
+            var day = weekStart.AddDays(d);
+            var dayEvents = weekEvents
+                .Where(e => NormalizeToLocal(e.StartDateTime).Date == day.Date)
+                .OrderBy(e => NormalizeToLocal(e.StartDateTime))
+                .ThenBy(e => NormalizeToLocal(e.EndDateTime))
+                .ToList();
+
+            if (dayEvents.Count == 0) continue;
+
+            // Greedy column assignment: assign lowest free column to each event
+            var assigned = new Dictionary<int, int>(); // eventId → column index
+
+            foreach (var ev in dayEvents)
+            {
+                var start = NormalizeToLocal(ev.StartDateTime);
+                var end   = NormalizeToLocal(ev.EndDateTime);
+
+                var usedCols = dayEvents
+                    .Where(o => assigned.ContainsKey(o.EventId) && EventsOverlap(start, end, o))
+                    .Select(o => assigned[o.EventId])
+                    .ToHashSet();
+
+                int col = 0;
+                while (usedCols.Contains(col)) col++;
+                assigned[ev.EventId] = col;
+            }
+
+            // Total columns for each event = max col in its direct-overlap group + 1
+            foreach (var ev in dayEvents)
+            {
+                var start = NormalizeToLocal(ev.StartDateTime);
+                var end   = NormalizeToLocal(ev.EndDateTime);
+
+                int total = dayEvents
+                    .Where(o => assigned.ContainsKey(o.EventId) &&
+                                (o.EventId == ev.EventId || EventsOverlap(start, end, o)))
+                    .Max(o => assigned[o.EventId]) + 1;
+
+                _eventLayouts[ev.EventId] = (assigned[ev.EventId], total);
+            }
+        }
+    }
+
+    private bool EventsOverlap(DateTime start, DateTime end, Event other)
+    {
+        var oStart = NormalizeToLocal(other.StartDateTime);
+        var oEnd   = NormalizeToLocal(other.EndDateTime);
+        return start < oEnd && end > oStart;
+    }
+
+    private string GetEventPositionStyle(Event ev)
+    {
+        if (!_eventLayouts.TryGetValue(ev.EventId, out var layout) || layout.Total <= 1)
+            return "";
+
+        var (col, total) = layout;
+        var slotPct  = 100.0 / total;
+        var leftPct  = col * slotPct;
+        return $"left:calc({leftPct:F2}% + 2px);width:calc({slotPct:F2}% - 4px);right:auto;";
     }
 }

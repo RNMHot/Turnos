@@ -114,3 +114,47 @@
         overflow-y: auto;
     }
 }
+
+/* ── Collapsed (icon-only) state ── */
+
+.nav-container.nav-collapsed .nav-text,
+.nav-container.nav-collapsed .brand-text,
+.nav-container.nav-collapsed .chevron-icon,
+.nav-container.nav-collapsed .nav-hr,
+.nav-container.nav-collapsed .nav-sub {
+    display: none !important;
+}
+
+.nav-container.nav-collapsed .top-row {
+    padding-left: 0;
+    justify-content: center;
+}
+
+.nav-container.nav-collapsed .navbar-brand {
+    margin-right: 0;
+}
+
+.nav-container.nav-collapsed .nav-item {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.nav-container.nav-collapsed .nav-item ::deep .nav-link {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.nav-container.nav-collapsed .nav-item ::deep .nav-link i.bi {
+    margin-right: 0;
+}
+
+.nav-container.nav-collapsed .nav-link.btn {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.nav-container.nav-collapsed .nav-link.btn i.bi {
+    margin-right: 0;
+}

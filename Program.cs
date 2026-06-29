@@ -7,20 +7,10 @@ using Turnos.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Database — SQLite in dev, SQL Server in production
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-if (builder.Environment.IsDevelopment())
-{
-    builder.Services.AddDbContext<AppDbContext>(o =>
-        o.UseSqlite(connectionString ?? "Data Source=turnos.db")
-         .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
-}
-else
-{
-    builder.Services.AddDbContext<AppDbContext>(o =>
-        o.UseSqlServer(connectionString)
-         .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
-}
+builder.Services.AddDbContext<AppDbContext>(o =>
+    o.UseSqlServer(connectionString)
+     .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
 
 // ASP.NET Identity
 builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
