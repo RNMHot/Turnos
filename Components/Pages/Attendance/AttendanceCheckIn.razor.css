@@ -1,0 +1,11 @@
+.checkin-page {
+    max-width: 520px;
+}
+
+.checkin-page .card {
+    border-radius: 12px;
+}
+
+.checkin-page .btn {
+    min-height: 44px;
+}

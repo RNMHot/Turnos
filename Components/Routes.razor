@@ -1,6 +1,16 @@
 ﻿<Router AppAssembly="typeof(Program).Assembly">
     <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+            <NotAuthorized>
+                <LayoutView Layout="typeof(Layout.EmptyLayout)">
+                    <div class="container py-5">
+                        <h4>Acceso no autorizado</h4>
+                        <p class="text-muted mb-3">No tienes permisos para acceder a esta aplicacion o a esta pagina.</p>
+                        <a class="btn btn-primary" href="/account/login">Iniciar sesion</a>
+                    </div>
+                </LayoutView>
+            </NotAuthorized>
+        </AuthorizeRouteView>
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
 </Router>

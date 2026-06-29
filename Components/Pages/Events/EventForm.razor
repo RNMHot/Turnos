@@ -46,24 +46,12 @@
                             <option value="@l.LocationId">@l.Name</option>
                         }
                     </InputSelect>
-                    @if (ev.LocationId.HasValue)
-                    {
-                        var sel = locations.FirstOrDefault(l => l.LocationId == ev.LocationId);
-                        if (sel?.Latitude.HasValue == true)
-                        {
-                            <a href="https://maps.google.com/?q=@sel.Latitude,@sel.Longitude"
-                               target="_blank" rel="noopener"
-                               class="small text-muted text-decoration-none">
-                                <i class="bi bi-pin-map me-1"></i>Ver en el mapa
-                            </a>
-                        }
-                    }
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-6 @(ev.IsRecurring ? "d-none" : "")">
                     <label class="form-label">Inicio</label>
-                    <input type="datetime-local" class="form-control" @bind="startLocal" />
+                    <input type="datetime-local" class="form-control" @bind="startLocal" @bind:after="OnStartChanged" />
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-6 @(ev.IsRecurring ? "d-none" : "")">
                     <label class="form-label">Fin</label>
                     <input type="datetime-local" class="form-control" @bind="endLocal" />
                 </div>
@@ -90,18 +78,109 @@
                 <div class="col-12">
                     <div class="form-check">
                         <InputCheckbox @bind-Value="ev.IsRecurring" class="form-check-input" id="recurring" />
-                        <label class="form-check-label" for="recurring">Evento es recurrente</label>
+                        <label class="form-check-label" for="recurring">Crear varias ocurrencias</label>
                     </div>
                 </div>
                 @if (ev.IsRecurring)
                 {
-                    <div class="col-md-6">
-                        <label class="form-label">Patrón de recurrencia</label>
-                        <InputSelect @bind-Value="ev.RecurrencePattern" class="form-select">
-                            <option value="Weekly">Semanal</option>
-                            <option value="Monthly">Mensual</option>
-                            <option value="SelectedWeekdays">Días de la semana seleccionados</option>
-                        </InputSelect>
+                    <div class="col-12">
+                        <div class="alert alert-info py-2 mb-2">
+                            Agrega una o más reglas. Cada regla puede usar un horario diferente.
+                            Se crearán <strong>@PreviewCount evento(s)</strong> en total.
+                        </div>
+                        @if (recurrenceError is not null)
+                        {
+                            <div class="alert alert-danger py-2">@recurrenceError</div>
+                        }
+                    </div>
+
+                    <div class="col-12">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label mb-0">Reglas de recurrencia</label>
+                            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="AddRecurrenceRule">
+                                <i class="bi bi-plus me-1"></i>Agregar regla
+                            </button>
+                        </div>
+
+                        @for (var i = 0; i < recurrenceRules.Count; i++)
+                        {
+                            var rule = recurrenceRules[i];
+                            <div class="border rounded p-3 mb-3 bg-light" @key="rule">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <strong>Regla @(i + 1)</strong>
+                                    @if (recurrenceRules.Count > 1)
+                                    {
+                                        <button type="button" class="btn btn-sm btn-outline-danger" @onclick="@(() => RemoveRecurrenceRule(rule))">Quitar</button>
+                                    }
+                                </div>
+
+                                <div class="row g-2">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Tipo</label>
+                                        <select class="form-select" value="@rule.Kind.ToString()" @onchange="@(e => SetRuleKind(rule, e.Value?.ToString()))">
+                                            <option value="SingleDate">Un día</option>
+                                            <option value="WeekdaysInRange">Días de la semana en rango</option>
+                                            <option value="SpecificDates">Fechas específicas</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label">Hora inicio</label>
+                                        <input type="time" class="form-control" value="@rule.StartTimeText" @onchange="@(e => rule.StartTimeText = e.Value?.ToString() ?? rule.StartTimeText)" />
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label">Hora fin</label>
+                                        <input type="time" class="form-control" value="@rule.EndTimeText" @onchange="@(e => rule.EndTimeText = e.Value?.ToString() ?? rule.EndTimeText)" />
+                                    </div>
+
+                                    @if (rule.Kind == RecurrenceRuleKind.SingleDate)
+                                    {
+                                        <div class="col-md-6">
+                                            <label class="form-label">Fecha</label>
+                                            <input type="date" class="form-control" value="@FormatDateInput(rule.SingleDate)" @onchange="@(e => SetRuleDate(rule, e.Value?.ToString()))" />
+                                        </div>
+                                    }
+                                    else if (rule.Kind == RecurrenceRuleKind.WeekdaysInRange)
+                                    {
+                                        <div class="col-md-6">
+                                            <label class="form-label">Desde</label>
+                                            <input type="date" class="form-control" value="@FormatDateInput(rule.RangeStartDate)" @onchange="@(e => SetRuleRangeStart(rule, e.Value?.ToString()))" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Hasta</label>
+                                            <input type="date" class="form-control" value="@FormatDateInput(rule.RangeEndDate)" @onchange="@(e => SetRuleRangeEnd(rule, e.Value?.ToString()))" />
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label">Días de la semana</label>
+                                            <div class="d-flex flex-wrap gap-2">
+                                                @foreach (var day in DaysOrdered)
+                                                {
+                                                    var isChecked = rule.Days.Contains(day);
+                                                    <div class="form-check form-check-inline m-0" @key="day">
+                                                        <input class="form-check-input" type="checkbox"
+                                                               id="@($"rule_{i}_{day}")"
+                                                               checked="@isChecked"
+                                                               @onchange="@(e => ToggleRuleDay(rule, day, (bool)(e.Value ?? false)))" />
+                                                        <label class="form-check-label" for="@($"rule_{i}_{day}")">@DayName(day)</label>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                    else if (rule.Kind == RecurrenceRuleKind.SpecificDates)
+                                    {
+                                        <div class="col-12">
+                                            <label class="form-label">Fechas</label>
+                                            <textarea class="form-control" rows="3"
+                                                      placeholder="Una fecha por línea o separadas por coma:&#10;2026-07-03&#10;2026-07-04, 2026-07-05"
+                                                      @onchange="@(e => SetRuleSpecificDates(rule, e.Value?.ToString()))">@rule.SpecificDatesText</textarea>
+                                            <div class="form-text">Formato: AAAA-MM-DD (ej. 2026-07-03). Una por línea o separadas por coma.</div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
                     </div>
                 }
                 <div class="col-12">
@@ -123,60 +202,3 @@
         </EditForm>
     </div>
 </div>
-
-@code {
-    [Parameter] public int Id { get; set; }
-
-    private Event ev = new()
-    {
-        Active = true,
-        StartDateTime = DateTime.UtcNow,
-        EndDateTime = DateTime.UtcNow.AddHours(4),
-        RequiredOtherLabel = "Otros"
-    };
-    private List<Company> companies = new();
-    private List<Location> locations = new();
-    private bool saving;
-    private string userId = "";
-    private DateTime startLocal;
-    private DateTime endLocal;
-
-    protected override async Task OnInitializedAsync()
-    {
-        var auth = await AuthState.GetAuthenticationStateAsync();
-        userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
-        companies = await CompanySvc.GetAllAsync();
-        locations = await LocationSvc.GetAllAsync();
-
-        if (Id != 0)
-        {
-            var existing = await EventSvc.GetByIdAsync(Id);
-            if (existing is not null) ev = existing;
-        }
-        if (string.IsNullOrWhiteSpace(ev.RequiredOtherLabel))
-            ev.RequiredOtherLabel = "Otros";
-        startLocal = ToLocalInputTime(ev.StartDateTime);
-        endLocal = ToLocalInputTime(ev.EndDateTime);
-    }
-
-    private async Task Save()
-    {
-        saving = true;
-        ev.StartDateTime = DateTime.SpecifyKind(startLocal, DateTimeKind.Local).ToUniversalTime();
-        ev.EndDateTime = DateTime.SpecifyKind(endLocal, DateTimeKind.Local).ToUniversalTime();
-
-        if (Id == 0) await EventSvc.CreateAsync(ev, userId);
-        else await EventSvc.UpdateAsync(ev, userId);
-        Nav.NavigateTo("/events");
-    }
-
-    private static DateTime ToLocalInputTime(DateTime value)
-    {
-        return value.Kind switch
-        {
-            DateTimeKind.Utc => value.ToLocalTime(),
-            DateTimeKind.Local => value,
-            _ => DateTime.SpecifyKind(value, DateTimeKind.Local)
-        };
-    }
-}

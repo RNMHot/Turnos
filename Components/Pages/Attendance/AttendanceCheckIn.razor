@@ -1,0 +1,219 @@
+@page "/attendance/checkin"
+@attribute [Authorize(Policy = "AppAccess", Roles = "User,Admin")]
+@rendermode InteractiveServer
+@inject AttendanceService AttendanceSvc
+@inject PersonService PersonSvc
+@inject EventService EventSvc
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Nav
+
+<PageTitle>Registro de asistencia - Turnos</PageTitle>
+
+<div class="checkin-page container py-3">
+    <div class="text-center mb-3">
+        <h5 class="mb-1">Registro de Asistencia</h5>
+        <div class="text-muted small">Uso para movil</div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(statusMsg))
+    {
+        <div class="alert @(statusOk ? "alert-success" : "alert-danger") py-2">@statusMsg</div>
+    }
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-body">
+            <div class="mb-2">
+                <label class="form-label">Persona</label>
+                <input class="form-control" value="@currentPersonName" disabled />
+            </div>
+            <div class="mb-2">
+                <label class="form-label">Evento</label>
+                <select class="form-select" @bind="selectedEventId">
+                    <option value="0">Seleccione evento</option>
+                    @foreach (var e in events)
+                    {
+                        <option value="@e.EventId">@e.EventName (@e.StartDateTime.ToLocalTime().ToString("MMM d, h:mm tt"))</option>
+                    }
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-body">
+            <h6 class="mb-2">Entrada / Salida</h6>
+            <div class="mb-2">
+                <label class="form-label">Hora de entrada</label>
+                <input type="datetime-local" class="form-control" @bind="checkInLocal" />
+            </div>
+            <div class="mb-2">
+                <label class="form-label">Hora de salida</label>
+                <input type="datetime-local" class="form-control" @bind="checkOutLocal" />
+            </div>
+
+            <div class="d-grid gap-2">
+                <button class="btn btn-primary" @onclick="RegisterCheckIn" disabled="@(selectedPersonId == 0 || selectedEventId == 0 || openAttendance is not null)">
+                    Registrar entrada
+                </button>
+                <button class="btn btn-outline-danger" @onclick="RegisterCheckOut" disabled="@(openAttendance is null)">
+                    Registrar salida
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h6 class="mb-2">Descansos</h6>
+            <div class="mb-2">
+                <label class="form-label">Inicio descanso</label>
+                <input type="datetime-local" class="form-control" @bind="breakStartLocal" />
+            </div>
+            <div class="mb-2">
+                <label class="form-label">Fin descanso</label>
+                <input type="datetime-local" class="form-control" @bind="breakEndLocal" />
+            </div>
+
+            <div class="d-grid gap-2">
+                <button class="btn btn-outline-secondary" @onclick="StartBreak" disabled="@(openAttendance is null)">
+                    Iniciar descanso
+                </button>
+                <button class="btn btn-outline-secondary" @onclick="EndBreak" disabled="@(openAttendance is null)">
+                    Terminar descanso abierto
+                </button>
+                <button class="btn btn-outline-secondary" @onclick="AddClosedBreak" disabled="@(openAttendance is null)">
+                    Registrar descanso completo
+                </button>
+            </div>
+
+            @if (openAttendance is not null)
+            {
+                <hr />
+                <div class="small text-muted">Turno abierto</div>
+                <div class="fw-semibold">@openAttendance.Event.EventName</div>
+                <div class="small">Entrada: @openAttendance.CheckInDateTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</div>
+                <div class="small">Descansos: @openAttendance.Breaks.Count</div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Person> people = new();
+    private List<Event> events = new();
+    private int selectedPersonId;
+    private int selectedEventId;
+    private int? currentPersonId;
+    private string currentPersonName = "";
+    private Attendance? openAttendance;
+
+    private DateTime checkInLocal = DateTime.Now;
+    private DateTime checkOutLocal = DateTime.Now;
+    private DateTime breakStartLocal = DateTime.Now;
+    private DateTime breakEndLocal = DateTime.Now.AddMinutes(15);
+
+    private string? statusMsg;
+    private bool statusOk;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        var personClaim = authState.User.FindFirst(TurnosClaimTypes.PersonId)?.Value;
+        if (!int.TryParse(personClaim, out var personId))
+        {
+            SetStatus(false, "Tu usuario no esta confirmado como ujier.");
+            return;
+        }
+
+        currentPersonId = personId;
+        selectedPersonId = personId;
+        people = await PersonSvc.GetAllAsync(active: true);
+        currentPersonName = people.FirstOrDefault(p => p.PersonId == personId)?.FullName ?? "Colaborador";
+
+        events = await EventSvc.GetAllAsync(from: DateTime.Today.AddDays(-1), to: DateTime.Today.AddDays(14), active: true);
+        await LoadOpenAttendance();
+    }
+
+    private async Task LoadOpenAttendance()
+    {
+        statusMsg = null;
+        if (!currentPersonId.HasValue)
+        {
+            openAttendance = null;
+            return;
+        }
+
+        openAttendance = await AttendanceSvc.GetOpenAttendanceForPersonAsync(currentPersonId.Value);
+    }
+
+    private async Task RegisterCheckIn()
+    {
+        if (!currentPersonId.HasValue || selectedEventId == 0)
+        {
+            SetStatus(false, "Debe seleccionar persona y evento.");
+            return;
+        }
+
+        var result = await AttendanceSvc.StartShiftAsync(currentPersonId.Value, selectedEventId, checkInLocal, "employee");
+        SetStatus(result.Success, result.Success ? "Entrada registrada." : result.Error);
+        await LoadOpenAttendance();
+    }
+
+    private async Task RegisterCheckOut()
+    {
+        if (openAttendance is null)
+        {
+            SetStatus(false, "No hay turno abierto.");
+            return;
+        }
+
+        var result = await AttendanceSvc.EndShiftAsync(openAttendance.AttendanceId, checkOutLocal, "employee");
+        SetStatus(result.Success, result.Success ? "Salida registrada." : result.Error);
+        await LoadOpenAttendance();
+    }
+
+    private async Task StartBreak()
+    {
+        if (openAttendance is null)
+        {
+            SetStatus(false, "No hay turno abierto.");
+            return;
+        }
+
+        var result = await AttendanceSvc.AddBreakAsync(openAttendance.AttendanceId, breakStartLocal, null, null, "employee");
+        SetStatus(result.Success, result.Success ? "Descanso iniciado." : result.Error);
+        await LoadOpenAttendance();
+    }
+
+    private async Task EndBreak()
+    {
+        if (openAttendance is null)
+        {
+            SetStatus(false, "No hay turno abierto.");
+            return;
+        }
+
+        var result = await AttendanceSvc.EndOpenBreakAsync(openAttendance.AttendanceId, breakEndLocal, "employee");
+        SetStatus(result.Success, result.Success ? "Descanso terminado." : result.Error);
+        await LoadOpenAttendance();
+    }
+
+    private async Task AddClosedBreak()
+    {
+        if (openAttendance is null)
+        {
+            SetStatus(false, "No hay turno abierto.");
+            return;
+        }
+
+        var result = await AttendanceSvc.AddBreakAsync(openAttendance.AttendanceId, breakStartLocal, breakEndLocal, null, "employee");
+        SetStatus(result.Success, result.Success ? "Descanso registrado." : result.Error);
+        await LoadOpenAttendance();
+    }
+
+    private void SetStatus(bool ok, string message)
+    {
+        statusOk = ok;
+        statusMsg = message;
+    }
+}

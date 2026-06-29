@@ -45,7 +45,8 @@ else
                     <InputText @bind-Value="person.Email" class="form-control" type="email" />
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Roles</label>
+                    <label class="form-label">Roles operativos</label>
+                    <div class="form-text">Estos roles son de trabajo (evento), no de acceso a la aplicación.</div>
                     <div class="d-flex gap-3">
                         @foreach (var role in allRoles)
                         {
@@ -65,6 +66,14 @@ else
                 <div class="mb-3 form-check">
                     <InputCheckbox @bind-Value="person.Active" class="form-check-input" id="active" />
                     <label class="form-check-label" for="active">Activo</label>
+                </div>
+                <div class="mb-3 form-check">
+                    <InputCheckbox @bind-Value="person.CheckInOnly" class="form-check-input" id="checkInOnly" />
+                    <label class="form-check-label" for="checkInOnly">Solo acceso a Ponchador (/attendance/checkin)</label>
+                    <div class="form-text">Si está activado, al iniciar sesión se redirige directo a Ponchador y no puede navegar a otras páginas.</div>
+                </div>
+                <div class="mb-3">
+                    <div class="form-text">Acceso app: personal activo obtiene perfil User. Admin se asigna únicamente al usuario administrador.</div>
                 </div>
 
                 <div class="d-flex gap-2">

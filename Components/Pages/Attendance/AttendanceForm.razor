@@ -1,0 +1,266 @@
+@page "/attendance/new"
+@page "/attendance/{Id:int}"
+@attribute [Authorize(Policy = "AppAccess", Roles = "Admin")]
+@rendermode InteractiveServer
+@inject AttendanceService AttendanceSvc
+@inject PersonService PersonSvc
+@inject EventService EventSvc
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Nav
+
+<PageTitle>@(Id == 0 ? "Nueva Asistencia" : "Editar Asistencia") - Turnos</PageTitle>
+
+<div class="d-flex align-items-center gap-2 mb-3">
+    <a href="/attendance" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i></a>
+    <h4 class="mb-0">@(Id == 0 ? "Nueva Asistencia" : "Editar Asistencia")</h4>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(saveError))
+{
+    <div class="alert alert-danger py-2">@saveError</div>
+}
+
+<div class="card shadow-sm mb-3" style="max-width:900px">
+    <div class="card-body">
+        <EditForm Model="attendance" OnValidSubmit="SaveAttendance">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" />
+
+            <div class="row g-2 mb-2">
+                <div class="col-12 col-md-6">
+                    <label class="form-label">Persona *</label>
+                    <InputSelect @bind-Value="attendance.PersonId" class="form-select">
+                        <option value="0">Seleccione una persona</option>
+                        @foreach (var p in persons)
+                        {
+                            <option value="@p.PersonId">@p.FullName</option>
+                        }
+                    </InputSelect>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label">Evento *</label>
+                    <InputSelect @bind-Value="attendance.EventId" class="form-select">
+                        <option value="0">Seleccione un evento</option>
+                        @foreach (var e in events)
+                        {
+                            <option value="@e.EventId">@e.EventName (@e.StartDateTime.ToLocalTime().ToString("MMM d, h:mm tt"))</option>
+                        }
+                    </InputSelect>
+                </div>
+            </div>
+
+            <div class="row g-2 mb-2">
+                <div class="col-12 col-md-6">
+                    <label class="form-label">Entrada *</label>
+                    <input type="datetime-local" class="form-control" @bind="checkInLocal" />
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label">Salida</label>
+                    <input type="datetime-local" class="form-control" @bind="checkOutLocal" disabled="@(!hasCheckOut)" />
+                    <div class="form-check mt-1">
+                        <input id="hasOut" type="checkbox" class="form-check-input" @bind="hasCheckOut" />
+                        <label for="hasOut" class="form-check-label small">Registrar salida</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Notas</label>
+                <InputTextArea @bind-Value="attendance.Notes" class="form-control" rows="2" />
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary" disabled="@saving">@(saving ? "Guardando..." : "Guardar")</button>
+                <a href="/attendance" class="btn btn-outline-secondary">Cancelar</a>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@if (attendance.AttendanceId != 0)
+{
+    <div class="card shadow-sm" style="max-width:900px">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Descansos</span>
+            <button class="btn btn-sm btn-outline-primary" @onclick="AddBreak">Agregar descanso</button>
+        </div>
+        <div class="card-body">
+            @if (!attendance.Breaks.Any())
+            {
+                <div class="text-muted small">No hay descansos registrados.</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <thead>
+                            <tr>
+                                <th>Inicio</th>
+                                <th>Fin</th>
+                                <th>Notas</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var b in attendance.Breaks.OrderBy(x => x.BreakStartDateTime))
+                            {
+                                <tr>
+                                    <td>
+                                        <input type="datetime-local" class="form-control form-control-sm"
+                                               value="@ToLocalInputValue(b.BreakStartDateTime)"
+                                               @onchange="e => OnBreakStartChanged(b, e.Value?.ToString())" />
+                                    </td>
+                                    <td>
+                                        <input type="datetime-local" class="form-control form-control-sm"
+                                               value="@ToLocalInputValue(b.BreakEndDateTime)"
+                                               @onchange="e => OnBreakEndChanged(b, e.Value?.ToString())" />
+                                    </td>
+                                    <td>
+                                        <input class="form-control form-control-sm" value="@b.Notes"
+                                               @onchange="e => b.Notes = e.Value?.ToString()" />
+                                    </td>
+                                    <td class="text-end">
+                                        <button class="btn btn-sm btn-outline-success me-1" @onclick="() => SaveBreak(b)">
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteBreak(b.AttendanceBreakId)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Attendance attendance = new();
+    private List<Person> persons = new();
+    private List<Event> events = new();
+    private DateTime checkInLocal = DateTime.Now;
+    private DateTime checkOutLocal = DateTime.Now;
+    private bool hasCheckOut;
+    private bool saving;
+    private string userId = "";
+    private string? saveError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+
+        persons = await PersonSvc.GetAllAsync(active: true);
+        events = await EventSvc.GetAllAsync(active: true);
+
+        if (Id != 0)
+        {
+            var existing = await AttendanceSvc.GetByIdAsync(Id);
+            if (existing is not null)
+            {
+                attendance = existing;
+                checkInLocal = attendance.CheckInDateTime.ToLocalTime();
+                hasCheckOut = attendance.CheckOutDateTime.HasValue;
+                checkOutLocal = attendance.CheckOutDateTime?.ToLocalTime() ?? DateTime.Now;
+            }
+        }
+    }
+
+    private async Task SaveAttendance()
+    {
+        saving = true;
+        saveError = null;
+
+        attendance.CheckInDateTime = checkInLocal;
+        attendance.CheckOutDateTime = hasCheckOut ? checkOutLocal : null;
+
+        if (attendance.PersonId == 0 || attendance.EventId == 0)
+        {
+            saveError = "Debe seleccionar persona y evento.";
+            saving = false;
+            return;
+        }
+
+        if (Id == 0)
+        {
+            var (success, err, created) = await AttendanceSvc.CreateAsync(attendance, userId);
+            if (!success || created is null)
+            {
+                saveError = err;
+                saving = false;
+                return;
+            }
+
+            Nav.NavigateTo($"/attendance/{created.AttendanceId}");
+            return;
+        }
+
+        var update = await AttendanceSvc.UpdateAsync(attendance, userId);
+        if (!update.Success)
+        {
+            saveError = update.Error;
+            saving = false;
+            return;
+        }
+
+        Nav.NavigateTo("/attendance");
+    }
+
+    private async Task AddBreak()
+    {
+        var breakStart = attendance.CheckInDateTime.ToLocalTime();
+        var breakEnd = breakStart.AddMinutes(15);
+        await AttendanceSvc.AddBreakAsync(attendance.AttendanceId, breakStart, breakEnd, null, userId);
+        await ReloadAttendance();
+    }
+
+    private async Task SaveBreak(AttendanceBreak attendanceBreak)
+    {
+        var result = await AttendanceSvc.UpdateBreakAsync(attendanceBreak, userId);
+        if (!result.Success)
+            saveError = result.Error;
+
+        await ReloadAttendance();
+    }
+
+    private async Task DeleteBreak(int breakId)
+    {
+        await AttendanceSvc.DeleteBreakAsync(breakId, userId);
+        await ReloadAttendance();
+    }
+
+    private async Task ReloadAttendance()
+    {
+        var updated = await AttendanceSvc.GetByIdAsync(attendance.AttendanceId);
+        if (updated is not null)
+            attendance = updated;
+    }
+
+    private static string ToLocalInputValue(DateTime? value)
+    {
+        return value.HasValue ? value.Value.ToLocalTime().ToString("yyyy-MM-ddTHH:mm") : string.Empty;
+    }
+
+    private static void OnBreakStartChanged(AttendanceBreak attendanceBreak, string? value)
+    {
+        if (DateTime.TryParse(value, out var parsed))
+            attendanceBreak.BreakStartDateTime = parsed;
+    }
+
+    private static void OnBreakEndChanged(AttendanceBreak attendanceBreak, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            attendanceBreak.BreakEndDateTime = null;
+            return;
+        }
+
+        if (DateTime.TryParse(value, out var parsed))
+            attendanceBreak.BreakEndDateTime = parsed;
+    }
+}

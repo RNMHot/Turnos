@@ -50,6 +50,10 @@ Behavior by environment:
 - Development uses SQLite.
 - Non-development uses SQL Server.
 
+## Publishing To Azure
+
+See [docs/AzurePublish.md](docs/AzurePublish.md) for the Azure App Service and Azure SQL setup that matches this app.
+
 ## Useful Commands
 
 Build:

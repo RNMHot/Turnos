@@ -1,0 +1,269 @@
+@page "/attendance"
+@attribute [Authorize(Policy = "AppAccess", Roles = "Admin")]
+@rendermode InteractiveServer
+@inject AttendanceService AttendanceSvc
+@inject PersonService PersonSvc
+@inject ExcelExportService Excel
+@inject AuthenticationStateProvider AuthState
+@inject IJSRuntime JS
+
+<PageTitle>Asistencia - Turnos</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h4 class="mb-0"><i class="bi bi-clock-history me-2"></i>Asistencia</h4>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-success btn-sm" @onclick="ExportExcel">
+            <i class="bi bi-file-earmark-excel me-1"></i>Exportar
+        </button>
+        <a href="/attendance/new" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus me-1"></i>Agregar Asistencia
+        </a>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-3">
+                <label class="form-label mb-1">Persona</label>
+                <select class="form-select form-select-sm" @bind="filterPersonId" @bind:after="Load">
+                    <option value="">Todas</option>
+                    @foreach (var p in persons)
+                    {
+                        <option value="@p.PersonId">@p.FullName</option>
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label mb-1">Periodo</label>
+                <select class="form-select form-select-sm" @bind="periodMode" @bind:after="Load">
+                    <option value="week">Semana</option>
+                    <option value="range">Rango</option>
+                </select>
+            </div>
+
+            @if (periodMode == "week")
+            {
+                <div class="col-12 col-md-3">
+                    <label class="form-label mb-1">Semana (lunes)</label>
+                    <input type="date" class="form-control form-control-sm" @bind="weekStartDate" @bind:after="Load" />
+                </div>
+            }
+            else
+            {
+                <div class="col-6 col-md-2">
+                    <label class="form-label mb-1">Desde</label>
+                    <input type="date" class="form-control form-control-sm" @bind="rangeStartDate" @bind:after="Load" />
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label mb-1">Hasta</label>
+                    <input type="date" class="form-control form-control-sm" @bind="rangeEndDate" @bind:after="Load" />
+                </div>
+            }
+
+            <div class="col-12 col-md-2">
+                <button class="btn btn-sm btn-outline-secondary w-100" @onclick="Load">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Actualizar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(statusMsg))
+{
+    <div class="alert alert-info py-2">@statusMsg</div>
+}
+
+<div class="row g-3 mb-3">
+    <div class="col-12 col-lg-4">
+        <div class="card border-0 bg-light h-100">
+            <div class="card-body">
+                <div class="text-muted small">Total del periodo</div>
+                <div class="fs-4 fw-semibold">@FormatHours(totalPeriodHours)</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-lg-8">
+        <div class="card h-100">
+            <div class="card-header py-2">Totales por dia</div>
+            <div class="card-body py-2">
+                @if (dayTotals.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead>
+                                <tr><th>Dia</th><th class="text-end">Horas</th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var d in dayTotals)
+                                {
+                                    <tr>
+                                        <td>@d.Day.ToString("ddd, MMM d")</td>
+                                        <td class="text-end">@FormatHours(d.Hours)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-muted small">No hay datos para el periodo seleccionado.</div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-hover table-sm align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>Persona</th>
+                <th>Evento</th>
+                <th>Entrada</th>
+                <th>Salida</th>
+                <th>Descansos</th>
+                <th>Horas por turno</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in attendance)
+            {
+                var breakMinutes = GetBreakMinutes(item);
+                var workedHours = GetWorkedHours(item);
+                <tr>
+                    <td>@item.Person.FullName</td>
+                    <td>
+                        <div>@item.Event.EventName</div>
+                        <div class="small text-muted">@item.Event.Company?.Name</div>
+                    </td>
+                    <td>@item.CheckInDateTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                    <td>@(item.CheckOutDateTime.HasValue ? item.CheckOutDateTime.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm") : "Abierta")</td>
+                    <td>@Math.Round(breakMinutes, 0) min (@item.Breaks.Count)</td>
+                    <td class="fw-semibold">@FormatHours(workedHours)</td>
+                    <td class="text-end">
+                        <a href="/attendance/@item.AttendanceId" class="btn btn-sm btn-outline-primary me-1" title="Editar">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => Delete(item.AttendanceId)" title="Eliminar">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            }
+            @if (!attendance.Any())
+            {
+                <tr><td colspan="7" class="text-center text-muted py-4">No hay asistencia registrada en este periodo.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private List<Attendance> attendance = new();
+    private List<Person> persons = new();
+    private int? filterPersonId;
+    private string periodMode = "week";
+    private DateTime weekStartDate = GetMonday(DateTime.Today);
+    private DateTime rangeStartDate = DateTime.Today.AddDays(-7);
+    private DateTime rangeEndDate = DateTime.Today;
+    private string userId = "";
+    private string? statusMsg;
+    private decimal totalPeriodHours;
+    private List<DayTotal> dayTotals = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+        persons = await PersonSvc.GetAllAsync(active: true);
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        var (fromUtc, toUtc) = GetCurrentRangeUtc();
+        attendance = await AttendanceSvc.GetByRangeAsync(fromUtc, toUtc, filterPersonId);
+        RecalculateTotals();
+    }
+
+    private (DateTime FromUtc, DateTime ToUtc) GetCurrentRangeUtc()
+    {
+        DateTime fromLocal;
+        DateTime toLocal;
+
+        if (periodMode == "week")
+        {
+            weekStartDate = GetMonday(weekStartDate);
+            fromLocal = weekStartDate.Date;
+            toLocal = weekStartDate.Date.AddDays(7);
+        }
+        else
+        {
+            if (rangeEndDate < rangeStartDate)
+                rangeEndDate = rangeStartDate;
+
+            fromLocal = rangeStartDate.Date;
+            toLocal = rangeEndDate.Date.AddDays(1);
+        }
+
+        return (ToUtc(fromLocal), ToUtc(toLocal));
+    }
+
+    private void RecalculateTotals()
+    {
+        totalPeriodHours = attendance.Sum(a => (decimal)GetWorkedHours(a));
+        dayTotals = attendance
+            .GroupBy(a => a.CheckInDateTime.ToLocalTime().Date)
+            .Select(g => new DayTotal(g.Key, g.Sum(GetWorkedHours)))
+            .OrderBy(x => x.Day)
+            .ToList();
+    }
+
+    private double GetWorkedHours(Attendance item)
+    {
+        var end = item.CheckOutDateTime ?? DateTime.UtcNow;
+        var totalMinutes = (end - item.CheckInDateTime).TotalMinutes;
+        var breakMinutes = GetBreakMinutes(item);
+        return Math.Max(0, (totalMinutes - breakMinutes) / 60.0);
+    }
+
+    private static double GetBreakMinutes(Attendance item)
+    {
+        return item.Breaks
+            .Sum(b => ((b.BreakEndDateTime ?? DateTime.UtcNow) - b.BreakStartDateTime).TotalMinutes);
+    }
+
+    private async Task Delete(int attendanceId)
+    {
+        await AttendanceSvc.DeleteAsync(attendanceId, userId);
+        await Load();
+        statusMsg = "Registro eliminado.";
+    }
+
+    private async Task ExportExcel()
+    {
+        var bytes = Excel.ExportAttendance(attendance);
+        await JS.InvokeVoidAsync("downloadFile", "attendance.xlsx", Convert.ToBase64String(bytes));
+    }
+
+    private static DateTime ToUtc(DateTime local)
+    {
+        return DateTime.SpecifyKind(local, DateTimeKind.Local).ToUniversalTime();
+    }
+
+    private static string FormatHours(decimal hours) => $"{hours:0.##} h";
+
+    private static string FormatHours(double hours) => $"{hours:0.##} h";
+
+    private static DateTime GetMonday(DateTime date)
+    {
+        int diff = (7 + (date.DayOfWeek - DayOfWeek.Monday)) % 7;
+        return date.AddDays(-diff).Date;
+    }
+
+    private record DayTotal(DateTime Day, double Hours);
+}

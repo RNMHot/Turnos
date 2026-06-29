@@ -36,9 +36,10 @@ public class Event
 
     public bool IsRecurring { get; set; } = false;
 
-    [MaxLength(50)]
+    [MaxLength(500)]
     public string? RecurrencePattern { get; set; }
 
     public ICollection<Assignment> Assignments { get; set; } = new List<Assignment>();
+    public ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();
     public ICollection<MessageLog> MessageLogs { get; set; } = new List<MessageLog>();
 }

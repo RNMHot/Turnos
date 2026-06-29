@@ -3,12 +3,12 @@
 @rendermode InteractiveServer
 @inject AuditService AuditSvc
 
-<PageTitle>Audit Log — Turnos</PageTitle>
+<PageTitle>Registro de Acciones — Turnos</PageTitle>
 
-<h4 class="mb-3"><i class="bi bi-clock-history me-2"></i>Audit Log</h4>
+<h4 class="mb-3"><i class="bi bi-clock-history me-2"></i>Registro de Acciones</h4>
 
 <div class="d-flex gap-2 mb-3 flex-wrap">
-    <input class="form-control form-control-sm" style="max-width:200px" placeholder="Entity type…" @bind="filterEntity" @bind:after="Load" />
+    <input class="form-control form-control-sm" style="max-width:200px" placeholder="Tipo de entidad…" @bind="filterEntity" @bind:after="Load" />
     <input type="date" class="form-control form-control-sm" style="max-width:150px" @bind="filterFrom" @bind:after="Load" />
     <input type="date" class="form-control form-control-sm" style="max-width:150px" @bind="filterTo" @bind:after="Load" />
 </div>
@@ -16,7 +16,7 @@
 <div class="table-responsive">
     <table class="table table-sm align-middle">
         <thead class="table-light">
-            <tr><th>Timestamp</th><th>User</th><th>Action</th><th>Entity</th><th>ID</th><th>Details</th></tr>
+            <tr><th>Fecha/hora</th><th>Usuario</th><th>Acción</th><th>Opción</th><th>ID</th><th>Detalles</th></tr>
         </thead>
         <tbody>
             @foreach (var a in logs)
@@ -36,7 +36,7 @@
             }
             @if (!logs.Any())
             {
-                <tr><td colspan="6" class="text-muted text-center py-4">No audit entries found.</td></tr>
+                <tr><td colspan="6" class="text-muted text-center py-4">No hay registros de auditoría.</td></tr>
             }
         </tbody>
     </table>

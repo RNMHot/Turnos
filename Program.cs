@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Turnos.Components;
 using Turnos.Data;
 using Turnos.Services;
@@ -11,12 +12,14 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddDbContext<AppDbContext>(o =>
-        o.UseSqlite(connectionString ?? "Data Source=turnos.db"));
+        o.UseSqlite(connectionString ?? "Data Source=turnos.db")
+         .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
 }
 else
 {
     builder.Services.AddDbContext<AppDbContext>(o =>
-        o.UseSqlServer(connectionString));
+        o.UseSqlServer(connectionString)
+         .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
 }
 
 // ASP.NET Identity
@@ -45,7 +48,11 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddCascadingAuthenticationState();
-builder.Services.AddAuthorizationCore();
+builder.Services.AddAuthorizationCore(options =>
+{
+    options.AddPolicy("AppAccess", policy =>
+        policy.RequireClaim(TurnosClaimTypes.AppAccess, "true"));
+});
 
 // MVC controllers (for CalendarController and AccountController)
 builder.Services.AddControllersWithViews();
@@ -58,11 +65,14 @@ builder.Services.AddHttpContextAccessor();
 
 // Application services
 builder.Services.AddScoped<AuditService>();
+builder.Services.AddScoped<AccessControlService>();
+builder.Services.AddScoped<IUserClaimsPrincipalFactory<IdentityUser>, TurnosUserClaimsPrincipalFactory>();
 builder.Services.AddScoped<PersonService>();
 builder.Services.AddScoped<CompanyService>();
 builder.Services.AddScoped<LocationService>();
 builder.Services.AddScoped<EventService>();
 builder.Services.AddScoped<AssignmentService>();
+builder.Services.AddScoped<AttendanceService>();
 builder.Services.AddScoped<AvailabilityService>();
 builder.Services.AddScoped<WhatsAppService>();
 builder.Services.AddScoped<CalendarService>();

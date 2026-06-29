@@ -16,6 +16,8 @@ public class AppDbContext : IdentityDbContext
     public DbSet<Location> Locations => Set<Location>();
     public DbSet<Event> Events => Set<Event>();
     public DbSet<Assignment> Assignments => Set<Assignment>();
+    public DbSet<Attendance> Attendances => Set<Attendance>();
+    public DbSet<AttendanceBreak> AttendanceBreaks => Set<AttendanceBreak>();
     public DbSet<MessageLog> MessageLogs => Set<MessageLog>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<Record> Records => Set<Record>();
@@ -39,6 +41,30 @@ public class AppDbContext : IdentityDbContext
 
         builder.Entity<Assignment>()
             .HasIndex(a => new { a.PersonId, a.StartDateTime, a.EndDateTime });
+
+        builder.Entity<Attendance>()
+            .HasIndex(a => new { a.PersonId, a.CheckInDateTime });
+
+        builder.Entity<Attendance>()
+            .HasIndex(a => new { a.EventId, a.CheckInDateTime });
+
+        builder.Entity<Attendance>()
+            .HasOne(a => a.Person)
+            .WithMany(p => p.Attendances)
+            .HasForeignKey(a => a.PersonId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<Attendance>()
+            .HasOne(a => a.Event)
+            .WithMany(e => e.Attendances)
+            .HasForeignKey(a => a.EventId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<AttendanceBreak>()
+            .HasOne(b => b.Attendance)
+            .WithMany(a => a.Breaks)
+            .HasForeignKey(b => b.AttendanceId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.Entity<Event>()
             .HasIndex(e => e.StartDateTime);

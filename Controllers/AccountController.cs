@@ -7,9 +7,18 @@ namespace Turnos.Controllers;
 public class AccountController : Controller
 {
     private readonly SignInManager<IdentityUser> _signInManager;
+    private readonly UserManager<IdentityUser> _userManager;
+    private readonly Turnos.Services.AccessControlService _accessControl;
 
-    public AccountController(SignInManager<IdentityUser> signInManager)
-        => _signInManager = signInManager;
+    public AccountController(
+        SignInManager<IdentityUser> signInManager,
+        UserManager<IdentityUser> userManager,
+        Turnos.Services.AccessControlService accessControl)
+    {
+        _signInManager = signInManager;
+        _userManager = userManager;
+        _accessControl = accessControl;
+    }
 
     [HttpPost("signin")]
     [ValidateAntiForgeryToken]
@@ -18,13 +27,25 @@ public class AccountController : Controller
     {
         var result = await _signInManager.PasswordSignInAsync(email, password, rememberMe, lockoutOnFailure: false);
         if (result.Succeeded)
+        {
+            var user = await _userManager.FindByEmailAsync(email);
+            if (user is null || !await _accessControl.HasAppAccessAsync(user))
+            {
+                await _signInManager.SignOutAsync();
+                return Redirect("/account/login?denied=1&returnUrl=" + Uri.EscapeDataString(returnUrl ?? ""));
+            }
+
+            if (await _accessControl.IsCheckInOnlyUserAsync(user))
+                return Redirect("/attendance/checkin");
+
             return Redirect(returnUrl ?? "/");
+        }
 
         return Redirect("/account/login?error=1&returnUrl=" + Uri.EscapeDataString(returnUrl ?? ""));
     }
 
     [HttpGet("signout")]
-    public async Task<IActionResult> SignOut()
+    public async Task<IActionResult> SignOutUser()
     {
         await _signInManager.SignOutAsync();
         return Redirect("/account/login");

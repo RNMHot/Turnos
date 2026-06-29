@@ -17,10 +17,13 @@ public class Person
 
     public bool Active { get; set; } = true;
 
+    public bool CheckInOnly { get; set; }
+
     public string? Notes { get; set; }
 
     public ICollection<PersonRole> PersonRoles { get; set; } = new List<PersonRole>();
     public ICollection<Availability> Availabilities { get; set; } = new List<Availability>();
     public ICollection<Assignment> Assignments { get; set; } = new List<Assignment>();
+    public ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();
     public ICollection<MessageLog> MessageLogs { get; set; } = new List<MessageLog>();
 }

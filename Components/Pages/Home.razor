@@ -8,13 +8,13 @@
 @inject AuthenticationStateProvider AuthState
 @inject NavigationManager Nav
 
-<PageTitle>Schedule — Turnos</PageTitle>
+<PageTitle>Itinerario — Turnos</PageTitle>
 
 <div class="schedule-container">
     <!-- Top toolbar -->
     <div class="d-flex align-items-center gap-2 mb-3">
         <button class="btn btn-outline-secondary btn-sm" @onclick="PrevWeek"><i class="bi bi-chevron-left"></i></button>
-        <button class="btn btn-outline-primary btn-sm" @onclick="GoToday">Today</button>
+        <button class="btn btn-outline-primary btn-sm" @onclick="GoToday">Hoy</button>
         <button class="btn btn-outline-secondary btn-sm" @onclick="NextWeek"><i class="bi bi-chevron-right"></i></button>
         <span class="fw-semibold">@WeekLabel</span>
         @if (dropMessage is not null)
@@ -27,8 +27,8 @@
         <!-- Left panel: personnel list -->
         <div class="personnel-panel">
             <div class="panel-header">
-                <strong>Staff</strong>
-                <input class="form-control form-control-sm mt-1" placeholder="Search…" @bind="personSearch" @bind:event="oninput" @bind:after="FilterPersonnel" />
+                <strong>Personal Disponible</strong>
+                <input class="form-control form-control-sm mt-1" placeholder="Búsqueda…" @bind="personSearch" @bind:event="oninput" @bind:after="FilterPersonnel" />
             </div>
             <div class="panel-body">
                 @foreach (var person in filteredPersonnel)
@@ -43,7 +43,7 @@
                         <span>@person.FullName</span>
                         @if (!person.Active)
                         {
-                            <span class="badge bg-secondary ms-1" style="font-size:10px">Inactive</span>
+                            <span class="badge bg-secondary ms-1" style="font-size:10px">Inactivo</span>
                         }
                     </div>
                 }
@@ -59,7 +59,7 @@
                 {
                     var day = weekStart.AddDays(d);
                     var isToday = day.Date == DateTime.Today;
-                    <div class="day-header @(isToday ? "today" : "")">
+                    <div class="day-header @(isToday ? "hoy" : "")">
                         <div class="day-name">@day.ToString("ddd")</div>
                         <div class="day-date">@day.ToString("MMM d")</div>
                     </div>
@@ -207,7 +207,7 @@
             }
         }
 
-        allPersonnel = await PersonSvc.GetAllAsync();
+        allPersonnel = await PersonSvc.GetAllAsync(active: true);
         FilterPersonnel();
     }
 
@@ -312,7 +312,12 @@
 
     private static string GetEventClass(Event ev)
     {
-        return ev.Assignments.Any() ? "event-staffed" : "event-unstaffed";
+        var requiredTotal = ev.RequiredSupervisors + ev.RequiredUshers + ev.RequiredOther;
+        var assignedTotal = ev.Assignments.Count(a =>
+            a.Status != AssignmentStatus.Cancelado &&
+            a.Status != AssignmentStatus.Rechazado);
+
+        return assignedTotal >= requiredTotal ? "event-staffed" : "event-unstaffed";
     }
 
     private static string GetStatusBadge(AssignmentStatus status) => status switch

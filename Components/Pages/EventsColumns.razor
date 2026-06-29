@@ -209,7 +209,12 @@
 
     private static string GetEventClass(Event ev)
     {
-        return ev.Assignments.Any(a => a.Status != AssignmentStatus.Cancelado)
+        var requiredTotal = ev.RequiredSupervisors + ev.RequiredUshers + ev.RequiredOther;
+        var assignedTotal = ev.Assignments.Count(a =>
+            a.Status != AssignmentStatus.Cancelado &&
+            a.Status != AssignmentStatus.Rechazado);
+
+        return assignedTotal >= requiredTotal
             ? "event-staffed"
             : "event-unstaffed";
     }
