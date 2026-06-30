@@ -47,11 +47,11 @@
             </div>
             <div class="row g-2 mb-3">
                 <div class="col">
-                    <label class="form-label">Start (UTC)</label>
+                    <label class="form-label">Inicio</label>
                     <input type="datetime-local" class="form-control" @bind="startLocal" />
                 </div>
                 <div class="col">
-                    <label class="form-label">End (UTC)</label>
+                    <label class="form-label">Fin</label>
                     <input type="datetime-local" class="form-control" @bind="endLocal" />
                 </div>
             </div>
@@ -102,19 +102,22 @@
             if (existing is not null)
             {
                 assignment = existing;
-                startLocal = assignment.StartDateTime;
-                endLocal = assignment.EndDateTime;
+                startLocal = ToLocal(assignment.StartDateTime);
+                endLocal = ToLocal(assignment.EndDateTime);
             }
         }
     }
+
+    private static DateTime ToLocal(DateTime dt) =>
+        dt.Kind == DateTimeKind.Utc ? dt.ToLocalTime() : dt;
 
     private void OnEventSelected()
     {
         var ev = events.FirstOrDefault(e => e.EventId == assignment.EventId);
         if (ev is not null)
         {
-            startLocal = ev.StartDateTime;
-            endLocal = ev.EndDateTime;
+            startLocal = ToLocal(ev.StartDateTime);
+            endLocal = ToLocal(ev.EndDateTime);
         }
     }
 
@@ -122,8 +125,8 @@
     {
         saving = true;
         saveError = null;
-        assignment.StartDateTime = DateTime.SpecifyKind(startLocal, DateTimeKind.Utc);
-        assignment.EndDateTime = DateTime.SpecifyKind(endLocal, DateTimeKind.Utc);
+        assignment.StartDateTime = startLocal;
+        assignment.EndDateTime = endLocal;
 
         var (success, err) = Id == 0
             ? await AssignmentSvc.CreateAsync(assignment, userId)

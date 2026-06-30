@@ -14,12 +14,12 @@
                 <button class="sidebar-toggle-btn" @onclick="ToggleSidebar" title="Alternar menú">
                     <i class="bi bi-list"></i>
                 </button>
-                <span class="fw-bold text-muted">Turnos — Personal de Eventos</span>
+                <span class="fw-bold text-white">Turnos — Personal de Eventos</span>
             </div>
             <AuthorizeView>
                 <Authorized>
-                    <span class="me-3 text-muted small">@context.User.Identity?.Name</span>
-                    <a href="/account/logout" class="btn btn-sm btn-outline-secondary">Salir</a>
+                    <span class="me-3 text-white small">@context.User.Identity?.Name</span>
+                    <a href="/account/logout" class="btn btn-sm btn-outline-light">Salir</a>
                 </Authorized>
             </AuthorizeView>
         </div>

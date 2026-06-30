@@ -6,13 +6,14 @@ namespace Turnos.Services;
 
 public class AuditService
 {
-    private readonly AppDbContext _db;
+    private readonly IDbContextFactory<AppDbContext> _dbFactory;
 
-    public AuditService(AppDbContext db) => _db = db;
+    public AuditService(IDbContextFactory<AppDbContext> dbFactory) => _dbFactory = dbFactory;
 
     public async Task LogAsync(string userId, string action, string entityType, int entityId, string? details = null)
     {
-        _db.AuditLogs.Add(new AuditLog
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        db.AuditLogs.Add(new AuditLog
         {
             UserId = userId,
             Action = action,
@@ -21,13 +22,14 @@ public class AuditService
             Timestamp = DateTime.UtcNow,
             Details = details
         });
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
     }
 
     public async Task<List<AuditLog>> GetLogsAsync(string? userId = null, string? entityType = null,
         DateTime? from = null, DateTime? to = null, int page = 1, int pageSize = 50)
     {
-        var query = _db.AuditLogs.AsQueryable();
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var query = db.AuditLogs.AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(userId))
             query = query.Where(a => a.UserId == userId);

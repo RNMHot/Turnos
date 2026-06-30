@@ -6,19 +6,26 @@ namespace Turnos.Services;
 
 public class EventService
 {
-    private readonly AppDbContext _db;
+    private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly AuditService _audit;
 
-    public EventService(AppDbContext db, AuditService audit)
+    public EventService(IDbContextFactory<AppDbContext> dbFactory, AuditService audit)
     {
-        _db = db;
+        _dbFactory = dbFactory;
         _audit = audit;
     }
 
     public async Task<List<Event>> GetAllAsync(string? search = null, int? companyId = null,
         DateTime? from = null, DateTime? to = null, bool? active = null)
     {
-        var query = _db.Events
+        await using var db = await _dbFactory.CreateDbContextAsync();
+
+        var today = DateTime.UtcNow.Date;
+        await db.Events
+            .Where(e => e.Active && e.EndDateTime < today)
+            .ExecuteUpdateAsync(s => s.SetProperty(e => e.Active, false));
+
+        var query = db.Events
             .Include(e => e.Company)
             .Include(e => e.Location)
             .AsQueryable();
@@ -40,14 +47,16 @@ public class EventService
 
     public async Task<List<Event>> GetForWeekAsync(DateTime weekStart)
     {
+        await using var db = await _dbFactory.CreateDbContextAsync();
         var localWeekStart = weekStart.Date;
         var localWeekEnd = localWeekStart.AddDays(7);
 
-        var events = await _db.Events
+        var events = await db.Events
+            .AsNoTracking()
             .Include(e => e.Company)
             .Include(e => e.Location)
-            .Include(e => e.Assignments).ThenInclude(a => a.Person)
-            .Where(e => e.Active)
+            .Include(e => e.Assignments.Where(a => !a.Deleted)).ThenInclude(a => a.Person)
+            //.Where(e => e.Active)
             .OrderBy(e => e.StartDateTime)
             .ToListAsync();
 
@@ -63,10 +72,12 @@ public class EventService
 
     public async Task<List<Event>> GetActiveWithAssignmentsAsync()
     {
-        return await _db.Events
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        return await db.Events
+            .AsNoTracking()
             .Include(e => e.Company)
             .Include(e => e.Location)
-            .Include(e => e.Assignments).ThenInclude(a => a.Person)
+            .Include(e => e.Assignments.Where(a => !a.Deleted)).ThenInclude(a => a.Person)
             .Where(e => e.Active)
             .OrderBy(e => e.StartDateTime)
             .ToListAsync();
@@ -82,29 +93,34 @@ public class EventService
         };
     }
 
-    public async Task<Event?> GetByIdAsync(int id) =>
-        await _db.Events
+    public async Task<Event?> GetByIdAsync(int id)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        return await db.Events
             .Include(e => e.Company)
             .Include(e => e.Location)
             .Include(e => e.Assignments).ThenInclude(a => a.Person).ThenInclude(p => p.PersonRoles).ThenInclude(pr => pr.Role)
             .FirstOrDefaultAsync(e => e.EventId == id);
+    }
 
     public async Task<Event> CreateAsync(Event ev, string actorUserId)
     {
+        await using var db = await _dbFactory.CreateDbContextAsync();
         ev.StartDateTime = ToUtc(ev.StartDateTime);
         ev.EndDateTime = ToUtc(ev.EndDateTime);
-        _db.Events.Add(ev);
-        await _db.SaveChangesAsync();
+        db.Events.Add(ev);
+        await db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Create", "Event", ev.EventId, $"Created {ev.EventName}");
         return ev;
     }
 
     public async Task UpdateAsync(Event ev, string actorUserId)
     {
+        await using var db = await _dbFactory.CreateDbContextAsync();
         ev.StartDateTime = ToUtc(ev.StartDateTime);
         ev.EndDateTime = ToUtc(ev.EndDateTime);
-        _db.Events.Update(ev);
-        await _db.SaveChangesAsync();
+        db.Events.Update(ev);
+        await db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Update", "Event", ev.EventId, $"Updated {ev.EventName}");
     }
 
@@ -120,11 +136,12 @@ public class EventService
 
     public async Task DeactivateAsync(int id, string actorUserId)
     {
-        var ev = await _db.Events.FindAsync(id);
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var ev = await db.Events.FindAsync(id);
         if (ev is null) return;
         ev.Active = false;
         ev.Deleted = true;
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Delete", "Event", id, $"Deleted {ev.EventName}");
     }
 }

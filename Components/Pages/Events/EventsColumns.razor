@@ -74,8 +74,11 @@
                                    @ondragover="OnDragOver"
                                  @ondragover:preventDefault="true"
                                    @ondrop:preventDefault="true"
-                                 @ondrop="() => OnDropOnEvent(ev)">
-                                <div class="small text-muted mb-2">Colocar persona aquí para asignar</div>
+                                 @ondrop="() => OnDropOnEvent(ev)"
+                                 @onclick="() => OnDropZoneClick(ev)">
+                                <div class="small text-muted mb-2 drop-zone-hint">
+                                    <i class="bi bi-person-plus me-1"></i>Arrastrar o clic para asignar
+                                </div>
 
                                 @if (ev.Assignments.Count == 0)
                                 {
@@ -85,14 +88,16 @@
                                 {
                                     @foreach (var a in ev.Assignments.Where(a => a.Status != AssignmentStatus.Cancelado))
                                     {
-                                        <div class="assignment-row d-flex align-items-center justify-content-between gap-2">
+                                        <div class="assignment-row d-flex align-items-center justify-content-between gap-2"
+                                             @onclick:stopPropagation="true">
                                             <div class="d-flex align-items-center gap-2">
                                                 <span class="assignment-name">@a.Person.FullName</span>
                                                 <span class="badge @GetStatusBadge(a.Status)">@a.Status</span>
                                             </div>
                                             <button class="btn btn-sm btn-outline-danger"
                                                     title="Eliminar asignación"
-                                                    @onclick="() => RemoveAssignment(a.AssignmentId)">
+                                                    @onclick="() => RemoveAssignment(a.AssignmentId)"
+                                                    @onclick:stopPropagation="true">
                                                 <i class="bi bi-x"></i>
                                             </button>
                                         </div>
@@ -117,30 +122,37 @@
                     <button class="btn-close" @onclick="() => selectedEvent = null"></button>
                 </div>
                 <div class="modal-body">
-                    <p><strong>Company:</strong> @selectedEvent.Company?.Name</p>
-                    <p><strong>Time:</strong> @selectedEvent.StartDateTime.ToLocalTime().ToString("MMM d, h:mm tt") – @selectedEvent.EndDateTime.ToLocalTime().ToString("h:mm tt")</p>
-                    <p><strong>Required Team:</strong> @FormatRequirements(selectedEvent)</p>
+                    <p><strong>Cliente:</strong> @selectedEvent.Company?.Name</p>
+                    <p><strong>Hora:</strong> @selectedEvent.StartDateTime.ToLocalTime().ToString("MMM d, h:mm tt") – @selectedEvent.EndDateTime.ToLocalTime().ToString("h:mm tt")</p>
+                    <p><strong>Requeridos:</strong> @FormatRequirements(selectedEvent)</p>
                     <p>
-                        <strong>Location:</strong> @(selectedEvent.Location?.Name ?? "—")
+                        <strong>Localización:</strong> @(selectedEvent.Location?.Name ?? "—")
                         @if (selectedEvent.Location?.Latitude.HasValue == true)
                         {
                             <a href="https://maps.google.com/?q=@selectedEvent.Location.Latitude,@selectedEvent.Location.Longitude"
                                target="_blank" rel="noopener" class="ms-2 small text-muted text-decoration-none">
-                                <i class="bi bi-pin-map"></i> Map
+                                <i class="bi bi-pin-map"></i> Mapa
                             </a>
                         }
                     </p>
                     @if (!string.IsNullOrEmpty(selectedEvent.Notes))
                     {
-                        <p><strong>Notes:</strong> @selectedEvent.Notes</p>
+                        <p><strong>Notas:</strong> @selectedEvent.Notes</p>
                     }
                     <hr />
-                    <h6>Assignments</h6>
-                    @foreach (var a in selectedEvent.Assignments)
+                    <h6>Asignados</h6>
+                    @foreach (var a in selectedEvent.Assignments.Where(a => a.Status != AssignmentStatus.Cancelado))
                     {
-                        <div class="d-flex align-items-center gap-2 mb-1">
-                            <span class="@GetRoleClass(a.Person) px-2 py-1 rounded small">@a.Person.FullName</span>
-                            <span class="badge @GetStatusBadge(a.Status)">@a.Status</span>
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="@GetRoleClass(a.Person) px-2 py-1 rounded small flex-grow-1">@a.Person.FullName</span>
+                            <select class="form-select form-select-sm" style="width:130px"
+                                    value="@a.Status.ToString()"
+                                    @onchange="async e => await ChangeStatus(a, e.Value?.ToString() ?? string.Empty)">
+                                <option value="Asignado">Asignado</option>
+                                <option value="Ofrecido">Ofrecido</option>
+                                <option value="Aceptado">Aceptado</option>
+                                <option value="Confirmado">Confirmado</option>
+                            </select>
                             <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveAssignment(a.AssignmentId)">
                                 <i class="bi bi-x"></i>
                             </button>
@@ -149,12 +161,12 @@
                 </div>
                 <div class="modal-footer">
                     <a href="/events/@selectedEvent.EventId" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-pencil me-1"></i> Edit Event
+                        <i class="bi bi-pencil me-1"></i> Editar Evento
                     </a>
                     <button class="btn btn-outline-success btn-sm" @onclick="OpenMessageModal">
-                        <i class="bi bi-whatsapp me-1"></i> Send Message
+                        <i class="bi bi-whatsapp me-1"></i> Enviar Mensaje
                     </button>
-                    <button class="btn btn-secondary" @onclick="() => selectedEvent = null">Close</button>
+                    <button class="btn btn-secondary" @onclick="() => selectedEvent = null">Cerrar</button>
                 </div>
             </div>
         </div>
@@ -162,6 +174,46 @@
 }
 
 <MessageModal Show="showMessageModal" EventId="selectedEvent?.EventId" OnClose="CloseMessageModal" />
+
+@if (pickingForEvent is not null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.4)" @onclick="ClosePicker">
+        <div class="modal-dialog modal-sm" @onclick:stopPropagation="true">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title">Asignar a @pickingForEvent.EventName</h6>
+                    <button class="btn-close" @onclick="ClosePicker"></button>
+                </div>
+                <div class="modal-body p-2">
+                    <input class="form-control form-control-sm mb-2"
+                           placeholder="Búsqueda..."
+                           @bind="personPickerSearch"
+                           @bind:event="oninput"
+                           @bind:after="FilterPickerPersonnel" />
+                    <div style="max-height:300px;overflow-y:auto">
+                        @if (pickerPersonnel.Count == 0)
+                        {
+                            <div class="text-muted small px-1">Sin resultados</div>
+                        }
+                        else
+                        {
+                            @foreach (var person in pickerPersonnel)
+                            {
+                                <div class="person-chip @GetRoleClass(person) mb-1"
+                                     style="cursor:pointer"
+                                     @onclick="() => AssignPersonFromPicker(person)"
+                                     title="@GetRoleLabel(person)">
+                                    <i class="bi bi-person-fill me-1"></i>
+                                    <span>@person.FullName</span>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
     private List<Event> activeEvents = new();
@@ -174,6 +226,9 @@
     private string? dropMessage;
     private bool dropSuccess;
     private string currentUserId = "";
+    private Event? pickingForEvent;
+    private string personPickerSearch = "";
+    private List<Person> pickerPersonnel = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -248,9 +303,50 @@
             selectedEvent = activeEvents.FirstOrDefault(e => e.EventId == selectedEvent.EventId);
     }
 
+    private void OnDropZoneClick(Event ev)
+    {
+        if (draggedPerson is not null) return;
+        pickingForEvent = ev;
+        personPickerSearch = "";
+        pickerPersonnel = availablePersonnel.ToList();
+    }
+
+    private void FilterPickerPersonnel()
+    {
+        pickerPersonnel = string.IsNullOrWhiteSpace(personPickerSearch)
+            ? availablePersonnel.ToList()
+            : availablePersonnel
+                .Where(p => p.FullName.Contains(personPickerSearch, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+    }
+
+    private async Task AssignPersonFromPicker(Person person)
+    {
+        if (pickingForEvent is null) return;
+        draggedPerson = person;
+        await OnDropOnEvent(pickingForEvent);
+        pickingForEvent = null;
+        personPickerSearch = "";
+    }
+
+    private void ClosePicker()
+    {
+        pickingForEvent = null;
+        personPickerSearch = "";
+    }
+
     private void OpenEventDetail(Event ev) => selectedEvent = ev;
     private void OpenMessageModal() => showMessageModal = true;
     private void CloseMessageModal() => showMessageModal = false;
+
+    private async Task ChangeStatus(Assignment a, string statusStr)
+    {
+        if (Enum.TryParse<AssignmentStatus>(statusStr, out var status))
+        {
+            await AssignmentSvc.UpdateStatusAsync(a.AssignmentId, status, currentUserId);
+            a.Status = status;
+        }
+    }
 
     private static string GetRoleClass(Person p)
     {

@@ -1,4 +1,5 @@
 @rendermode InteractiveServer
+@using Turnos.Models
 @inject WhatsAppService WhatsApp
 @inject EventService EventSvc
 
@@ -6,13 +7,13 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-whatsapp text-success me-2"></i>Send WhatsApp Message</h5>
+                <h5 class="modal-title"><i class="bi bi-whatsapp text-success me-2"></i>Enviar Mensaje de WhatsApp</h5>
                 <button class="btn-close" @onclick="Close"></button>
             </div>
             <div class="modal-body">
                 @if (sent)
                 {
-                    <div class="alert alert-success">Message sent successfully!</div>
+                    <div class="alert alert-success">Mensaje enviado!</div>
                 }
                 else if (!string.IsNullOrEmpty(error))
                 {
@@ -21,34 +22,59 @@
                 else
                 {
                     <div class="mb-3">
-                        <label class="form-label">Template</label>
+                        <label class="form-label">Plantilla</label>
                         <select class="form-select" @bind="selectedTemplate" @bind:after="OnTemplateChanged">
-                            <option value="">— Custom message —</option>
-                            <option value="OpenAssignment">Open Assignment (request availability)</option>
-                            <option value="AssignmentNotification">Assignment Notification</option>
-                            <option value="EventReminder">Event Reminder</option>
-                            <option value="SupervisorDetails">Supervisor Details</option>
+                            <option value="">— Mensaje manual —</option>
+                            <option value="OpenAssignment">Asignación abierta (solicitar disponibilidad)</option>
+                            <option value="AssignmentNotification">Notificación de asignación</option>
+                            <option value="EventReminder">Recordatorio de evento</option>
+                            <option value="SupervisorDetails">Detalles del supervisor</option>
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Message</label>
+                        <label class="form-label">Mensaje</label>
                         <textarea class="form-control" rows="4" @bind="messageBody"></textarea>
                     </div>
-                    @if (PersonId is null && EventId.HasValue)
+                    @if (PersonId is null && EventId.HasValue && currentEvent is not null)
                     {
-                        <div class="form-check mb-3">
-                            <input class="form-check-input" type="checkbox" id="sendAll" @bind="sendToAll" />
-                            <label class="form-check-label" for="sendAll">Send to all assigned personnel</label>
-                        </div>
+                        var activeAssignments = currentEvent.Assignments
+                            .Where(a => a.Status != AssignmentStatus.Cancelado && a.Status != AssignmentStatus.Rechazado)
+                            .ToList();
+                        @if (activeAssignments.Count > 0)
+                        {
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Enviar a:</label>
+                                <div class="border rounded p-2" style="max-height:160px;overflow-y:auto">
+                                    @foreach (var a in activeAssignments)
+                                    {
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="person_@a.PersonId"
+                                                   checked="@selectedPersonIds.Contains(a.PersonId)"
+                                                   @onchange="e => TogglePerson(a.PersonId, (bool)(e.Value ?? false))" />
+                                            <label class="form-check-label" for="person_@a.PersonId">
+                                                @a.Person.FullName
+                                                <span class="badge @GetStatusBadge(a.Status) ms-1" style="font-size:.7em">@a.Status</span>
+                                            </label>
+                                        </div>
+                                    }
+                                </div>
+                                <div class="mt-1 small">
+                                    <button class="btn btn-link btn-sm p-0" @onclick="() => SelectAll(activeAssignments)">Todos</button>
+                                    <span class="text-muted mx-1">·</span>
+                                    <button class="btn btn-link btn-sm p-0" @onclick="SelectNone">Ninguno</button>
+                                    <span class="text-muted ms-2">(@selectedPersonIds.Count seleccionados)</span>
+                                </div>
+                            </div>
+                        }
                     }
                 }
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" @onclick="Close">Cancel</button>
+                <button class="btn btn-secondary" @onclick="Close">Cancelar</button>
                 @if (!sent)
                 {
                     <button class="btn btn-success" @onclick="Send" disabled="@sending">
-                        <i class="bi bi-send me-1"></i> @(sending ? "Sending…" : "Send")
+                        <i class="bi bi-send me-1"></i> @(sending ? "Enviando…" : "Enviar")
                     </button>
                 }
             </div>
@@ -64,7 +90,7 @@
 
     private string selectedTemplate = "";
     private string messageBody = "";
-    private bool sendToAll;
+    private HashSet<int> selectedPersonIds = new();
     private bool sending;
     private bool sent;
     private string? error;
@@ -73,7 +99,13 @@
     protected override async Task OnParametersSetAsync()
     {
         if (EventId.HasValue)
+        {
             currentEvent = await EventSvc.GetByIdAsync(EventId.Value);
+            selectedPersonIds = currentEvent?.Assignments
+                .Where(a => a.Status != AssignmentStatus.Cancelado && a.Status != AssignmentStatus.Rechazado)
+                .Select(a => a.PersonId)
+                .ToHashSet() ?? new();
+        }
     }
 
     private void OnTemplateChanged()
@@ -85,23 +117,47 @@
 
     private async Task Send()
     {
-        if (string.IsNullOrWhiteSpace(messageBody)) { error = "Message cannot be empty."; return; }
+        if (string.IsNullOrWhiteSpace(messageBody)) { error = "El mensaje no puede estar vacío."; return; }
         sending = true;
         error = null;
         try
         {
-            if (sendToAll && EventId.HasValue)
-                await WhatsApp.SendToAllAssignedAsync(EventId.Value, selectedTemplate ?? "Custom", messageBody);
+            if (PersonId is null && EventId.HasValue)
+            {
+                foreach (var personId in selectedPersonIds)
+                    await WhatsApp.SendMessageAsync(personId, selectedTemplate ?? "Custom", messageBody, EventId);
+            }
             else if (PersonId.HasValue)
                 await WhatsApp.SendMessageAsync(PersonId.Value, selectedTemplate ?? "Custom", messageBody, EventId);
             sent = true;
         }
         catch (Exception ex)
         {
-            error = $"Failed: {ex.Message}";
+            error = $"Error: {ex.Message}";
         }
         sending = false;
     }
+
+    private void TogglePerson(int personId, bool selected)
+    {
+        if (selected) selectedPersonIds.Add(personId);
+        else selectedPersonIds.Remove(personId);
+    }
+
+    private void SelectAll(List<Assignment> assignments)
+        => selectedPersonIds = assignments.Select(a => a.PersonId).ToHashSet();
+
+    private void SelectNone() => selectedPersonIds.Clear();
+
+    private static string GetStatusBadge(AssignmentStatus status) => status switch
+    {
+        AssignmentStatus.Confirmado => "bg-success",
+        AssignmentStatus.Asignado => "bg-primary",
+        AssignmentStatus.Ofrecido => "bg-warning text-dark",
+        AssignmentStatus.Aceptado => "bg-info",
+        AssignmentStatus.Rechazado => "bg-danger",
+        _ => "bg-secondary"
+    };
 
     private async Task Close()
     {
@@ -109,6 +165,7 @@
         error = null;
         messageBody = "";
         selectedTemplate = "";
+        selectedPersonIds.Clear();
         await OnClose.InvokeAsync();
     }
 }

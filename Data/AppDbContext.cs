@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Turnos.Models;
 
 namespace Turnos.Data;
@@ -21,10 +22,13 @@ public class AppDbContext : IdentityDbContext
     public DbSet<MessageLog> MessageLogs => Set<MessageLog>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<Record> Records => Set<Record>();
+    public DbSet<AppSetting> AppSettings => Set<AppSetting>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        builder.Entity<AppSetting>().HasKey(s => s.Key);
 
         builder.Entity<Person>().HasQueryFilter(p => !p.Deleted);
         builder.Entity<Company>().HasQueryFilter(c => !c.Deleted);
@@ -97,5 +101,24 @@ public class AppDbContext : IdentityDbContext
             .WithMany(e => e.MessageLogs)
             .HasForeignKey(m => m.EventId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        // SQL Server returns DateTime without Kind; mark all as UTC so ToLocalTime() converts correctly.
+        var utcConverter = new ValueConverter<DateTime, DateTime>(
+            v => v,
+            v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+        var utcNullableConverter = new ValueConverter<DateTime?, DateTime?>(
+            v => v,
+            v => v == null ? null : DateTime.SpecifyKind(v.Value, DateTimeKind.Utc));
+
+        foreach (var entityType in builder.Model.GetEntityTypes())
+        {
+            foreach (var property in entityType.GetProperties())
+            {
+                if (property.ClrType == typeof(DateTime))
+                    property.SetValueConverter(utcConverter);
+                else if (property.ClrType == typeof(DateTime?))
+                    property.SetValueConverter(utcNullableConverter);
+            }
+        }
     }
 }

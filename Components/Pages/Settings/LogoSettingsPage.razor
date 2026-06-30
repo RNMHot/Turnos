@@ -1,0 +1,123 @@
+@page "/settings/logo"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject AppSettingService SettingsSvc
+@inject AppSettingsState SettingsState
+@using Microsoft.AspNetCore.Components.Forms
+
+<PageTitle>Logo del sistema — Turnos</PageTitle>
+
+<div class="d-flex align-items-center mb-4 gap-3">
+    <a href="/settings" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Volver
+    </a>
+    <h4 class="mb-0"><i class="bi bi-image me-2"></i>Logo del sistema</h4>
+</div>
+
+<div class="card" style="max-width:600px">
+    <div class="card-body">
+        <p class="text-muted small mb-3">
+            El logo reemplaza el ícono y nombre "Turnos" en la barra lateral.
+            Se recomienda PNG o SVG con fondo transparente (máx. 500 KB).
+        </p>
+
+        @if (!string.IsNullOrEmpty(_currentLogo))
+        {
+            <div class="mb-3">
+                <label class="form-label small fw-semibold">Logo actual</label>
+                <div class="logo-preview-box">
+                    <img src="@_currentLogo" alt="Logo actual" class="logo-preview-img" />
+                </div>
+            </div>
+        }
+
+        <div class="mb-3">
+            <label class="form-label">Seleccionar imagen</label>
+            <InputFile class="form-control" OnChange="OnFileSelected" accept="image/*" />
+            @if (!string.IsNullOrEmpty(_fileError))
+            {
+                <div class="text-danger small mt-1">@_fileError</div>
+            }
+        </div>
+
+        @if (!string.IsNullOrEmpty(_previewLogo))
+        {
+            <div class="mb-3">
+                <label class="form-label small fw-semibold">Vista previa</label>
+                <div class="logo-preview-box">
+                    <img src="@_previewLogo" alt="Vista previa" class="logo-preview-img" />
+                </div>
+            </div>
+        }
+
+        <div class="d-flex gap-2 flex-wrap">
+            <button class="btn btn-primary" @onclick="SaveLogo" disabled="@(string.IsNullOrEmpty(_previewLogo))">
+                <i class="bi bi-check-lg me-1"></i>Guardar logo
+            </button>
+            @if (!string.IsNullOrEmpty(_currentLogo))
+            {
+                <button class="btn btn-outline-danger" @onclick="RemoveLogo">
+                    <i class="bi bi-trash me-1"></i>Quitar logo
+                </button>
+            }
+        </div>
+
+        @if (!string.IsNullOrEmpty(_message))
+        {
+            <div class="alert alert-success mt-3 py-2 mb-0">@_message</div>
+        }
+    </div>
+</div>
+
+@code {
+    private string? _currentLogo;
+    private string? _previewLogo;
+    private string _message = "";
+    private string _fileError = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _currentLogo = await SettingsSvc.GetValueAsync("BrandLogoBase64");
+    }
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        _fileError = "";
+        _message = "";
+        var file = e.File;
+        if (file is null) return;
+
+        const long maxBytes = 512 * 1024;
+        if (file.Size > maxBytes)
+        {
+            _fileError = "La imagen no puede superar 500 KB.";
+            _previewLogo = null;
+            return;
+        }
+
+        using var stream = file.OpenReadStream(maxBytes);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        var base64 = Convert.ToBase64String(ms.ToArray());
+        _previewLogo = $"data:{file.ContentType};base64,{base64}";
+    }
+
+    private async Task SaveLogo()
+    {
+        if (string.IsNullOrEmpty(_previewLogo)) return;
+        await SettingsSvc.SetValueAsync("BrandLogoBase64", _previewLogo);
+        _currentLogo = _previewLogo;
+        _previewLogo = null;
+        SettingsState.SetBrandLogo(_currentLogo);
+        _message = "Logo guardado correctamente.";
+    }
+
+    private async Task RemoveLogo()
+    {
+        await SettingsSvc.SetValueAsync("BrandLogoBase64", null);
+        _currentLogo = null;
+        _previewLogo = null;
+        SettingsState.SetBrandLogo(null);
+        _message = "Logo eliminado.";
+    }
+}

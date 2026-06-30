@@ -1,0 +1,35 @@
+@page "/settings"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+<PageTitle>Configuración — Turnos</PageTitle>
+
+<div class="d-flex align-items-center mb-4">
+    <h4 class="mb-0"><i class="bi bi-sliders me-2"></i>Configuración</h4>
+</div>
+
+<div class="settings-list">
+    <div class="settings-list-header">Cuenta</div>
+
+    <a href="/settings/change-password" class="settings-list-item">
+        <div class="settings-item-title"><i class="bi bi-key me-2"></i>Cambiar contraseña</div>
+        <div class="settings-item-desc">Actualizar la contraseña de acceso de su cuenta.</div>
+    </a>
+
+    <div class="settings-list-header">Aplicación</div>
+
+    <a href="/settings/logo" class="settings-list-item">
+        <div class="settings-item-title"><i class="bi bi-image me-2"></i>Logo del sistema</div>
+        <div class="settings-item-desc">Cargar y gestionar el logo que aparece en la barra lateral.</div>
+    </a>
+
+    <a href="/settings/whatsapp" class="settings-list-item">
+        <div class="settings-item-title"><i class="bi bi-whatsapp me-2"></i>Cuenta de WhatsApp</div>
+        <div class="settings-item-desc">Configurar la cuenta de WhatsApp usada para enviar mensajes.</div>
+    </a>
+
+    <a href="/settings/email" class="settings-list-item">
+        <div class="settings-item-title"><i class="bi bi-envelope me-2"></i>Cuenta de correo electrónico</div>
+        <div class="settings-item-desc">Configurar la cuenta de correo electrónico usada para enviar eMails.</div>
+    </a>
+</div>

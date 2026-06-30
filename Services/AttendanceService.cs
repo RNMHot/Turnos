@@ -6,18 +6,19 @@ namespace Turnos.Services;
 
 public class AttendanceService
 {
-    private readonly AppDbContext _db;
+    private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly AuditService _audit;
 
-    public AttendanceService(AppDbContext db, AuditService audit)
+    public AttendanceService(IDbContextFactory<AppDbContext> dbFactory, AuditService audit)
     {
-        _db = db;
+        _dbFactory = dbFactory;
         _audit = audit;
     }
 
     public async Task<List<Attendance>> GetByRangeAsync(DateTime fromUtc, DateTime toUtc, int? personId = null)
     {
-        var query = _db.Attendances
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var query = db.Attendances
             .Include(a => a.Person)
             .Include(a => a.Event).ThenInclude(e => e.Company)
             .Include(a => a.Breaks)
@@ -34,7 +35,8 @@ public class AttendanceService
 
     public async Task<Attendance?> GetByIdAsync(int id)
     {
-        return await _db.Attendances
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        return await db.Attendances
             .Include(a => a.Person)
             .Include(a => a.Event).ThenInclude(e => e.Company)
             .Include(a => a.Breaks.OrderBy(b => b.BreakStartDateTime))
@@ -43,7 +45,8 @@ public class AttendanceService
 
     public async Task<Attendance?> GetOpenAttendanceForPersonAsync(int personId)
     {
-        return await _db.Attendances
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        return await db.Attendances
             .Include(a => a.Event)
             .Include(a => a.Breaks)
             .Where(a => a.PersonId == personId && a.CheckOutDateTime == null)
@@ -53,6 +56,7 @@ public class AttendanceService
 
     public async Task<(bool Success, string Error, Attendance? Attendance)> CreateAsync(Attendance attendance, string actorUserId)
     {
+        await using var db = await _dbFactory.CreateDbContextAsync();
         attendance.CheckInDateTime = NormalizeUtc(attendance.CheckInDateTime);
         attendance.CheckOutDateTime = attendance.CheckOutDateTime.HasValue
             ? NormalizeUtc(attendance.CheckOutDateTime.Value)
@@ -60,12 +64,12 @@ public class AttendanceService
         attendance.CreatedAt = DateTime.UtcNow;
         attendance.UpdatedAt = DateTime.UtcNow;
 
-        var validationError = await ValidateAttendanceAsync(attendance, attendance.AttendanceId);
+        var validationError = await ValidateAttendanceAsync(db, attendance, attendance.AttendanceId);
         if (!string.IsNullOrWhiteSpace(validationError))
             return (false, validationError, null);
 
-        _db.Attendances.Add(attendance);
-        await _db.SaveChangesAsync();
+        db.Attendances.Add(attendance);
+        await db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Create", "Attendance", attendance.AttendanceId,
             $"Attendance created for person {attendance.PersonId} in event {attendance.EventId}");
 
@@ -74,18 +78,19 @@ public class AttendanceService
 
     public async Task<(bool Success, string Error)> UpdateAsync(Attendance attendance, string actorUserId)
     {
+        await using var db = await _dbFactory.CreateDbContextAsync();
         attendance.CheckInDateTime = NormalizeUtc(attendance.CheckInDateTime);
         attendance.CheckOutDateTime = attendance.CheckOutDateTime.HasValue
             ? NormalizeUtc(attendance.CheckOutDateTime.Value)
             : null;
         attendance.UpdatedAt = DateTime.UtcNow;
 
-        var validationError = await ValidateAttendanceAsync(attendance, attendance.AttendanceId);
+        var validationError = await ValidateAttendanceAsync(db, attendance, attendance.AttendanceId);
         if (!string.IsNullOrWhiteSpace(validationError))
             return (false, validationError);
 
-        _db.Attendances.Update(attendance);
-        await _db.SaveChangesAsync();
+        db.Attendances.Update(attendance);
+        await db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Update", "Attendance", attendance.AttendanceId, "Attendance updated");
 
         return (true, string.Empty);
@@ -93,17 +98,19 @@ public class AttendanceService
 
     public async Task DeleteAsync(int id, string actorUserId)
     {
-        var attendance = await _db.Attendances.FindAsync(id);
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var attendance = await db.Attendances.FindAsync(id);
         if (attendance is null) return;
 
         attendance.Deleted = true;
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Delete", "Attendance", id, "Attendance deleted");
     }
 
     public async Task<(bool Success, string Error, Attendance? Attendance)> StartShiftAsync(int personId, int eventId, DateTime checkIn, string actorUserId)
     {
-        if (await _db.Attendances.AnyAsync(a => a.PersonId == personId && a.CheckOutDateTime == null))
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        if (await db.Attendances.AnyAsync(a => a.PersonId == personId && a.CheckOutDateTime == null))
             return (false, "La persona ya tiene una asistencia abierta.", null);
 
         var attendance = new Attendance
@@ -115,8 +122,8 @@ public class AttendanceService
             UpdatedAt = DateTime.UtcNow
         };
 
-        _db.Attendances.Add(attendance);
-        await _db.SaveChangesAsync();
+        db.Attendances.Add(attendance);
+        await db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Create", "Attendance", attendance.AttendanceId, "Shift started");
 
         return (true, string.Empty, attendance);
@@ -124,7 +131,8 @@ public class AttendanceService
 
     public async Task<(bool Success, string Error)> EndShiftAsync(int attendanceId, DateTime checkOut, string actorUserId)
     {
-        var attendance = await _db.Attendances
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var attendance = await db.Attendances
             .Include(a => a.Breaks)
             .FirstOrDefaultAsync(a => a.AttendanceId == attendanceId);
 
@@ -142,7 +150,7 @@ public class AttendanceService
         attendance.CheckOutDateTime = checkOutUtc;
         attendance.UpdatedAt = DateTime.UtcNow;
 
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Update", "Attendance", attendanceId, "Shift ended");
 
         return (true, string.Empty);
@@ -150,7 +158,8 @@ public class AttendanceService
 
     public async Task<(bool Success, string Error, AttendanceBreak? Break)> AddBreakAsync(int attendanceId, DateTime breakStart, DateTime? breakEnd, string? notes, string actorUserId)
     {
-        var attendance = await _db.Attendances
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var attendance = await db.Attendances
             .Include(a => a.Breaks)
             .FirstOrDefaultAsync(a => a.AttendanceId == attendanceId);
 
@@ -172,9 +181,9 @@ public class AttendanceService
             Notes = notes
         };
 
-        _db.AttendanceBreaks.Add(attendanceBreak);
+        db.AttendanceBreaks.Add(attendanceBreak);
         attendance.UpdatedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Create", "AttendanceBreak", attendanceBreak.AttendanceBreakId, "Break added");
 
         return (true, string.Empty, attendanceBreak);
@@ -182,7 +191,8 @@ public class AttendanceService
 
     public async Task<(bool Success, string Error)> UpdateBreakAsync(AttendanceBreak attendanceBreak, string actorUserId)
     {
-        var attendance = await _db.Attendances
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var attendance = await db.Attendances
             .Include(a => a.Breaks)
             .FirstOrDefaultAsync(a => a.AttendanceId == attendanceBreak.AttendanceId);
 
@@ -198,9 +208,9 @@ public class AttendanceService
         if (!string.IsNullOrWhiteSpace(validation))
             return (false, validation);
 
-        _db.AttendanceBreaks.Update(attendanceBreak);
+        db.AttendanceBreaks.Update(attendanceBreak);
         attendance.UpdatedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Update", "AttendanceBreak", attendanceBreak.AttendanceBreakId, "Break updated");
 
         return (true, string.Empty);
@@ -208,7 +218,8 @@ public class AttendanceService
 
     public async Task<(bool Success, string Error)> EndOpenBreakAsync(int attendanceId, DateTime breakEnd, string actorUserId)
     {
-        var attendance = await _db.Attendances
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var attendance = await db.Attendances
             .Include(a => a.Breaks)
             .FirstOrDefaultAsync(a => a.AttendanceId == attendanceId);
 
@@ -228,7 +239,7 @@ public class AttendanceService
             return (false, validation);
 
         attendance.UpdatedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Update", "AttendanceBreak", openBreak.AttendanceBreakId, "Break ended");
 
         return (true, string.Empty);
@@ -236,24 +247,25 @@ public class AttendanceService
 
     public async Task DeleteBreakAsync(int breakId, string actorUserId)
     {
-        var attendanceBreak = await _db.AttendanceBreaks.FindAsync(breakId);
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var attendanceBreak = await db.AttendanceBreaks.FindAsync(breakId);
         if (attendanceBreak is null) return;
 
-        var attendance = await _db.Attendances.FindAsync(attendanceBreak.AttendanceId);
+        var attendance = await db.Attendances.FindAsync(attendanceBreak.AttendanceId);
         attendanceBreak.Deleted = true;
         if (attendance is not null)
             attendance.UpdatedAt = DateTime.UtcNow;
 
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Delete", "AttendanceBreak", breakId, "Break deleted");
     }
 
-    private async Task<string?> ValidateAttendanceAsync(Attendance attendance, int? currentAttendanceId)
+    private static async Task<string?> ValidateAttendanceAsync(AppDbContext db, Attendance attendance, int? currentAttendanceId)
     {
         if (attendance.CheckOutDateTime.HasValue && attendance.CheckOutDateTime <= attendance.CheckInDateTime)
             return "La salida debe ser posterior a la entrada.";
 
-        var hasOpenShift = await _db.Attendances.AnyAsync(a =>
+        var hasOpenShift = await db.Attendances.AnyAsync(a =>
             a.PersonId == attendance.PersonId &&
             a.AttendanceId != currentAttendanceId &&
             a.CheckOutDateTime == null);

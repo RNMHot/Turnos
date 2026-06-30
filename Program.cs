@@ -15,7 +15,7 @@ if (builder.Environment.IsDevelopment() &&
     connectionString = "Server=(localdb)\\MSSQLLocalDB;Database=TurnosDb;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true";
 }
 
-builder.Services.AddDbContext<AppDbContext>(o =>
+builder.Services.AddDbContextFactory<AppDbContext>(o =>
     o.UseSqlServer(connectionString, sql =>
         sql.EnableRetryOnFailure(maxRetryCount: 5))
      .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
@@ -75,6 +75,8 @@ builder.Services.AddScoped<AvailabilityService>();
 builder.Services.AddScoped<WhatsAppService>();
 builder.Services.AddScoped<CalendarService>();
 builder.Services.AddScoped<ExcelExportService>();
+builder.Services.AddScoped<AppSettingService>();
+builder.Services.AddSingleton<AppSettingsState>();
 
 var app = builder.Build();
 

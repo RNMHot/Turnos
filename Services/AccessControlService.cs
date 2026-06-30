@@ -6,11 +6,11 @@ namespace Turnos.Services;
 
 public class AccessControlService
 {
-    private readonly AppDbContext _db;
+    private readonly IDbContextFactory<AppDbContext> _dbFactory;
 
-    public AccessControlService(AppDbContext db)
+    public AccessControlService(IDbContextFactory<AppDbContext> dbFactory)
     {
-        _db = db;
+        _dbFactory = dbFactory;
     }
 
     public async Task<bool> HasAppAccessAsync(IdentityUser user)
@@ -18,13 +18,15 @@ public class AccessControlService
         if (string.Equals(user.Email, TurnosClaimTypes.AdminEmail, StringComparison.OrdinalIgnoreCase))
             return true;
 
-        var person = await GetPersonForUserAsync(user);
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var person = await GetPersonForUserAsync(db, user);
         return person?.Active == true;
     }
 
     public async Task<int?> GetPersonIdAsync(IdentityUser user)
     {
-        var person = await GetPersonForUserAsync(user);
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var person = await GetPersonForUserAsync(db, user);
         return person?.PersonId;
     }
 
@@ -32,7 +34,8 @@ public class AccessControlService
     {
         var roles = new List<string>();
 
-        var person = await GetPersonForUserAsync(user);
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var person = await GetPersonForUserAsync(db, user);
 
         if (person?.Active == true)
             roles.Add("User");
@@ -48,13 +51,36 @@ public class AccessControlService
         if (string.Equals(user.Email, TurnosClaimTypes.AdminEmail, StringComparison.OrdinalIgnoreCase))
             return false;
 
-        var person = await GetPersonForUserAsync(user);
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var person = await GetPersonForUserAsync(db, user);
         return person?.Active == true && person.CheckInOnly;
     }
 
-    private async Task<Models.Person?> GetPersonForUserAsync(IdentityUser user)
+    public async Task<bool> MustChangePasswordAsync(IdentityUser user)
     {
-        return await _db.Persons
+        if (string.Equals(user.Email, TurnosClaimTypes.AdminEmail, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var person = await GetPersonForUserAsync(db, user);
+        return person?.MustChangePassword == true;
+    }
+
+    public async Task ClearMustChangePasswordAsync(IdentityUser user)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var person = await db.Persons
+            .FirstOrDefaultAsync(p => p.Email != null && user.Email != null && p.Email.ToLower() == user.Email.ToLower());
+        if (person is not null)
+        {
+            person.MustChangePassword = false;
+            await db.SaveChangesAsync();
+        }
+    }
+
+    private static async Task<Models.Person?> GetPersonForUserAsync(AppDbContext db, IdentityUser user)
+    {
+        return await db.Persons
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Email != null && user.Email != null && p.Email.ToLower() == user.Email.ToLower());
     }

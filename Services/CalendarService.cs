@@ -12,12 +12,12 @@ namespace Turnos.Services;
 
 public class CalendarService
 {
-    private readonly AppDbContext _db;
+    private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly IConfiguration _config;
 
-    public CalendarService(AppDbContext db, IConfiguration config)
+    public CalendarService(IDbContextFactory<AppDbContext> dbFactory, IConfiguration config)
     {
-        _db = db;
+        _dbFactory = dbFactory;
         _config = config;
     }
 
@@ -41,7 +41,8 @@ public class CalendarService
 
     public async Task<string?> GenerateIcsContentAsync(int eventId, int personId)
     {
-        var ev = await _db.Events.Include(e => e.Company).FirstOrDefaultAsync(e => e.EventId == eventId);
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var ev = await db.Events.Include(e => e.Company).FirstOrDefaultAsync(e => e.EventId == eventId);
         if (ev is null) return null;
 
         var calendar = new Ical.Net.Calendar();

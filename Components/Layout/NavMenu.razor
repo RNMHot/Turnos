@@ -1,15 +1,22 @@
 @rendermode InteractiveServer
 @inject AuthenticationStateProvider AuthStateProvider
+@inject AppSettingService SettingsSvc
+@inject AppSettingsState SettingsState
+@implements IDisposable
 
 <div class="nav-container @(Collapsed ? "nav-collapsed" : "")">
     <div class="top-row ps-3 navbar navbar-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="/">
-                <i class="bi bi-calendar-week me-1"></i><span class="brand-text"> Turnos</span>
+        <div class="container-fluid justify-content-center">
+            <a class="navbar-brand text-center" href="/">
+                @if (!string.IsNullOrEmpty(_logoDataUrl))
+                {
+                    <img src="@_logoDataUrl" alt="Logo" class="brand-logo" />
+                }
+                else
+                {
+                    <i class="bi bi-calendar-week me-1"></i><span class="brand-text"> Turnos</span>
+                }
             </a>
-            <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
-                <span class="navbar-toggler-icon"></span>
-            </button>
         </div>
     </div>
 
@@ -28,7 +35,7 @@
                     </NavLink>
                 </div>
                 <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="/events" title="Listado de eventos">
+                    <NavLink class="nav-link" href="/events" title="Eventos contratados">
                         <i class="bi bi-calendar-event me-2"></i><span class="nav-text">Registro de eventos</span>
                     </NavLink>
                 </div>
@@ -47,7 +54,7 @@
                     </Authorized>
                 </AuthorizeView>
 
-                <hr class="my-2 opacity-25 nav-hr" />
+                <hr class="my-2 opacity-25 nav-hr" /> 
 
                 <div class="nav-item px-3">
                     <button class="nav-link btn btn-link w-100 text-start d-flex align-items-center gap-1"
@@ -78,8 +85,6 @@
                     </div>
                 }
 
-                <hr class="my-2 opacity-25 nav-hr" />
-
                 <div class="nav-item px-3">
                     <button class="nav-link btn btn-link w-100 text-start d-flex align-items-center gap-1"
                             @onclick="ToggleConfig" @onclick:stopPropagation="true">
@@ -91,6 +96,11 @@
                 @if (showConfig)
                 {
                     <div class="nav-sub" @onclick:stopPropagation="true">
+                        <div class="nav-item px-3 ps-4">
+                            <NavLink class="nav-link nav-link-sub" href="/settings" title="Configuración de la aplicación">
+                                <i class="bi bi-sliders me-2"></i><span class="nav-text">Aplicación</span>
+                            </NavLink>
+                        </div>
                         <div class="nav-item px-3 ps-4">
                             <NavLink class="nav-link nav-link-sub" href="/messagelog">
                                 <i class="bi bi-whatsapp me-2"></i><span class="nav-text">Mensajes</span>
@@ -125,6 +135,11 @@
                             </Authorized>
                         </AuthorizeView>
                     </div>
+                    <div class="nav-item px-3 ps-4">
+                        <NavLink class="nav-link nav-link-sub" href="/settings/change-password" title="Cambiar contraseña">
+                            <i class="bi bi-key me-2"></i><span class="nav-text">Cambiar contraseña</span>
+                        </NavLink>
+                    </div>
                 </div>
             }
         </nav>
@@ -139,6 +154,7 @@
     private bool showConfig = false;
     private bool showHerramientas = true;
     private bool isCheckInOnly;
+    private string? _logoDataUrl;
 
     protected override async Task OnInitializedAsync()
     {
@@ -147,7 +163,18 @@
             authState.User.FindFirst(TurnosClaimTypes.CheckInOnly)?.Value,
             "true",
             StringComparison.OrdinalIgnoreCase);
+
+        _logoDataUrl = await SettingsSvc.GetValueAsync("BrandLogoBase64");
+        SettingsState.OnChange += OnSettingsChanged;
     }
+
+    private void OnSettingsChanged()
+    {
+        _logoDataUrl = SettingsState.BrandLogoBase64;
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => SettingsState.OnChange -= OnSettingsChanged;
 
     private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
     private void ToggleNavMenu() => collapseNavMenu = !collapseNavMenu;

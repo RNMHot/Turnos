@@ -1,0 +1,47 @@
+.settings-list {
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    overflow: hidden;
+    max-width: 720px;
+}
+
+.settings-list-header {
+    background: #e9ecef;
+    padding: 0.6rem 1.25rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border-bottom: 1px solid #dee2e6;
+    color: #343a40;
+}
+
+.settings-list-item {
+    display: block;
+    padding: 0.85rem 1.25rem;
+    border-bottom: 1px solid #dee2e6;
+    text-decoration: none;
+    background: #fff;
+    transition: background 0.15s;
+}
+
+.settings-list-item:last-child {
+    border-bottom: none;
+}
+
+.settings-list-item:nth-child(odd) {
+    background: #f8f9fa;
+}
+
+.settings-list-item:hover {
+    background: #e8f0fe;
+}
+
+.settings-item-title {
+    font-weight: 500;
+    color: #1a5276;
+    margin-bottom: 0.2rem;
+}
+
+.settings-item-desc {
+    font-size: 0.875rem;
+    color: #6c757d;
+}

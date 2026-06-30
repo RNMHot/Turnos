@@ -2,8 +2,8 @@ namespace Turnos.Models;
 
 public enum AvailabilityType
 {
-    Recurring,
-    SpecificDate
+    Recurrente,
+    FechaEspecifica
 }
 
 public class Availability

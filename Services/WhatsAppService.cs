@@ -33,7 +33,7 @@ public class WhatsAppService
             MessageType = messageType,
             MessageBody = messageBody,
             SentDateTime = DateTime.UtcNow,
-            DeliveryStatus = "Pending"
+            DeliveryStatus = "Pendiente"
         };
         _db.MessageLogs.Add(log);
         await _db.SaveChangesAsync();
@@ -41,14 +41,14 @@ public class WhatsAppService
         try
         {
             var sent = await SendViaApiAsync(person.PhoneNumber, messageBody);
-            log.DeliveryStatus = sent ? "Sent" : "Failed";
+            log.DeliveryStatus = sent ? "Enviado" : "Fallido";
             await _db.SaveChangesAsync();
             return sent;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "WhatsApp send failed for person {PersonId}", personId);
-            log.DeliveryStatus = "Failed";
+            _logger.LogError(ex, "Error al enviar WhatsApp para la persona {PersonId}", personId);
+            log.DeliveryStatus = "Fallido";
             await _db.SaveChangesAsync();
             return false;
         }
@@ -67,19 +67,19 @@ public class WhatsAppService
 
     public string BuildTemplateMessage(string templateName, Event ev, Person person, string? calendarUrl = null)
     {
-        var otherLabel = string.IsNullOrWhiteSpace(ev.RequiredOtherLabel) ? "Other" : ev.RequiredOtherLabel;
-        var staffingText = $"Team needed: Supervisors {ev.RequiredSupervisors}, Ushers {ev.RequiredUshers}, {otherLabel} {ev.RequiredOther}.";
+        var otherLabel = string.IsNullOrWhiteSpace(ev.RequiredOtherLabel) ? "Otro" : ev.RequiredOtherLabel;
+        var staffingText = $"Equipo necesario: Supervisores {ev.RequiredSupervisors}, Ushers {ev.RequiredUshers}, {otherLabel} {ev.RequiredOther}.";
 
         return templateName switch
         {
             "OpenAssignment" =>
-                $"Hi {person.FullName}, are you available for {ev.EventName} on {ev.StartDateTime:MMM d 'at' h:mm tt}? {staffingText} Reply YES or NO.",
+                $"Hola {person.FullName}, ¿estás disponible para {ev.EventName} el {ev.StartDateTime:MMM d 'a las' h:mm tt}? {staffingText} Responde SÍ o NO.",
             "AssignmentNotification" =>
-                $"Hi {person.FullName}, you have been assigned to {ev.EventName} on {ev.StartDateTime:MMM d 'at' h:mm tt} at {ev.Location}. {staffingText}{(calendarUrl != null ? $" Add to calendar: {calendarUrl}" : "")}",
+                $"Hola {person.FullName}, has sido asignado a {ev.EventName} el {ev.StartDateTime:MMM d 'a las' h:mm tt} en {ev.Location}. {staffingText}{(calendarUrl != null ? $" Agregar al calendario: {calendarUrl}" : "")}",
             "EventReminder" =>
-                $"Reminder: {ev.EventName} tomorrow at {ev.StartDateTime:h:mm tt} — {ev.Location}. {staffingText} See you there!",
+                $"Recordatorio: {ev.EventName} mañana a las {ev.StartDateTime:h:mm tt} — {ev.Location}. {staffingText} ¡Nos vemos allí!",
             "SupervisorDetails" =>
-                $"Supervisor Info — {ev.EventName}: Location: {ev.Location}. Notes: {ev.Notes}. Start: {ev.StartDateTime:MMM d h:mm tt}. {staffingText}",
+                $"Información del supervisor — {ev.EventName}: Ubicación: {ev.Location}. Notas: {ev.Notes}. Inicio: {ev.StartDateTime:MMM d h:mm tt}. {staffingText}",
             _ => string.Empty
         };
     }
@@ -91,7 +91,7 @@ public class WhatsAppService
 
         if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(phoneNumberId))
         {
-            _logger.LogWarning("WhatsApp API not configured.");
+            _logger.LogWarning("WhatsApp API no está configurada.");
             return false;
         }
 
