@@ -46,17 +46,17 @@
                         </select>
                     </td>
                     <td class="text-end">
-                        <button class="btn btn-sm btn-outline-success me-1" @onclick="() => OpenMessage(a)" title="Send WhatsApp">
+                        <button class="btn btn-sm btn-outline-success me-1" @onclick="() => OpenMessage(a)" title="Enviar WhatsApp">
                             <i class="bi bi-whatsapp"></i>
                         </button>
-                        <a href="/assignments/@a.AssignmentId" class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil"></i></a>
-                        <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(a)"><i class="bi bi-trash"></i></button>
+                        <a href="/assignments/@a.AssignmentId" class="btn btn-sm btn-outline-primary me-1" title="Editar el turno"><i class="bi bi-pencil"></i></a>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(a)" title="Eliminar del turno"><i class="bi bi-trash"></i></button>
                     </td>
                 </tr>
             }
             @if (!assignments.Any())
             {
-                <tr><td colspan="7" class="text-muted text-center py-4">No assignments found.</td></tr>
+                <tr><td colspan="7" class="text-muted text-center py-4">No se encontraron asignaciones.</td></tr>
             }
         </tbody>
     </table>

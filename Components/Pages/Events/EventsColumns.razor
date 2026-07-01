@@ -96,7 +96,7 @@
                                             </div>
                                             <button class="btn btn-sm btn-outline-danger"
                                                     title="Eliminar asignación"
-                                                    @onclick="() => RemoveAssignment(a.AssignmentId)"
+                                                    @onclick="() => AskRemoveAssignment(a.AssignmentId, a.Person.FullName)"
                                                     @onclick:stopPropagation="true">
                                                 <i class="bi bi-x"></i>
                                             </button>
@@ -153,7 +153,7 @@
                                 <option value="Aceptado">Aceptado</option>
                                 <option value="Confirmado">Confirmado</option>
                             </select>
-                            <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveAssignment(a.AssignmentId)">
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => AskRemoveAssignment(a.AssignmentId, a.Person.FullName)">
                                 <i class="bi bi-x"></i>
                             </button>
                         </div>
@@ -174,6 +174,27 @@
 }
 
 <MessageModal Show="showMessageModal" EventId="selectedEvent?.EventId" OnClose="CloseMessageModal" />
+
+@if (confirmRemoveAssignmentId.HasValue)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5)">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title">Confirmar eliminación</h6>
+                    <button class="btn-close" @onclick="CancelRemoveAssignment"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">Confirme remover a: <strong>@confirmRemovePersonName</strong></p>
+                </div>
+                <div class="modal-footer py-2">
+                    <button class="btn btn-secondary btn-sm" @onclick="CancelRemoveAssignment">No</button>
+                    <button class="btn btn-danger btn-sm" @onclick="ConfirmRemoveAssignment">Sí</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 @if (pickingForEvent is not null)
 {
@@ -229,6 +250,8 @@
     private Event? pickingForEvent;
     private string personPickerSearch = "";
     private List<Person> pickerPersonnel = new();
+    private int? confirmRemoveAssignmentId;
+    private string confirmRemovePersonName = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -293,6 +316,26 @@
             dropMessage = null;
             InvokeAsync(StateHasChanged);
         });
+    }
+
+    private void AskRemoveAssignment(int assignmentId, string personName)
+    {
+        confirmRemoveAssignmentId = assignmentId;
+        confirmRemovePersonName = personName;
+    }
+
+    private void CancelRemoveAssignment()
+    {
+        confirmRemoveAssignmentId = null;
+        confirmRemovePersonName = "";
+    }
+
+    private async Task ConfirmRemoveAssignment()
+    {
+        if (confirmRemoveAssignmentId.HasValue)
+            await RemoveAssignment(confirmRemoveAssignmentId.Value);
+        confirmRemoveAssignmentId = null;
+        confirmRemovePersonName = "";
     }
 
     private async Task RemoveAssignment(int assignmentId)

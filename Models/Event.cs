@@ -36,11 +36,6 @@ public class Event
 
     public bool Deleted { get; set; }
 
-    public bool IsRecurring { get; set; } = false;
-
-    [MaxLength(500)]
-    public string? RecurrencePattern { get; set; }
-
     public ICollection<Assignment> Assignments { get; set; } = new List<Assignment>();
     public ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();
     public ICollection<MessageLog> MessageLogs { get; set; } = new List<MessageLog>();

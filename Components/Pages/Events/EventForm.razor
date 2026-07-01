@@ -51,11 +51,11 @@
                         }
                     </InputSelect>
                 </div>
-                <div class="col-md-6 @(ev.IsRecurring ? "d-none" : "")">
+                <div class="col-md-6 @(createMultiple ? "d-none" : "")">
                     <label class="form-label">Inicio</label>
                     <input type="datetime-local" class="form-control" @bind="startLocal" @bind:after="OnStartChanged" />
                 </div>
-                <div class="col-md-6 @(ev.IsRecurring ? "d-none" : "")">
+                <div class="col-md-6 @(createMultiple ? "d-none" : "")">
                     <label class="form-label">Fin</label>
                     <input type="datetime-local" class="form-control" @bind="endLocal" />
                 </div>
@@ -70,22 +70,29 @@
                     <ValidationMessage For="() => ev.RequiredUshers" />
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Otros</label>
+                    @if (editingOtherLabel)
+                    {
+                        <InputText id="txtbOtros" @bind-Value="ev.RequiredOtherLabel" class="form-control form-label"
+                                   @onblur="StopEditingOtherLabel"
+                                   @onkeydown="OnOtherLabelKeyDown" />
+                    }
+                    else
+                    {
+                        <label id="lblOtros" class="form-label" @ondblclick="StartEditingOtherLabel" title="Doble clic para editar la etiqueta">@OtherLabelText</label>
+                    }
                     <InputNumber @bind-Value="ev.RequiredOther" class="form-control" />
                     <ValidationMessage For="() => ev.RequiredOther" />
                 </div>
-                <div class="col-md-6">
-                    <label class="form-label">Etiqueta de otros</label>
-                    <InputText @bind-Value="ev.RequiredOtherLabel" class="form-control" />
-                    <ValidationMessage For="() => ev.RequiredOtherLabel" />
-                </div>
-                <div class="col-12">
-                    <div class="form-check">
-                        <InputCheckbox @bind-Value="ev.IsRecurring" class="form-check-input" id="recurring" />
-                        <label class="form-check-label" for="recurring">Crear varias ocurrencias</label>
+                @if (Id == 0)
+                {
+                    <div class="col-12">
+                        <div class="form-check">
+                            <input type="checkbox" @bind="createMultiple" class="form-check-input" id="recurring" />
+                            <label class="form-check-label" for="recurring">Crear varias ocurrencias</label>
+                        </div>
                     </div>
-                </div>
-                @if (ev.IsRecurring)
+                }
+                @if (createMultiple && Id == 0)
                 {
                     <div class="col-12">
                         <div class="alert alert-info py-2 mb-2">
@@ -220,6 +227,21 @@
 
     private async Task GoBack() => await JS.InvokeVoidAsync("history.back");
 
+    private void StartEditingOtherLabel() => editingOtherLabel = true;
+
+    private void StopEditingOtherLabel()
+    {
+        if (string.IsNullOrWhiteSpace(ev.RequiredOtherLabel))
+            ev.RequiredOtherLabel = "Otros";
+        editingOtherLabel = false;
+    }
+
+    private void OnOtherLabelKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" || e.Key == "Escape")
+            StopEditingOtherLabel();
+    }
+
     private Event ev = new()
     {
         Active = true,
@@ -231,6 +253,9 @@
     private List<Company> companies = new();
     private List<Location> locations = new();
     private bool saving;
+    private bool editingOtherLabel;
+    private string OtherLabelText => string.IsNullOrWhiteSpace(ev.RequiredOtherLabel) ? "Otros" : ev.RequiredOtherLabel;
+    private bool createMultiple;
     private string? recurrenceError;
     private string? saveError;
     private string userId = string.Empty;
@@ -276,7 +301,7 @@
         saveError = null;
         try
         {
-            if (Id == 0 && ev.IsRecurring)
+            if (Id == 0 && createMultiple)
             {
                 var occurrences = BuildOccurrences();
                 if (!occurrences.Any())
@@ -331,7 +356,7 @@
 
         endLocal = startLocal.AddHours(4);
 
-        if (!ev.IsRecurring && recurrenceRules.Count > 0)
+        if (!createMultiple && recurrenceRules.Count > 0)
         {
             recurrenceRules[0].StartTimeText = startLocal.ToString("HH:mm");
             recurrenceRules[0].EndTimeText = endLocal.ToString("HH:mm");
@@ -432,8 +457,6 @@
                 LocationId = ev.LocationId,
                 Notes = ev.Notes,
                 Active = ev.Active,
-                IsRecurring = true,
-                RecurrencePattern = DescribeRule(rule)
             };
         }
     }
@@ -479,17 +502,6 @@
 
     private static string FormatDateInput(DateTime value) => value.ToString("yyyy-MM-dd");
 
-    private static string DescribeRule(RecurrenceRuleEditor rule)
-    {
-        return rule.Kind switch
-        {
-            RecurrenceRuleKind.SingleDate => $"SingleDate: {rule.SingleDate:yyyy-MM-dd} {rule.StartTimeText}-{rule.EndTimeText}",
-            RecurrenceRuleKind.WeekdaysInRange => $"WeekdaysInRange: {rule.RangeStartDate:yyyy-MM-dd}..{rule.RangeEndDate:yyyy-MM-dd} [{string.Join(',', rule.Days)}] {rule.StartTimeText}-{rule.EndTimeText}",
-            RecurrenceRuleKind.SpecificDates => $"SpecificDates: {rule.SpecificDatesText.Replace('\r', ' ').Replace('\n', ' ')} {rule.StartTimeText}-{rule.EndTimeText}",
-            _ => string.Empty
-        };
-    }
-
     private static RecurrenceRuleEditor CreateDefaultRule() => new()
     {
         Kind = RecurrenceRuleKind.SingleDate,
@@ -518,7 +530,7 @@
         _ => day.ToString()
     };
 
-    private int PreviewCount => ev.IsRecurring ? BuildOccurrences().Count : 0;
+    private int PreviewCount => createMultiple ? BuildOccurrences().Count : 0;
 
     private static DateTime RoundDownToHourUtc(DateTime value)
     {
