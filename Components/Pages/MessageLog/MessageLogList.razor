@@ -1,7 +1,8 @@
 @page "/messagelog"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "AppAccess", Roles = "Gerencia,Admin")]
 @rendermode InteractiveServer
 @inject AppDbContext Db
+@using Microsoft.EntityFrameworkCore
 
 <PageTitle>Historial de Mensajes — Turnos</PageTitle>
 
@@ -21,14 +22,23 @@
 <div class="table-responsive">
     <table class="table table-sm align-middle">
         <thead class="table-light">
-            <tr><th>Enviado</th><th>Persona</th><th>Evento</th><th>Tipo</th><th>Mensaje</th><th>Estado</th></tr>
+            <tr><th>Enviado</th><th>Destinatario</th><th>Evento</th><th>Tipo</th><th>Mensaje</th><th>Estado</th></tr>
         </thead>
         <tbody>
             @foreach (var m in messages)
             {
                 <tr>
                     <td class="text-nowrap">@m.SentDateTime.ToString("MMM d, h:mm tt")</td>
-                    <td>@m.Person?.FullName</td>
+                    <td>
+                        @if (m.WhatsAppGroup is not null)
+                        {
+                            <span><i class="bi bi-people-fill text-success me-1"></i>@m.WhatsAppGroup.Name</span>
+                        }
+                        else
+                        {
+                            @m.Person?.FullName
+                        }
+                    </td>
                     <td>@(m.Event?.EventName ?? "—")</td>
                     <td><span class="badge bg-secondary">@m.MessageType</span></td>
                     <td class="text-muted small" style="max-width:280px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">@m.MessageBody</td>
@@ -60,13 +70,13 @@
         var query = Db.MessageLogs
             .Include(m => m.Person)
             .Include(m => m.Event)
+            .Include(m => m.WhatsAppGroup)
             .AsQueryable();
 
         if (filterFrom.HasValue) query = query.Where(m => m.SentDateTime >= filterFrom.Value);
         if (filterTo.HasValue) query = query.Where(m => m.SentDateTime <= filterTo.Value.AddDays(1));
         if (!string.IsNullOrEmpty(filterStatus)) query = query.Where(m => m.DeliveryStatus == filterStatus);
 
-        messages = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions
-            .ToListAsync(query.OrderByDescending(m => m.SentDateTime).Take(200));
+        messages = await query.OrderByDescending(m => m.SentDateTime).Take(200).ToListAsync();
     }
 }

@@ -17,11 +17,19 @@
 
 .top-row {
     min-height: 3.5rem;
-    background-color: rgba(0,0,0,0.25);
+    background-color: rgb(10, 22, 40);
 }
 
 .navbar-brand {
     font-size: 1.1rem;
+}
+
+.brand-text {
+    font-family: 'Fraunces', serif;
+    color: rgb(255, 255, 255);
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
 }
 
 .brand-logo {
@@ -50,7 +58,7 @@
     top: 0;
     width: auto;
     height: auto;
-    margin-right: 0;
+    margin-right: 0 !important;
     line-height: 1;
     vertical-align: middle;
 }
@@ -68,8 +76,8 @@
 }
 
 .nav-item {
-    font-size: 0.9rem;
-    padding-bottom: 0.5rem;
+    font-size: 13.5px;
+    padding-bottom: 0;
 }
 
     .nav-item:first-of-type {
@@ -81,11 +89,16 @@
     }
 
     .nav-item ::deep .nav-link {
-        color: white;
+        font-family: Inter, sans-serif;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: rgb(203, 213, 225);
         background: none;
-        border: none;
-        border-radius: 4px;
-        min-height: 3rem;
+        border: 1px solid transparent;
+        border-radius: 9px;
+        padding: 10px 12px;
+        gap: 11px;
+        margin-bottom: 3px;
         display: flex;
         align-items: center;
         line-height: 1.2;
@@ -93,19 +106,32 @@
     }
 
 .nav-item ::deep a.active {
-    background-color: rgba(201, 120, 50, 0.35);
-    color: white;
-    border-left: 3px solid #C97832;
+    background: rgba(201, 162, 39, 0.14);
+    border: 1px solid rgb(201, 162, 39);
+    color: rgb(255, 255, 255);
+    font-weight: 600;
+}
+
+.nav-item ::deep a.active i.bi {
+    color: rgb(228, 200, 116);
 }
 
 .nav-item ::deep .nav-link:hover {
-    background-color: rgba(255,255,255,0.1);
-    color: white;
+    background-color: rgba(255, 255, 255, 0.07);
+    color: rgb(255, 255, 255);
+}
+
+.nav-item ::deep button.nav-link:focus,
+.nav-item ::deep button.nav-link:active,
+.nav-item ::deep button.nav-link.active {
+    border-color: transparent;
+    box-shadow: none;
+    outline: none;
 }
 
 .nav-scrollable {
     display: none;
-    background-color: rgba(0,0,0,0.25);
+    background-color: transparent;
 }
 
 .navbar-toggler:checked ~ .nav-scrollable {

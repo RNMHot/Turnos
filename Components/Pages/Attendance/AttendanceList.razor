@@ -1,5 +1,5 @@
 @page "/attendance"
-@attribute [Authorize(Policy = "AppAccess", Roles = "Admin")]
+@attribute [Authorize(Policy = "AppAccess", Roles = "Gerencia,Admin")]
 @rendermode InteractiveServer
 @inject AttendanceService AttendanceSvc
 @inject PersonService PersonSvc
@@ -174,6 +174,7 @@
     private string? statusMsg;
     private decimal totalPeriodHours;
     private List<DayTotal> dayTotals = new();
+    private int _loadVersion = 0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -185,8 +186,13 @@
 
     private async Task Load()
     {
+        var version = ++_loadVersion;
+        if (periodMode == "week")
+            weekStartDate = GetMonday(weekStartDate);
         var (fromUtc, toUtc) = GetCurrentRangeUtc();
-        attendance = await AttendanceSvc.GetByRangeAsync(fromUtc, toUtc, filterPersonId);
+        var result = await AttendanceSvc.GetByRangeAsync(fromUtc, toUtc, filterPersonId);
+        if (version != _loadVersion) return;
+        attendance = result;
         RecalculateTotals();
     }
 
@@ -197,9 +203,9 @@
 
         if (periodMode == "week")
         {
-            weekStartDate = GetMonday(weekStartDate);
-            fromLocal = weekStartDate.Date;
-            toLocal = weekStartDate.Date.AddDays(7);
+            var monday = GetMonday(weekStartDate);
+            fromLocal = monday;
+            toLocal = monday.AddDays(7);
         }
         else
         {

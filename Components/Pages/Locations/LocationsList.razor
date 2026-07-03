@@ -1,5 +1,5 @@
 @page "/locations"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "AppAccess", Roles = "Gerencia,Admin")]
 @rendermode InteractiveServer
 @inject LocationService LocationSvc
 @inject AuthenticationStateProvider AuthState

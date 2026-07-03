@@ -1,6 +1,6 @@
 @page "/companies/new"
 @page "/companies/{Id:int}"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "AppAccess", Roles = "Gerencia,Admin")]
 @rendermode InteractiveServer
 @inject CompanyService CompanySvc
 @inject AuthenticationStateProvider AuthState
@@ -9,7 +9,7 @@
 <PageTitle>@(Id == 0 ? "Nuevo Cliente" : "Editar Cliente") — Turnos</PageTitle>
 
 <div class="d-flex align-items-center gap-2 mb-3">
-    <a href="/companies" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i></a>
+    <a href="/companies" class="btn btn-outline-secondary btn-sm" title="Regresar"><i class="bi bi-arrow-left"></i></a>
     <h4 class="mb-0">@(Id == 0 ? "Nuevo Cliente" : "Editar Cliente")</h4>
 </div>
 

@@ -1,0 +1,201 @@
+@page "/settings/whatsapp-groups"
+@attribute [Authorize(Policy = "AppAccess", Roles = "Gerencia,Admin")]
+@rendermode InteractiveServer
+@inject AppDbContext Db
+
+<PageTitle>Grupos de WhatsApp — Turnos</PageTitle>
+
+<div class="d-flex align-items-center mb-4 gap-3">
+    <a href="/settings" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Volver
+    </a>
+    <h4 class="mb-0"><i class="bi bi-people-fill text-success me-2"></i>Grupos de WhatsApp</h4>
+</div>
+
+<div style="max-width:700px">
+    <p class="text-muted small mb-3">
+        Defina los grupos de WhatsApp a los que puede enviar mensajes. El número de teléfono debe ser el ID del grupo o número de teléfono del grupo tal como lo reconoce la API de WhatsApp Business.
+    </p>
+
+    @if (!string.IsNullOrEmpty(_globalMessage))
+    {
+        <div class="alert @_globalMessageClass py-2">@_globalMessage</div>
+    }
+
+    <!-- Add / Edit form -->
+    <div class="card mb-4">
+        <div class="card-header fw-semibold">
+            @(_editingGroupId.HasValue ? "Editar grupo" : "Agregar grupo")
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-sm-5">
+                    <label class="form-label">Nombre del grupo</label>
+                    <input class="form-control" @bind="_formName" placeholder="Ej: Ushers Generales" />
+                </div>
+                <div class="col-sm-5">
+                    <label class="form-label">Número / ID de WhatsApp</label>
+                    <input class="form-control" @bind="_formPhone" placeholder="Ej: +1234567890" />
+                </div>
+                <div class="col-sm-2 d-flex align-items-end">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="activeCheck" @bind="_formActive" />
+                        <label class="form-check-label" for="activeCheck">Activo</label>
+                    </div>
+                </div>
+            </div>
+            <div class="mb-3 mt-3">
+                <label class="form-label">Notas (opcional)</label>
+                <input class="form-control" @bind="_formNotes" placeholder="Descripción o notas" />
+            </div>
+            @if (!string.IsNullOrEmpty(_formError))
+            {
+                <div class="alert alert-danger py-2 mb-2">@_formError</div>
+            }
+            <div class="d-flex gap-2">
+                <button class="btn btn-primary btn-sm" @onclick="SaveGroup">
+                    <i class="bi bi-check-lg me-1"></i>@(_editingGroupId.HasValue ? "Actualizar" : "Agregar")
+                </button>
+                @if (_editingGroupId.HasValue)
+                {
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="CancelEdit">Cancelar</button>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Groups list -->
+    @if (_groups.Count == 0)
+    {
+        <p class="text-muted">No hay grupos guardados todavía.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Número / ID</th>
+                        <th>Notas</th>
+                        <th>Estado</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var g in _groups)
+                    {
+                        <tr class="@(!g.Active ? "table-secondary text-muted" : "")">
+                            <td class="fw-semibold">@g.Name</td>
+                            <td class="font-monospace small">@g.PhoneNumber</td>
+                            <td class="text-muted small">@g.Notes</td>
+                            <td>
+                                @if (g.Active)
+                                {
+                                    <span class="badge bg-success">Activo</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Inactivo</span>
+                                }
+                            </td>
+                            <td class="text-end text-nowrap">
+                                <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => StartEdit(g)" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteGroup(g.GroupId)" title="Eliminar">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<WhatsAppGroup> _groups = new();
+    private int? _editingGroupId;
+    private string _formName = "";
+    private string _formPhone = "";
+    private string _formNotes = "";
+    private bool _formActive = true;
+    private string _formError = "";
+    private string _globalMessage = "";
+    private string _globalMessageClass = "alert-success";
+
+    protected override async Task OnInitializedAsync() => await LoadGroups();
+
+    private async Task LoadGroups()
+        => _groups = await Db.WhatsAppGroups.IgnoreQueryFilters()
+            .Where(g => !g.Deleted)
+            .OrderBy(g => g.Name)
+            .ToListAsync();
+
+    private void StartEdit(WhatsAppGroup g)
+    {
+        _editingGroupId = g.GroupId;
+        _formName = g.Name;
+        _formPhone = g.PhoneNumber;
+        _formNotes = g.Notes ?? "";
+        _formActive = g.Active;
+        _formError = "";
+    }
+
+    private void CancelEdit()
+    {
+        _editingGroupId = null;
+        _formName = "";
+        _formPhone = "";
+        _formNotes = "";
+        _formActive = true;
+        _formError = "";
+    }
+
+    private async Task SaveGroup()
+    {
+        _formError = "";
+        if (string.IsNullOrWhiteSpace(_formName)) { _formError = "El nombre es obligatorio."; return; }
+        if (string.IsNullOrWhiteSpace(_formPhone)) { _formError = "El número/ID de WhatsApp es obligatorio."; return; }
+
+        if (_editingGroupId.HasValue)
+        {
+            var existing = _groups.FirstOrDefault(g => g.GroupId == _editingGroupId.Value);
+            if (existing is null) return;
+            existing.Name = _formName.Trim();
+            existing.PhoneNumber = _formPhone.Trim();
+            existing.Notes = string.IsNullOrWhiteSpace(_formNotes) ? null : _formNotes.Trim();
+            existing.Active = _formActive;
+            _globalMessage = "Grupo actualizado.";
+        }
+        else
+        {
+            Db.WhatsAppGroups.Add(new WhatsAppGroup
+            {
+                Name = _formName.Trim(),
+                PhoneNumber = _formPhone.Trim(),
+                Notes = string.IsNullOrWhiteSpace(_formNotes) ? null : _formNotes.Trim(),
+                Active = _formActive
+            });
+            _globalMessage = "Grupo agregado.";
+        }
+
+        _globalMessageClass = "alert-success";
+        await Db.SaveChangesAsync();
+        CancelEdit();
+        await LoadGroups();
+    }
+
+    private async Task DeleteGroup(int groupId)
+    {
+        var g = _groups.FirstOrDefault(x => x.GroupId == groupId);
+        if (g is null) return;
+        g.Deleted = true;
+        await Db.SaveChangesAsync();
+        _globalMessage = "Grupo eliminado.";
+        _globalMessageClass = "alert-warning";
+        await LoadGroups();
+    }
+}

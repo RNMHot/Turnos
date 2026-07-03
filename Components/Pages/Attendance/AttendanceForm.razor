@@ -1,6 +1,6 @@
 @page "/attendance/new"
 @page "/attendance/{Id:int}"
-@attribute [Authorize(Policy = "AppAccess", Roles = "Admin")]
+@attribute [Authorize(Policy = "AppAccess", Roles = "Gerencia,Admin")]
 @rendermode InteractiveServer
 @inject AttendanceService AttendanceSvc
 @inject PersonService PersonSvc
@@ -11,7 +11,7 @@
 <PageTitle>@(Id == 0 ? "Nueva Asistencia" : "Editar Asistencia") - Turnos</PageTitle>
 
 <div class="d-flex align-items-center gap-2 mb-3">
-    <a href="/attendance" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i></a>
+    <a href="/attendance" class="btn btn-outline-secondary btn-sm" title="Regresar"><i class="bi bi-arrow-left"></i></a>
     <h4 class="mb-0">@(Id == 0 ? "Nueva Asistencia" : "Editar Asistencia")</h4>
 </div>
 
@@ -56,11 +56,23 @@
                 </div>
                 <div class="col-12 col-md-6">
                     <label class="form-label">Salida</label>
-                    <input type="datetime-local" class="form-control" @bind="checkOutLocal" disabled="@(!hasCheckOut)" />
-                    <div class="form-check mt-1">
-                        <input id="hasOut" type="checkbox" class="form-check-input" @bind="hasCheckOut" />
-                        <label for="hasOut" class="form-check-label small">Registrar salida</label>
-                    </div>
+                    @if (hasCheckOut)
+                    {
+                        <div class="input-group">
+                            <input type="datetime-local" class="form-control" @bind="checkOutLocal" />
+                            <button type="button" class="btn btn-outline-secondary" title="Quitar hora de salida" @onclick="RemoveCheckOut">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div>
+                            <button type="button" class="btn btn-outline-primary btn-sm mt-1" @onclick="AddCheckOut">
+                                <i class="bi bi-plus-lg me-1"></i>Agregar hora de salida
+                            </button>
+                        </div>
+                    }
                 </div>
             </div>
 
@@ -171,6 +183,17 @@
         }
     }
 
+    private void AddCheckOut()
+    {
+        checkOutLocal = checkInLocal.AddHours(1);
+        hasCheckOut = true;
+    }
+
+    private void RemoveCheckOut()
+    {
+        hasCheckOut = false;
+    }
+
     private async Task SaveAttendance()
     {
         saving = true;
@@ -186,29 +209,37 @@
             return;
         }
 
-        if (Id == 0)
+        try
         {
-            var (success, err, created) = await AttendanceSvc.CreateAsync(attendance, userId);
-            if (!success || created is null)
+            if (Id == 0)
             {
-                saveError = err;
-                saving = false;
-                return;
+                var (success, err, _) = await AttendanceSvc.CreateAsync(attendance, userId);
+                if (!success)
+                {
+                    saveError = err;
+                    saving = false;
+                    return;
+                }
+            }
+            else
+            {
+                var update = await AttendanceSvc.UpdateAsync(attendance, userId);
+                if (!update.Success)
+                {
+                    saveError = update.Error;
+                    saving = false;
+                    return;
+                }
             }
 
-            Nav.NavigateTo($"/attendance/{created.AttendanceId}");
-            return;
-        }
-
-        var update = await AttendanceSvc.UpdateAsync(attendance, userId);
-        if (!update.Success)
-        {
-            saveError = update.Error;
             saving = false;
-            return;
+            Nav.NavigateTo("/attendance");
         }
-
-        Nav.NavigateTo("/attendance");
+        catch (Exception ex)
+        {
+            saveError = $"Error al guardar: {ex.Message}";
+            saving = false;
+        }
     }
 
     private async Task AddBreak()

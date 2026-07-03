@@ -14,7 +14,9 @@
                 }
                 else
                 {
-                    <i class="bi bi-calendar-week me-1"></i><span class="brand-text"> Turnos</span>
+                    <i class="bi bi-calendar-week me-1"></i>
+                    <span class="brand-text"> TURNOS </span>
+                    <span class="brand-text" style="color: rgb(201, 162, 39);">Eventos</span>
                 }
             </a>
         </div>
@@ -22,7 +24,7 @@
 
     <div class="@NavMenuCssClass nav-scrollable" @onclick="CollapseNavMenu">
         <nav class="flex-column">
-            @if (!isCheckInOnly)
+            @if (isGerenciaOrAdmin)
             {
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="/" Match="NavLinkMatch.All" title="Calendario de eventos">
@@ -44,15 +46,11 @@
                         <i class="bi bi-person-check me-2"></i><span class="nav-text">Personal Asignado</span>
                     </NavLink>
                 </div>
-                <AuthorizeView Roles="Admin">
-                    <Authorized>
                         <div class="nav-item px-3">
-                            <NavLink class="nav-link" href="/attendance" title="Asistencia por evento">
+                            <NavLink class="nav-link" href="/attendance" Match="NavLinkMatch.All" title="Asistencia por evento">
                                 <i class="bi bi-clock me-2"></i><span class="nav-text">Asistencia</span>
                             </NavLink>
                         </div>
-                    </Authorized>
-                </AuthorizeView>
 
                 <hr class="my-2 opacity-25 nav-hr" /> 
 
@@ -97,7 +95,7 @@
                 {
                     <div class="nav-sub" @onclick:stopPropagation="true">
                         <div class="nav-item px-3 ps-4">
-                            <NavLink class="nav-link nav-link-sub" href="/settings" title="Configuración de la aplicación">
+                            <NavLink class="nav-link nav-link-sub" href="/settings" Match="NavLinkMatch.All" title="Configuración de la aplicación">
                                 <i class="bi bi-sliders me-2"></i><span class="nav-text">Aplicación</span>
                             </NavLink>
                         </div>
@@ -127,17 +125,13 @@
             {
                 <div class="nav-sub" @onclick:stopPropagation="true">
                     <div class="nav-item px-3 ps-4">
-                        <AuthorizeView Roles="User,Admin">
-                            <Authorized>
-                                <NavLink class="nav-link nav-link-sub" href="/attendance/checkin" title="Registro rapido de asistencia">
-                                    <i class="bi bi-phone me-2"></i><span class="nav-text">Ponchador</span>
-                                </NavLink>
-                            </Authorized>
-                        </AuthorizeView>
+                        <NavLink class="nav-link nav-link-sub" href="/attendance/checkin" title="Registro rapido de asistencia">
+                            <i class="bi bi-phone me-2"></i><span class="nav-text">Ponchador</span>
+                        </NavLink>
                     </div>
                     <div class="nav-item px-3 ps-4">
                         <NavLink class="nav-link nav-link-sub" href="/settings/change-password" title="Cambiar contraseña">
-                            <i class="bi bi-key me-2"></i><span class="nav-text">Cambiar contraseña</span>
+                            <i class="bi bi-key me-2"></i><span class="nav-text">Mi contraseña</span>
                         </NavLink>
                     </div>
                 </div>
@@ -153,16 +147,13 @@
     private bool showRegistros = false;
     private bool showConfig = false;
     private bool showHerramientas = true;
-    private bool isCheckInOnly;
+    private bool isGerenciaOrAdmin;
     private string? _logoDataUrl;
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        isCheckInOnly = string.Equals(
-            authState.User.FindFirst(TurnosClaimTypes.CheckInOnly)?.Value,
-            "true",
-            StringComparison.OrdinalIgnoreCase);
+        isGerenciaOrAdmin = authState.User.IsInRole("Gerencia") || authState.User.IsInRole("Admin");
 
         _logoDataUrl = await SettingsSvc.GetValueAsync("BrandLogoBase64");
         SettingsState.OnChange += OnSettingsChanged;

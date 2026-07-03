@@ -17,8 +17,6 @@ public class Person
 
     public bool Active { get; set; } = true;
 
-    public bool CheckInOnly { get; set; }
-
     public bool Deleted { get; set; }
 
     public bool MustChangePassword { get; set; }

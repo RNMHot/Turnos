@@ -7,8 +7,11 @@ public class MessageLog
     [Key]
     public int MessageId { get; set; }
 
-    public int PersonId { get; set; }
-    public Person Person { get; set; } = null!;
+    public int? PersonId { get; set; }
+    public Person? Person { get; set; }
+
+    public int? WhatsAppGroupId { get; set; }
+    public WhatsAppGroup? WhatsAppGroup { get; set; }
 
     public int? EventId { get; set; }
     public Event? Event { get; set; }

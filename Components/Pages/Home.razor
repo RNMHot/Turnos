@@ -1,5 +1,5 @@
 @page "/"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "AppAccess", Roles = "Gerencia,Admin")]
 @rendermode InteractiveServer
 @inject EventService EventSvc
 @inject PersonService PersonSvc
@@ -29,25 +29,30 @@
         <div class="personnel-panel">
             <div class="panel-header">
                 <strong>Personal Disponible</strong>
-                <input class="form-control form-control-sm mt-1" placeholder="Búsqueda…" @bind="personSearch" @bind:event="oninput" @bind:after="FilterPersonnel" />
+                <input class="form-control form-control-sm mt-1" 
+                    placeholder="Búsqueda…" 
+                    @bind="personSearch" 
+                    @bind:event="oninput" 
+                    @bind:after="FilterPersonnel" />
             </div>
-            <div class="panel-body">
-                @foreach (var person in filteredPersonnel)
+            <div id="panelbody" class="panel-body">
+                @if (filteredPersonnel.Count == 0)
                 {
-                    var roleClass = GetRoleClass(person);
-                    var dimmed = !person.Active ? "dimmed" : "";
-                    <div class="person-chip @roleClass @dimmed"
-                         draggable="true"
-                         @ondragstart="() => OnPersonDragStart(person)"
-                         @ondblclick="() => OpenPersonAvailability(person.PersonId)"
-                         title="@GetRoleLabel(person)">
-                        <i class="bi bi-person-fill me-1"></i>
-                        <span>@person.FullName</span>
-                        @if (!person.Active)
-                        {
-                            <span class="badge bg-secondary ms-1" style="font-size:10px">Inactivo</span>
-                        }
-                    </div>
+                    <div class="text-muted small px-1">No hay personal disponible.</div>
+                }
+                else
+                {
+                    @foreach (var person in filteredPersonnel)
+                    {
+                        <div class="person-chip @GetRoleClass(person)"
+                            draggable="true"
+                            @ondragstart="() => OnPersonDragStart(person)"
+                            @ondblclick="() => OpenPersonAvailability(person.PersonId)"
+                            title="@GetRoleLabel(person)">
+                            <i class="bi bi-person-fill me-1"></i>
+                            <span>@person.FullName</span>
+                        </div>
+                    }
                 }
             </div>
         </div>
@@ -68,7 +73,7 @@
                 }
 
                 <!-- Time slots -->
-                @for (int hour = 6; hour <= 23; hour++)
+                @for (int hour = 5; hour <= 23; hour++)
                 {
                     <div class="time-label">@DateTime.Today.AddHours(hour).ToString("h tt")</div>
                     @for (int d = 0; d < 7; d++)
@@ -106,7 +111,7 @@
                                         <div class="text-muted" style="font-size:10px">
                                             <i class="bi bi-person-plus me-1"></i>Arrastrar o clic para asignar
                                         </div>
-                                        @foreach (var a in ev.Assignments.Where(a => a.Status != AssignmentStatus.Cancelado))
+                                        @foreach (var a in ev.Assignments)
                                         {
                                             <div class="assignment-badge" @onclick:stopPropagation="true">@a.Person.FullName</div>
                                         }
@@ -151,16 +156,17 @@
                     }
                     <hr />
                     <h6>Asignados</h6>
-                    @foreach (var a in selectedEvent.Assignments.Where(a => a.Status != AssignmentStatus.Cancelado))
+                    @foreach (var a in selectedEvent.Assignments)
                     {
                         <div class="d-flex align-items-center gap-2 mb-2">
                             <span class="@GetRoleClass(a.Person) px-2 py-1 rounded small flex-grow-1">@a.Person.FullName</span>
                             <select class="form-select form-select-sm" style="width:130px"
                                     value="@a.Status.ToString()"
                                     @onchange="async e => await ChangeStatus(a, e.Value?.ToString() ?? string.Empty)">
-                                <option value="Asignado">Asignado</option>
+                                <option value="Candidato">Candidato</option>
                                 <option value="Ofrecido">Ofrecido</option>
-                                <option value="Aceptado">Aceptado</option>
+                                <option value="Disponible">Disponible</option>
+                                <option value="Asignado">Asignado</option>
                                 <option value="Confirmado">Confirmado</option>
                             </select>
                             <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveAssignment(a.AssignmentId)">
@@ -417,8 +423,9 @@
     {
         var requiredTotal = ev.RequiredSupervisors + ev.RequiredUshers + ev.RequiredOther;
         var assignedTotal = ev.Assignments.Count(a =>
-            a.Status != AssignmentStatus.Cancelado &&
-            a.Status != AssignmentStatus.Rechazado);
+            a.Status == AssignmentStatus.Disponible ||
+            a.Status == AssignmentStatus.Asignado ||
+            a.Status == AssignmentStatus.Confirmado);
 
         var staffClass = assignedTotal >= requiredTotal ? "event-staffed" : "event-unstaffed";
         return ev.Active ? staffClass : $"{staffClass} event-inactive";
@@ -428,11 +435,9 @@
     {
         AssignmentStatus.Confirmado => "bg-success",
         AssignmentStatus.Asignado => "bg-primary",
+        AssignmentStatus.Disponible => "bg-info text-dark",
         AssignmentStatus.Ofrecido => "bg-warning text-dark",
-        AssignmentStatus.Aceptado => "bg-info",
-        AssignmentStatus.Rechazado => "bg-danger",
-        AssignmentStatus.Completado => "bg-secondary",
-        AssignmentStatus.Cancelado => "bg-danger",
+        AssignmentStatus.Candidato => "bg-secondary",
         _ => "bg-secondary"
     };
 

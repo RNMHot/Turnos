@@ -23,7 +23,7 @@ main {
 }
 
 .sidebar {
-    background-image: linear-gradient(180deg, #0F2035 100%, #17324D 0%);
+    background-color: rgb(10, 22, 40);
     transition: width 0.25s ease;
     overflow: hidden;
 }

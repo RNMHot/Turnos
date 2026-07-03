@@ -1,7 +1,5 @@
 @inherits LayoutComponentBase
 @attribute [Authorize(Policy = "AppAccess")]
-@inject AuthenticationStateProvider AuthStateProvider
-@inject NavigationManager Nav
 
 <div class="page @(_sidebarCollapsed ? "sidebar-collapsed" : "")">
     <div class="sidebar">
@@ -38,30 +36,6 @@
 
 @code {
     private bool _sidebarCollapsed = false;
-    private bool _checkedAccess;
 
     private void ToggleSidebar() => _sidebarCollapsed = !_sidebarCollapsed;
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (_checkedAccess)
-            return;
-
-        _checkedAccess = true;
-
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var isCheckInOnly = string.Equals(
-            authState.User.FindFirst(TurnosClaimTypes.CheckInOnly)?.Value,
-            "true",
-            StringComparison.OrdinalIgnoreCase);
-
-        if (!isCheckInOnly)
-            return;
-
-        var path = Nav.ToBaseRelativePath(Nav.Uri).Trim('/').ToLowerInvariant();
-        var isCheckInPage = path == "attendance/checkin";
-
-        if (!isCheckInPage)
-            Nav.NavigateTo("/attendance/checkin", forceLoad: true);
-    }
 }

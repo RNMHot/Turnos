@@ -82,7 +82,7 @@ public class PersonService
         foreach (var rid in roleIds)
             db.PersonRoles.Add(new PersonRole { PersonId = person.PersonId, RoleId = rid });
 
-        db.Persons.Update(person);
+        db.Entry(person).State = EntityState.Modified;
         await db.SaveChangesAsync();
 
         await _audit.LogAsync(actorUserId, "Update", "Person", person.PersonId, $"Updated {person.FullName}");
@@ -102,7 +102,7 @@ public class PersonService
     public async Task<List<Role>> GetRolesAsync()
     {
         await using var db = await _dbFactory.CreateDbContextAsync();
-        return await db.StaffRoles.ToListAsync();
+        return await db.StaffRoles.OrderBy(l => l.Name).ToListAsync();
     }
 
     public async Task<(bool Success, string Error)> SetPasswordAsync(int personId, string newPassword, string actorUserId)

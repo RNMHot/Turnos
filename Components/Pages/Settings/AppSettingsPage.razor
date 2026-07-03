@@ -1,5 +1,5 @@
 @page "/settings"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "AppAccess", Roles = "Gerencia,Admin")]
 @rendermode InteractiveServer
 
 <PageTitle>Configuración — Turnos</PageTitle>
@@ -9,13 +9,6 @@
 </div>
 
 <div class="settings-list">
-    <div class="settings-list-header">Cuenta</div>
-
-    <a href="/settings/change-password" class="settings-list-item">
-        <div class="settings-item-title"><i class="bi bi-key me-2"></i>Cambiar contraseña</div>
-        <div class="settings-item-desc">Actualizar la contraseña de acceso de su cuenta.</div>
-    </a>
-
     <div class="settings-list-header">Aplicación</div>
 
     <a href="/settings/logo" class="settings-list-item">
@@ -26,6 +19,11 @@
     <a href="/settings/whatsapp" class="settings-list-item">
         <div class="settings-item-title"><i class="bi bi-whatsapp me-2"></i>Cuenta de WhatsApp</div>
         <div class="settings-item-desc">Configurar la cuenta de WhatsApp usada para enviar mensajes.</div>
+    </a>
+
+    <a href="/settings/whatsapp-groups" class="settings-list-item">
+        <div class="settings-item-title"><i class="bi bi-people-fill text-success me-2"></i>Grupos de WhatsApp</div>
+        <div class="settings-item-desc">Gestionar los grupos de WhatsApp disponibles para el envío de mensajes.</div>
     </a>
 
     <a href="/settings/email" class="settings-list-item">

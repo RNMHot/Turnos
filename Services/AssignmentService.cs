@@ -23,6 +23,7 @@ public class AssignmentService
         var query = db.Assignments
             .Include(a => a.Person).ThenInclude(p => p.PersonRoles).ThenInclude(pr => pr.Role)
             .Include(a => a.Event).ThenInclude(e => e.Company)
+            .Include(a => a.LocationPosition)
             .AsQueryable();
 
         if (eventId.HasValue) query = query.Where(a => a.EventId == eventId);
@@ -37,6 +38,7 @@ public class AssignmentService
         return await db.Assignments
             .Include(a => a.Person).ThenInclude(p => p.Availabilities)
             .Include(a => a.Event)
+            .Include(a => a.LocationPosition)
             .FirstOrDefaultAsync(a => a.AssignmentId == id);
     }
 
@@ -108,8 +110,7 @@ public class AssignmentService
     {
         var query = db.Assignments.Where(a =>
             a.PersonId == personId &&
-            a.Status != AssignmentStatus.Cancelado &&
-            a.Status != AssignmentStatus.Rechazado &&
+            !a.Deleted &&
             a.StartDateTime < end && a.EndDateTime > start);
 
         if (excludeId.HasValue)

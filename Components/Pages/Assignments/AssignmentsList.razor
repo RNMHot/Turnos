@@ -1,5 +1,5 @@
 @page "/assignments"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "AppAccess", Roles = "Gerencia,Admin")]
 @rendermode InteractiveServer
 @inject AssignmentService AssignmentSvc
 @inject ExcelExportService Excel
@@ -16,15 +16,10 @@
     </div>
 </div>
 
-@if (!string.IsNullOrEmpty(statusMsg))
-{
-    <div class="alert alert-info">@statusMsg</div>
-}
-
 <div class="table-responsive">
     <table class="table table-hover table-sm align-middle">
         <thead class="table-light">
-            <tr><th>Persona</th><th>Evento</th><th>Compañía</th><th>Inicio</th><th>Fin</th><th>Estado</th><th></th></tr>
+            <tr><th>Persona</th><th>Evento</th><th>Cliente</th><th>Posición</th><th>Inicio</th><th>Fin</th><th>Estatus</th><th></th></tr>
         </thead>
         <tbody>
             @foreach (var a in assignments)
@@ -33,6 +28,7 @@
                     <td>@a.Person?.FullName</td>
                     <td>@a.Event?.EventName</td>
                     <td>@a.Event?.Company?.Name</td>
+                    <td>@(a.LocationPosition?.Name ?? "")</td>
                     <td>@a.StartDateTime.ToString("MMM d, h:mm tt")</td>
                     <td>@a.EndDateTime.ToString("h:mm tt")</td>
                     <td>
@@ -56,7 +52,7 @@
             }
             @if (!assignments.Any())
             {
-                <tr><td colspan="7" class="text-muted text-center py-4">No se encontraron asignaciones.</td></tr>
+                <tr><td colspan="8" class="text-muted text-center py-4">No se encontraron asignaciones.</td></tr>
             }
         </tbody>
     </table>
@@ -88,7 +84,6 @@
 
 @code {
     private List<Assignment> assignments = new();
-    private string? statusMsg;
     private string userId = "";
     private bool showMessage;
     private int? messagePersonId;

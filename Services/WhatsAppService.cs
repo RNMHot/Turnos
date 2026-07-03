@@ -8,22 +8,63 @@ namespace Turnos.Services;
 
 public class WhatsAppService
 {
-    private readonly AppDbContext _db;
+    private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly IConfiguration _config;
     private readonly IHttpClientFactory _httpFactory;
     private readonly ILogger<WhatsAppService> _logger;
 
-    public WhatsAppService(AppDbContext db, IConfiguration config, IHttpClientFactory httpFactory, ILogger<WhatsAppService> logger)
+    public WhatsAppService(IDbContextFactory<AppDbContext> dbFactory, IConfiguration config, IHttpClientFactory httpFactory, ILogger<WhatsAppService> logger)
     {
-        _db = db;
+        _dbFactory = dbFactory;
         _config = config;
         _httpFactory = httpFactory;
         _logger = logger;
     }
 
+    public async Task<List<WhatsAppGroup>> GetGroupsAsync()
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        return await db.WhatsAppGroups.Where(g => g.Active).OrderBy(g => g.Name).ToListAsync();
+    }
+
+    public async Task<bool> SendToGroupAsync(int groupId, string messageType, string messageBody, int? eventId = null)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var group = await db.WhatsAppGroups.FindAsync(groupId);
+        if (group is null) return false;
+
+        var log = new MessageLog
+        {
+            WhatsAppGroupId = groupId,
+            EventId = eventId,
+            MessageType = messageType,
+            MessageBody = messageBody,
+            SentDateTime = DateTime.UtcNow,
+            DeliveryStatus = "Pendiente"
+        };
+        db.MessageLogs.Add(log);
+        await db.SaveChangesAsync();
+
+        try
+        {
+            var sent = await SendViaApiAsync(group.PhoneNumber, messageBody);
+            log.DeliveryStatus = sent ? "Enviado" : "Fallido";
+            await db.SaveChangesAsync();
+            return sent;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al enviar WhatsApp al grupo {GroupId}", groupId);
+            log.DeliveryStatus = "Fallido";
+            await db.SaveChangesAsync();
+            return false;
+        }
+    }
+
     public async Task<bool> SendMessageAsync(int personId, string messageType, string messageBody, int? eventId = null)
     {
-        var person = await _db.Persons.FindAsync(personId);
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var person = await db.Persons.FindAsync(personId);
         if (person is null) return false;
 
         var log = new MessageLog
@@ -35,30 +76,31 @@ public class WhatsAppService
             SentDateTime = DateTime.UtcNow,
             DeliveryStatus = "Pendiente"
         };
-        _db.MessageLogs.Add(log);
-        await _db.SaveChangesAsync();
+        db.MessageLogs.Add(log);
+        await db.SaveChangesAsync();
 
         try
         {
             var sent = await SendViaApiAsync(person.PhoneNumber, messageBody);
             log.DeliveryStatus = sent ? "Enviado" : "Fallido";
-            await _db.SaveChangesAsync();
+            await db.SaveChangesAsync();
             return sent;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error al enviar WhatsApp para la persona {PersonId}", personId);
             log.DeliveryStatus = "Fallido";
-            await _db.SaveChangesAsync();
+            await db.SaveChangesAsync();
             return false;
         }
     }
 
     public async Task SendToAllAssignedAsync(int eventId, string messageType, string messageBody)
     {
-        var assignments = await _db.Assignments
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var assignments = await db.Assignments
             .Include(a => a.Person)
-            .Where(a => a.EventId == eventId && a.Status != AssignmentStatus.Cancelado && a.Status != AssignmentStatus.Rechazado)
+            .Where(a => a.EventId == eventId && a.Status != AssignmentStatus.Candidato && !a.Deleted)
             .ToListAsync();
 
         foreach (var assignment in assignments)

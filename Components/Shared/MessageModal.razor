@@ -35,15 +35,16 @@
                         <label class="form-label">Mensaje</label>
                         <textarea class="form-control" rows="4" @bind="messageBody"></textarea>
                     </div>
+
                     @if (PersonId is null && EventId.HasValue && currentEvent is not null)
                     {
                         var activeAssignments = currentEvent.Assignments
-                            .Where(a => a.Status != AssignmentStatus.Cancelado && a.Status != AssignmentStatus.Rechazado)
+                            .Where(a => a.Status != AssignmentStatus.Candidato)
                             .ToList();
                         @if (activeAssignments.Count > 0)
                         {
                             <div class="mb-3">
-                                <label class="form-label fw-semibold">Enviar a:</label>
+                                <label class="form-label fw-semibold">Enviar a personas:</label>
                                 <div class="border rounded p-2" style="max-height:160px;overflow-y:auto">
                                     @foreach (var a in activeAssignments)
                                     {
@@ -66,6 +67,36 @@
                                 </div>
                             </div>
                         }
+                    }
+
+                    @if (allGroups.Count > 0)
+                    {
+                        <div class="mb-1">
+                            <label class="form-label fw-semibold">Enviar a grupos:</label>
+                            <div class="border rounded p-2" style="max-height:160px;overflow-y:auto">
+                                @foreach (var g in allGroups)
+                                {
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="group_@g.GroupId"
+                                               checked="@selectedGroupIds.Contains(g.GroupId)"
+                                               @onchange="e => ToggleGroup(g.GroupId, (bool)(e.Value ?? false))" />
+                                        <label class="form-check-label" for="group_@g.GroupId">
+                                            @g.Name
+                                            @if (!string.IsNullOrEmpty(g.Notes))
+                                            {
+                                                <span class="text-muted small ms-1">— @g.Notes</span>
+                                            }
+                                        </label>
+                                    </div>
+                                }
+                            </div>
+                            <div class="mt-1 small">
+                                <button class="btn btn-link btn-sm p-0" @onclick="SelectAllGroups">Todos</button>
+                                <span class="text-muted mx-1">·</span>
+                                <button class="btn btn-link btn-sm p-0" @onclick="SelectNoGroups">Ninguno</button>
+                                <span class="text-muted ms-2">(@selectedGroupIds.Count seleccionados)</span>
+                            </div>
+                        </div>
                     }
                 }
             </div>
@@ -91,6 +122,8 @@
     private string selectedTemplate = "";
     private string messageBody = "";
     private HashSet<int> selectedPersonIds = new();
+    private HashSet<int> selectedGroupIds = new();
+    private List<WhatsAppGroup> allGroups = new();
     private bool sending;
     private bool sent;
     private string? error;
@@ -98,11 +131,13 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        allGroups = await WhatsApp.GetGroupsAsync();
+
         if (EventId.HasValue)
         {
             currentEvent = await EventSvc.GetByIdAsync(EventId.Value);
             selectedPersonIds = currentEvent?.Assignments
-                .Where(a => a.Status != AssignmentStatus.Cancelado && a.Status != AssignmentStatus.Rechazado)
+                .Where(a => a.Status != AssignmentStatus.Candidato)
                 .Select(a => a.PersonId)
                 .ToHashSet() ?? new();
         }
@@ -129,6 +164,10 @@
             }
             else if (PersonId.HasValue)
                 await WhatsApp.SendMessageAsync(PersonId.Value, selectedTemplate ?? "Custom", messageBody, EventId);
+
+            foreach (var groupId in selectedGroupIds)
+                await WhatsApp.SendToGroupAsync(groupId, selectedTemplate ?? "Custom", messageBody, EventId);
+
             sent = true;
         }
         catch (Exception ex)
@@ -149,13 +188,22 @@
 
     private void SelectNone() => selectedPersonIds.Clear();
 
+    private void ToggleGroup(int groupId, bool selected)
+    {
+        if (selected) selectedGroupIds.Add(groupId);
+        else selectedGroupIds.Remove(groupId);
+    }
+
+    private void SelectAllGroups() => selectedGroupIds = allGroups.Select(g => g.GroupId).ToHashSet();
+    private void SelectNoGroups() => selectedGroupIds.Clear();
+
     private static string GetStatusBadge(AssignmentStatus status) => status switch
     {
         AssignmentStatus.Confirmado => "bg-success",
         AssignmentStatus.Asignado => "bg-primary",
+        AssignmentStatus.Disponible => "bg-info text-dark",
         AssignmentStatus.Ofrecido => "bg-warning text-dark",
-        AssignmentStatus.Aceptado => "bg-info",
-        AssignmentStatus.Rechazado => "bg-danger",
+        AssignmentStatus.Candidato => "bg-secondary",
         _ => "bg-secondary"
     };
 
@@ -166,6 +214,7 @@
         messageBody = "";
         selectedTemplate = "";
         selectedPersonIds.Clear();
+        selectedGroupIds.Clear();
         await OnClose.InvokeAsync();
     }
 }

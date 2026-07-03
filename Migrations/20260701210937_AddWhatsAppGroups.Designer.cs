@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Turnos.Data;
 
@@ -11,9 +12,11 @@ using Turnos.Data;
 namespace Turnos.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260701210937_AddWhatsAppGroups")]
+    partial class AddWhatsAppGroups
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -250,9 +253,6 @@ namespace Turnos.Migrations
                     b.Property<int>("EventId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("LocationPositionId")
-                        .HasColumnType("int");
-
                     b.Property<string>("Notes")
                         .HasColumnType("nvarchar(max)");
 
@@ -268,8 +268,6 @@ namespace Turnos.Migrations
                     b.HasKey("AssignmentId");
 
                     b.HasIndex("EventId");
-
-                    b.HasIndex("LocationPositionId");
 
                     b.HasIndex("PersonId", "StartDateTime", "EndDateTime");
 
@@ -558,35 +556,6 @@ namespace Turnos.Migrations
                     b.ToTable("Locations");
                 });
 
-            modelBuilder.Entity("Turnos.Models.LocationPosition", b =>
-                {
-                    b.Property<int>("LocationPositionId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("LocationPositionId"));
-
-                    b.Property<bool>("Deleted")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("int");
-
-                    b.Property<int>("LocationId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.HasKey("LocationPositionId");
-
-                    b.HasIndex("LocationId");
-
-                    b.ToTable("LocationPositions");
-                });
-
             modelBuilder.Entity("Turnos.Models.MessageLog", b =>
                 {
                     b.Property<int>("MessageId")
@@ -644,6 +613,9 @@ namespace Turnos.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PersonId"));
 
                     b.Property<bool>("Active")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CheckInOnly")
                         .HasColumnType("bit");
 
                     b.Property<bool>("Deleted")
@@ -846,11 +818,6 @@ namespace Turnos.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Turnos.Models.LocationPosition", "LocationPosition")
-                        .WithMany("Assignments")
-                        .HasForeignKey("LocationPositionId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("Turnos.Models.Person", "Person")
                         .WithMany("Assignments")
                         .HasForeignKey("PersonId")
@@ -858,8 +825,6 @@ namespace Turnos.Migrations
                         .IsRequired();
 
                     b.Navigation("Event");
-
-                    b.Navigation("LocationPosition");
 
                     b.Navigation("Person");
                 });
@@ -919,17 +884,6 @@ namespace Turnos.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Company");
-
-                    b.Navigation("Location");
-                });
-
-            modelBuilder.Entity("Turnos.Models.LocationPosition", b =>
-                {
-                    b.HasOne("Turnos.Models.Location", "Location")
-                        .WithMany("Positions")
-                        .HasForeignKey("LocationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
 
                     b.Navigation("Location");
                 });
@@ -998,13 +952,6 @@ namespace Turnos.Migrations
             modelBuilder.Entity("Turnos.Models.Location", b =>
                 {
                     b.Navigation("Events");
-
-                    b.Navigation("Positions");
-                });
-
-            modelBuilder.Entity("Turnos.Models.LocationPosition", b =>
-                {
-                    b.Navigation("Assignments");
                 });
 
             modelBuilder.Entity("Turnos.Models.Person", b =>

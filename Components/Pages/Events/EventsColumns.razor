@@ -1,5 +1,5 @@
 @page "/events-columns"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "AppAccess", Roles = "Gerencia,Admin")]
 @rendermode InteractiveServer
 @inject EventService EventSvc
 @inject PersonService PersonSvc
@@ -27,10 +27,10 @@
                        @bind:event="oninput"
                        @bind:after="FilterPersonnel" />
             </div>
-            <div class="panel-body">
+            <div id="panelbody" class="panel-body">
                 @if (filteredPersonnel.Count == 0)
                 {
-                    <div class="text-muted small px-1">No available people for current active events.</div>
+                    <div class="text-muted small px-1">No hay personal disponible.</div>
                 }
                 else
                 {
@@ -51,7 +51,7 @@
         <div class="events-columns-wrapper">
             @if (activeEvents.Count == 0)
             {
-                <div class="alert alert-light border">No active events to display.</div>
+                <div class="alert alert-light border">No hay eventos activos para mostrar.</div>
             }
             else
             {
@@ -86,7 +86,7 @@
                                 }
                                 else
                                 {
-                                    @foreach (var a in ev.Assignments.Where(a => a.Status != AssignmentStatus.Cancelado))
+                                    @foreach (var a in ev.Assignments)
                                     {
                                         <div class="assignment-row d-flex align-items-center justify-content-between gap-2"
                                              @onclick:stopPropagation="true">
@@ -141,16 +141,17 @@
                     }
                     <hr />
                     <h6>Asignados</h6>
-                    @foreach (var a in selectedEvent.Assignments.Where(a => a.Status != AssignmentStatus.Cancelado))
+                    @foreach (var a in selectedEvent.Assignments)
                     {
                         <div class="d-flex align-items-center gap-2 mb-2">
                             <span class="@GetRoleClass(a.Person) px-2 py-1 rounded small flex-grow-1">@a.Person.FullName</span>
                             <select class="form-select form-select-sm" style="width:130px"
                                     value="@a.Status.ToString()"
                                     @onchange="async e => await ChangeStatus(a, e.Value?.ToString() ?? string.Empty)">
-                                <option value="Asignado">Asignado</option>
+                                <option value="Candidato">Candidato</option>
                                 <option value="Ofrecido">Ofrecido</option>
-                                <option value="Aceptado">Aceptado</option>
+                                <option value="Disponible">Disponible</option>
+                                <option value="Asignado">Asignado</option>
                                 <option value="Confirmado">Confirmado</option>
                             </select>
                             <button class="btn btn-sm btn-outline-danger" @onclick="() => AskRemoveAssignment(a.AssignmentId, a.Person.FullName)">
@@ -296,7 +297,7 @@
             PersonId = draggedPerson.PersonId,
             StartDateTime = ev.StartDateTime,
             EndDateTime = ev.EndDateTime,
-            Status = AssignmentStatus.Asignado
+            Status = AssignmentStatus.Candidato
         };
 
         var (success, errMsg) = await AssignmentSvc.CreateAsync(assignment, currentUserId);
@@ -414,8 +415,9 @@
     {
         var requiredTotal = ev.RequiredSupervisors + ev.RequiredUshers + ev.RequiredOther;
         var assignedTotal = ev.Assignments.Count(a =>
-            a.Status != AssignmentStatus.Cancelado &&
-            a.Status != AssignmentStatus.Rechazado);
+            a.Status == AssignmentStatus.Disponible ||
+            a.Status == AssignmentStatus.Asignado ||
+            a.Status == AssignmentStatus.Confirmado);
 
         return assignedTotal >= requiredTotal
             ? "event-staffed"
@@ -426,11 +428,9 @@
     {
         AssignmentStatus.Confirmado => "bg-success",
         AssignmentStatus.Asignado => "bg-primary",
+        AssignmentStatus.Disponible => "bg-info text-dark",
         AssignmentStatus.Ofrecido => "bg-warning text-dark",
-        AssignmentStatus.Aceptado => "bg-info",
-        AssignmentStatus.Rechazado => "bg-danger",
-        AssignmentStatus.Completado => "bg-secondary",
-        AssignmentStatus.Cancelado => "bg-danger",
+        AssignmentStatus.Candidato => "bg-secondary",
         _ => "bg-secondary"
     };
 

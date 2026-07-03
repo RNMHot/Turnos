@@ -39,9 +39,6 @@ public class TurnosUserClaimsPrincipalFactory : UserClaimsPrincipalFactory<Ident
             {
                 identity.AddClaim(new Claim(ClaimTypes.Role, role));
             }
-
-            var isCheckInOnly = await _accessControl.IsCheckInOnlyUserAsync(user);
-            identity.AddClaim(new Claim(TurnosClaimTypes.CheckInOnly, isCheckInOnly ? "true" : "false"));
         }
         catch (Exception ex)
         {
@@ -50,7 +47,6 @@ public class TurnosUserClaimsPrincipalFactory : UserClaimsPrincipalFactory<Ident
                 user.Email);
 
             identity.AddClaim(new Claim(TurnosClaimTypes.AppAccess, "false"));
-            identity.AddClaim(new Claim(TurnosClaimTypes.CheckInOnly, "false"));
         }
 
         return identity;

@@ -1,6 +1,6 @@
 @page "/personnel/new"
 @page "/personnel/{Id:int}"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "AppAccess", Roles = "Gerencia,Admin")]
 @rendermode InteractiveServer
 @inject PersonService PersonSvc
 @inject AuthenticationStateProvider AuthState
@@ -9,7 +9,7 @@
 <PageTitle>@(Id == 0 ? "Nueva Persona" : "Editar Persona") — Turnos</PageTitle>
 
 <div class="d-flex align-items-center gap-2 mb-3">
-    <a href="/personnel" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i></a>
+    <a href="/personnel" class="btn btn-outline-secondary btn-sm" title="Regresar"><i class="bi bi-arrow-left"></i></a>
     <h4 class="mb-0">@(Id == 0 ? "Nueva Persona" : "Editar Persona")</h4>
 </div>
 
@@ -64,7 +64,6 @@ else
             <div class="card-body">
                 <div class="mb-3">
                     <label class="form-label">Roles operativos</label>
-                    <div class="form-text mb-2">Estos roles son de trabajo (evento), no de acceso a la aplicación.</div>
                     <div class="d-flex gap-3 flex-wrap">
                         @foreach (var role in allRoles)
                         {
@@ -81,38 +80,31 @@ else
                     <InputCheckbox @bind-Value="person.Active" class="form-check-input" id="active" />
                     <label class="form-check-label" for="active">Activo</label>
                 </div>
-                <div class="mb-2 form-check">
-                    <InputCheckbox @bind-Value="person.CheckInOnly" class="form-check-input" id="checkInOnly" />
-                    <label class="form-check-label" for="checkInOnly">Solo acceso a Ponchador (/attendance/checkin)</label>
-                </div>
-                <div class="form-text mb-0">
-                    Si está activado, al iniciar sesión se redirige directo a Ponchador y no puede navegar a otras páginas.
-                    Personal activo obtiene perfil User. Admin se asigna únicamente al usuario administrador.
-                </div>
+
             </div>
         </div>
 
-        @* Card 3: Contraseña — only when editing *@
-        @if (Id != 0)
-        {
-            <div class="card shadow-sm mb-3">
-                <div class="card-header fw-semibold">Contraseña</div>
-                <div class="card-body">
-                    <div class="mb-3 form-check">
-                        <InputCheckbox @bind-Value="person.MustChangePassword" class="form-check-input" id="mustChangePwd" />
-                        <label class="form-check-label" for="mustChangePwd">Debe cambiar contraseña al próximo inicio de sesión</label>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Nueva contraseña <span class="text-muted">(dejar vacío para no cambiar)</span></label>
-                        <input type="password" class="form-control" @bind="newPassword" autocomplete="new-password" />
-                    </div>
-                    <div class="mb-0">
-                        <label class="form-label">Confirmar nueva contraseña</label>
-                        <input type="password" class="form-control" @bind="confirmPassword" autocomplete="new-password" />
-                    </div>
+        @* Card 3: Contraseña *@
+        <div class="card shadow-sm mb-3">
+            <div class="card-header fw-semibold">Asignar Contraseña</div>
+            <div class="card-body">
+                <div class="mb-3 form-check">
+                    <InputCheckbox @bind-Value="person.MustChangePassword" class="form-check-input" id="mustChangePwd" />
+                    <label class="form-check-label" for="mustChangePwd">Solicitar a usuario cambiar su contraseña</label>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">
+                        @(Id == 0 ? "Contraseña" : "Nueva contraseña")
+                        @if (Id != 0) { <span class="text-muted">(dejar vacío para no cambiar)</span> }
+                    </label>
+                    <input type="password" class="form-control" @bind="newPassword" autocomplete="new-password" />
+                </div>
+                <div class="mb-0">
+                    <label class="form-label">Confirmar contraseña</label>
+                    <input type="password" class="form-control" @bind="confirmPassword" autocomplete="new-password" />
                 </div>
             </div>
-        }
+        </div>
 
         <div class="d-flex gap-2">
             <button type="submit" class="btn btn-primary" disabled="@saving">
@@ -175,14 +167,28 @@ else
                 return;
             }
 
+            if (!string.IsNullOrEmpty(newPassword) && string.IsNullOrEmpty(person.Email))
+            {
+                saveError = "Para crear la contraseña se requiere ingresar un eMail. Ingrese un eMail o elimine la contraseña.";
+                saving = false;
+                return;
+            }
+
+            int savedId;
             if (Id == 0)
-                await PersonSvc.CreateAsync(person, selectedRoleIds, userId);
+            {
+                var created = await PersonSvc.CreateAsync(person, selectedRoleIds, userId);
+                savedId = created.PersonId;
+            }
             else
+            {
                 await PersonSvc.UpdateAsync(person, selectedRoleIds, userId);
+                savedId = Id;
+            }
 
             if (!string.IsNullOrEmpty(newPassword))
             {
-                var (success, error) = await PersonSvc.SetPasswordAsync(Id, newPassword, userId);
+                var (success, error) = await PersonSvc.SetPasswordAsync(savedId, newPassword, userId);
                 if (!success)
                 {
                     saveError = $"Persona guardada, pero error al establecer contraseña: {error}";

@@ -1,17 +1,18 @@
 @page "/assignments/new"
 @page "/assignments/{Id:int}"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "AppAccess", Roles = "Gerencia,Admin")]
 @rendermode InteractiveServer
 @inject AssignmentService AssignmentSvc
 @inject EventService EventSvc
 @inject PersonService PersonSvc
+@inject LocationService LocationSvc
 @inject AuthenticationStateProvider AuthState
 @inject NavigationManager Nav
 
 <PageTitle>@(Id == 0 ? "New Assignment" : "Edit Assignment") — Turnos</PageTitle>
 
 <div class="d-flex align-items-center gap-2 mb-3">
-    <a href="/assignments" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i></a>
+    <a href="/assignments" class="btn btn-outline-secondary btn-sm" title="Regresar"><i class="bi bi-arrow-left"></i></a>
     <h4 class="mb-0">@(Id == 0 ? "New Assignment" : "Edit Assignment")</h4>
 </div>
 
@@ -45,6 +46,21 @@
                     }
                 </InputSelect>
             </div>
+
+            @if (locationPositions.Count > 0)
+            {
+                <div class="mb-3">
+                    <label class="form-label">Posición</label>
+                    <select class="form-select" @bind="positionIdStr">
+                        <option value="">— Sin posición —</option>
+                        @foreach (var pos in locationPositions)
+                        {
+                            <option value="@pos.LocationPositionId">@pos.Name</option>
+                        }
+                    </select>
+                </div>
+            }
+
             <div class="row g-2 mb-3">
                 <div class="col">
                     <label class="form-label">Inicio</label>
@@ -80,14 +96,21 @@
 @code {
     [Parameter] public int Id { get; set; }
 
-    private Assignment assignment = new() { Status = AssignmentStatus.Asignado };
+    private Assignment assignment = new() { Status = AssignmentStatus.Candidato };
     private List<Person> persons = new();
     private List<Event> events = new();
+    private List<LocationPosition> locationPositions = new();
     private bool saving;
     private string? saveError;
     private string userId = "";
     private DateTime startLocal = DateTime.Now;
     private DateTime endLocal = DateTime.Now.AddHours(4);
+
+    private string positionIdStr
+    {
+        get => assignment.LocationPositionId?.ToString() ?? "";
+        set => assignment.LocationPositionId = string.IsNullOrEmpty(value) ? null : int.Parse(value);
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -104,6 +127,10 @@
                 assignment = existing;
                 startLocal = ToLocal(assignment.StartDateTime);
                 endLocal = ToLocal(assignment.EndDateTime);
+
+                var ev = events.FirstOrDefault(e => e.EventId == assignment.EventId);
+                if (ev?.LocationId.HasValue == true)
+                    locationPositions = await LocationSvc.GetPositionsAsync(ev.LocationId.Value);
             }
         }
     }
@@ -111,13 +138,20 @@
     private static DateTime ToLocal(DateTime dt) =>
         dt.Kind == DateTimeKind.Utc ? dt.ToLocalTime() : dt;
 
-    private void OnEventSelected()
+    private async Task OnEventSelected()
     {
         var ev = events.FirstOrDefault(e => e.EventId == assignment.EventId);
         if (ev is not null)
         {
             startLocal = ToLocal(ev.StartDateTime);
             endLocal = ToLocal(ev.EndDateTime);
+
+            if (ev.LocationId.HasValue)
+                locationPositions = await LocationSvc.GetPositionsAsync(ev.LocationId.Value);
+            else
+                locationPositions = new();
+
+            assignment.LocationPositionId = null;
         }
     }
 

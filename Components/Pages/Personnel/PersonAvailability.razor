@@ -1,5 +1,5 @@
 @page "/personnel/{PersonId:int}/availability"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "AppAccess", Roles = "Gerencia,Admin")]
 @rendermode InteractiveServer
 @inject PersonService PersonSvc
 @inject AvailabilityService AvailSvc
@@ -9,7 +9,7 @@
 <PageTitle>No-Disponibilidad — Turnos</PageTitle>
 
 <div class="d-flex align-items-center gap-2 mb-3">
-    <button class="btn btn-outline-secondary btn-sm" @onclick="GoBack"><i class="bi bi-arrow-left"></i></button>
+    <button class="btn btn-outline-secondary btn-sm" title="Regresar" @onclick="GoBack"><i class="bi bi-arrow-left"></i></button>
     <h4 class="mb-0">Registro de No-Disponibilidad: @person?.FullName</h4>
 </div>
 

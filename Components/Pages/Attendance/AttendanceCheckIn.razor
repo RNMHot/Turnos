@@ -1,5 +1,5 @@
 @page "/attendance/checkin"
-@attribute [Authorize(Policy = "AppAccess", Roles = "User,Admin")]
+@attribute [Authorize(Policy = "AppAccess")]
 @rendermode InteractiveServer
 @inject AttendanceService AttendanceSvc
 @inject PersonService PersonSvc

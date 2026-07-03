@@ -38,8 +38,11 @@ public class AccountController : Controller
             if (await _accessControl.MustChangePasswordAsync(user))
                 return Redirect("/account/change-password?returnUrl=" + Uri.EscapeDataString(returnUrl ?? ""));
 
-            if (await _accessControl.IsCheckInOnlyUserAsync(user))
-                return Redirect("/attendance/checkin");
+            var roles = await _accessControl.GetRoleNamesAsync(user);
+            var hasFullAccess = roles.Contains("Gerencia") || roles.Contains("Admin");
+
+            if (!hasFullAccess)
+                return Redirect(string.IsNullOrEmpty(returnUrl) ? "/attendance/checkin" : returnUrl);
 
             return Redirect(returnUrl ?? "/");
         }
@@ -67,8 +70,11 @@ public class AccountController : Controller
         await _accessControl.ClearMustChangePasswordAsync(user);
         await _signInManager.RefreshSignInAsync(user);
 
-        if (await _accessControl.IsCheckInOnlyUserAsync(user))
-            return Redirect("/attendance/checkin");
+        var roles = await _accessControl.GetRoleNamesAsync(user);
+        var hasFullAccess = roles.Contains("Gerencia") || roles.Contains("Admin");
+
+        if (!hasFullAccess)
+            return Redirect(string.IsNullOrEmpty(returnUrl) ? "/attendance/checkin" : returnUrl);
 
         return Redirect(returnUrl ?? "/");
     }

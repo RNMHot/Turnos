@@ -1,5 +1,5 @@
 @page "/companies"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "AppAccess", Roles = "Gerencia,Admin")]
 @rendermode InteractiveServer
 @inject CompanyService CompanySvc
 @inject AuthenticationStateProvider AuthState

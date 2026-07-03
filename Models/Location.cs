@@ -19,4 +19,5 @@ public class Location
     public bool Deleted { get; set; }
 
     public ICollection<Event> Events { get; set; } = new List<Event>();
+    public ICollection<LocationPosition> Positions { get; set; } = new List<LocationPosition>();
 }

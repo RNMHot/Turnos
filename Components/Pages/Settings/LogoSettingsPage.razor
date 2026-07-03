@@ -1,5 +1,5 @@
 @page "/settings/logo"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "AppAccess", Roles = "Gerencia,Admin")]
 @rendermode InteractiveServer
 @inject AppSettingService SettingsSvc
 @inject AppSettingsState SettingsState

@@ -146,12 +146,19 @@ a, .btn-link { color: var(--color-accent); }
    ============================================================ */
 .schedule-container {
     padding: 0.5rem;
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
 }
 
 .schedule-board {
     display: flex;
     gap: 0;
     overflow: hidden;
+    flex: 1;
+    min-height: 0;
+    align-items: stretch;
 }
 
 /* Personnel panel */

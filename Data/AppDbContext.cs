@@ -23,6 +23,8 @@ public class AppDbContext : IdentityDbContext
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<Record> Records => Set<Record>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
+    public DbSet<WhatsAppGroup> WhatsAppGroups => Set<WhatsAppGroup>();
+    public DbSet<LocationPosition> LocationPositions => Set<LocationPosition>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -100,6 +102,27 @@ public class AppDbContext : IdentityDbContext
             .HasOne(m => m.Event)
             .WithMany(e => e.MessageLogs)
             .HasForeignKey(m => m.EventId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Entity<MessageLog>()
+            .HasOne(m => m.WhatsAppGroup)
+            .WithMany(g => g.MessageLogs)
+            .HasForeignKey(m => m.WhatsAppGroupId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Entity<WhatsAppGroup>().HasQueryFilter(g => !g.Deleted);
+        builder.Entity<LocationPosition>().HasQueryFilter(p => !p.Deleted);
+
+        builder.Entity<LocationPosition>()
+            .HasOne(p => p.Location)
+            .WithMany(l => l.Positions)
+            .HasForeignKey(p => p.LocationId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<Assignment>()
+            .HasOne(a => a.LocationPosition)
+            .WithMany(p => p.Assignments)
+            .HasForeignKey(a => a.LocationPositionId)
             .OnDelete(DeleteBehavior.SetNull);
 
         // SQL Server returns DateTime without Kind; mark all as UTC so ToLocalTime() converts correctly.

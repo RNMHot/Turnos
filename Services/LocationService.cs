@@ -31,6 +31,41 @@ public class LocationService
         return await db.Locations.FindAsync(id);
     }
 
+    public async Task<List<LocationPosition>> GetPositionsAsync(int locationId)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        return await db.LocationPositions
+            .Where(p => p.LocationId == locationId)
+            .OrderBy(p => p.DisplayOrder).ThenBy(p => p.Name)
+            .ToListAsync();
+    }
+
+    public async Task<LocationPosition> AddPositionAsync(int locationId, string name, string actorUserId)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var maxOrder = await db.LocationPositions
+            .Where(p => p.LocationId == locationId)
+            .MaxAsync(p => (int?)p.DisplayOrder) ?? 0;
+        var pos = new LocationPosition { LocationId = locationId, Name = name.Trim(), DisplayOrder = maxOrder + 1 };
+        db.LocationPositions.Add(pos);
+        await db.SaveChangesAsync();
+        await _audit.LogAsync(actorUserId, "Create", "LocationPosition", pos.LocationPositionId, $"Added position '{pos.Name}' to location {locationId}");
+        return pos;
+    }
+
+    public async Task DeletePositionAsync(int positionId, string actorUserId)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var pos = await db.LocationPositions.FindAsync(positionId);
+        if (pos is null) return;
+        await db.Assignments
+            .Where(a => a.LocationPositionId == positionId)
+            .ExecuteUpdateAsync(s => s.SetProperty(a => a.LocationPositionId, (int?)null));
+        pos.Deleted = true;
+        await db.SaveChangesAsync();
+        await _audit.LogAsync(actorUserId, "Delete", "LocationPosition", positionId, $"Deleted position '{pos.Name}'");
+    }
+
     public async Task<int> CountEventsAsync(int locationId)
     {
         await using var db = await _dbFactory.CreateDbContextAsync();

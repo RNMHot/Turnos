@@ -1,5 +1,5 @@
 @page "/records"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "AppAccess", Roles = "Gerencia,Admin")]
 @rendermode InteractiveServer
 @inject AppDbContext Db
 @inject AuthenticationStateProvider AuthState

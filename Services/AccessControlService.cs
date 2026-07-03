@@ -34,26 +34,24 @@ public class AccessControlService
     {
         var roles = new List<string>();
 
-        await using var db = await _dbFactory.CreateDbContextAsync();
-        var person = await GetPersonForUserAsync(db, user);
-
-        if (person?.Active == true)
-            roles.Add("User");
-
         if (string.Equals(user.Email, TurnosClaimTypes.AdminEmail, StringComparison.OrdinalIgnoreCase))
+        {
             roles.Add("Admin");
-
-        return roles.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-    }
-
-    public async Task<bool> IsCheckInOnlyUserAsync(IdentityUser user)
-    {
-        if (string.Equals(user.Email, TurnosClaimTypes.AdminEmail, StringComparison.OrdinalIgnoreCase))
-            return false;
+            roles.Add("Gerencia");
+            return roles;
+        }
 
         await using var db = await _dbFactory.CreateDbContextAsync();
-        var person = await GetPersonForUserAsync(db, user);
-        return person?.Active == true && person.CheckInOnly;
+        var person = await db.Persons
+            .AsNoTracking()
+            .Include(p => p.PersonRoles)
+                .ThenInclude(pr => pr.Role)
+            .FirstOrDefaultAsync(p => p.Email != null && user.Email != null && p.Email.ToLower() == user.Email.ToLower());
+
+        if (person?.Active == true && person.PersonRoles.Any(pr => pr.Role.Name == "Gerencia"))
+            roles.Add("Gerencia");
+
+        return roles;
     }
 
     public async Task<bool> MustChangePasswordAsync(IdentityUser user)

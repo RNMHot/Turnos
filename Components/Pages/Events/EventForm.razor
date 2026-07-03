@@ -1,6 +1,6 @@
 @page "/events/new"
 @page "/events/{Id:int}"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "AppAccess", Roles = "Gerencia,Admin")]
 @rendermode InteractiveServer
 @inject EventService EventSvc
 @inject CompanyService CompanySvc
@@ -15,7 +15,7 @@
 <PageTitle>@(Id == 0 ? "Nuevo Evento" : "Editar Evento") — Turnos</PageTitle>
 
 <div class="d-flex align-items-center gap-2 mb-3">
-    <button class="btn btn-outline-secondary btn-sm" @onclick="GoBack"><i class="bi bi-arrow-left"></i></button>
+    <button class="btn btn-outline-secondary btn-sm" title="Regresar" @onclick="GoBack"><i class="bi bi-arrow-left"></i></button>
     <h4 class="mb-0">@(Id == 0 ? "Nuevo Evento" : "Editar Evento")</h4>
 </div>
 

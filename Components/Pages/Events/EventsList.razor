@@ -1,5 +1,5 @@
 @page "/events"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "AppAccess", Roles = "Gerencia,Admin")]
 @rendermode InteractiveServer
 @inject EventService EventSvc
 @inject CompanyService CompanySvc
@@ -29,16 +29,16 @@
     <input type="date" class="form-control form-control-sm" style="max-width:150px" @bind="filterFrom" @bind:after="Load" />
     <input type="date" class="form-control form-control-sm" style="max-width:150px" @bind="filterTo" @bind:after="Load" />
     <select class="form-select form-select-sm" style="max-width:160px" @bind="filterActive" @bind:after="Load">
-        <option value="">Todos los estados</option>
+        <option value="">Todos</option>
         <option value="true">Activos</option>
         <option value="false">Inactivos</option>
     </select>
 </div>
 
 <div class="table-responsive">
-    <table class="table table-hover table-sm align-middle">
+    <table class="table table-hover table-sm align-middle" style="font-size:0.85rem">
         <thead class="table-light">
-            <tr><th>Evento</th><th>Cliente</th><th>Inicio</th><th>Fin</th><th>Personal</th><th>Localización</th><th>Estado</th><th></th></tr>
+            <tr><th>Evento</th><th>Cliente</th><th>Inicio</th><th>Fin</th><th>Personal</th><th>Localización</th><th>Estatus</th><th></th></tr>
         </thead>
         <tbody>
             @foreach (var e in events)
@@ -46,8 +46,8 @@
                 <tr class="@(!e.Active ? "table-secondary text-muted" : "")">
                     <td>@e.EventName</td>
                     <td>@e.Company?.Name</td>
-                    <td>@e.StartDateTime.ToString("MMM d, h:mm tt")</td>
-                    <td>@e.EndDateTime.ToString("h:mm tt")</td>
+                    <td>@e.StartDateTime.ToLocalTime().ToString("MMM d, h:mm tt")</td>
+                    <td>@e.EndDateTime.ToLocalTime().ToString("h:mm tt")</td>
                     <td>@FormatRequirements(e)</td>
                     <td>@(e.Location?.Name ?? "—")</td>
                     <td>
@@ -60,7 +60,7 @@
                             <span class="badge bg-secondary">Inactivo</span>
                         }
                     </td>
-                    <td class="text-end">
+                    <td class="text-end" style="white-space:nowrap">
                         <a href="/events/@e.EventId" class="btn btn-sm btn-outline-primary me-1" title="Editar evento"><i class="bi bi-pencil"></i></a>
                         <button class="btn btn-sm btn-outline-danger" @onclick="() => pendingDelete = e" title="Eliminar evento"><i class="bi bi-x-circle"></i></button>
                     </td>
