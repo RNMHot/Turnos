@@ -19,7 +19,7 @@
 }
 else
 {
-    <EditForm Model="person" OnValidSubmit="Save" style="max-width:600px">
+    <EditForm Model="person" OnValidSubmit="Save">
         <DataAnnotationsValidator />
 
         @if (!string.IsNullOrEmpty(saveError))
@@ -33,85 +33,113 @@ else
 
         <ValidationSummary class="text-danger mb-3" />
 
-        @* Card 1: Datos de Persona *@
-        <div class="card shadow-sm mb-3">
-            <div class="card-header fw-semibold">Datos Generales</div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <label class="form-label">Nombre completo *</label>
-                    <InputText @bind-Value="person.FullName" class="form-control" />
-                    <ValidationMessage For="() => person.FullName" />
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Número de teléfono *</label>
-                    <InputText @bind-Value="person.PhoneNumber" class="form-control" placeholder="+1 555 000 0000" />
-                    <ValidationMessage For="() => person.PhoneNumber" />
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Email</label>
-                    <InputText @bind-Value="person.Email" class="form-control" type="email" />
-                </div>
-                <div class="mb-0">
-                    <label class="form-label">Notas</label>
-                    <InputTextArea @bind-Value="person.Notes" class="form-control" rows="3" />
-                </div>
+        <div class="d-flex gap-2 justify-content-between">
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary" disabled="@saving">
+                    @(saving ? "Guardando…" : "Guardar")
+                </button>
+                <a href="/personnel" class="btn btn-outline-secondary">Cancelar</a>
+                @if (Id != 0)
+                {
+                    @if (!confirmingDelete)
+                    {
+                        <button type="button" class="btn btn-danger" @onclick="() => confirmingDelete = true" disabled="@saving">
+                            <i class="bi bi-trash"></i> Eliminar
+                        </button>
+                    }
+                    else
+                    {
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="text-danger fw-semibold small">¿Confirmar eliminación?</span>
+                            <button type="button" class="btn btn-danger btn-sm" @onclick="DeletePerson" disabled="@saving">
+                                @(saving ? "Eliminando…" : "Sí, eliminar")
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => confirmingDelete = false">
+                                Cancelar
+                            </button>
+                        </div>
+                    }
+                }
             </div>
         </div>
+        <br />
 
-        @* Card 2: Roles y Acceso *@
-        <div class="card shadow-sm mb-3">
-            <div class="card-header fw-semibold">Roles y Acceso</div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <label class="form-label">Roles operativos</label>
-                    <div class="d-flex gap-3 flex-wrap">
-                        @foreach (var role in allRoles)
-                        {
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="role_@role.RoleId"
-                                       checked="@selectedRoleIds.Contains(role.RoleId)"
-                                       @onchange="e => ToggleRole(role.RoleId, (bool)e.Value!)" />
-                                <label class="form-check-label" for="role_@role.RoleId">@role.Name</label>
-                            </div>
-                        }
+        <div class="person-form-grid mb-3">
+            @* Card 1: Datos de Persona *@
+            <div class="card shadow-sm">
+                <div class="card-header fw-semibold">Datos Generales</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nombre completo *</label>
+                        <InputText @bind-Value="person.FullName" class="form-control" />
+                        <ValidationMessage For="() => person.FullName" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Número de teléfono *</label>
+                        <InputText @bind-Value="person.PhoneNumber" class="form-control" placeholder="+1 555 000 0000" />
+                        <ValidationMessage For="() => person.PhoneNumber" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <InputText @bind-Value="person.Email" class="form-control" type="email" />
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label">Notas</label>
+                        <InputTextArea @bind-Value="person.Notes" class="form-control" rows="2" />
                     </div>
                 </div>
-                <div class="mb-3 form-check">
-                    <InputCheckbox @bind-Value="person.Active" class="form-check-input" id="active" />
-                    <label class="form-check-label" for="active">Activo</label>
-                </div>
+            </div>
 
+            @* Card 2: Roles y Acceso *@
+            <div class="card shadow-sm">
+                <div class="card-header fw-semibold">Roles y Acceso</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Roles operativos</label>
+                        <div class="d-flex gap-3 flex-wrap">
+                            @foreach (var role in allRoles)
+                            {
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="role_@role.RoleId"
+                                           checked="@selectedRoleIds.Contains(role.RoleId)"
+                                           @onchange="e => ToggleRole(role.RoleId, (bool)e.Value!)" />
+                                    <label class="form-check-label" for="role_@role.RoleId">@role.Name</label>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <InputCheckbox @bind-Value="person.Active" class="form-check-input" id="active" />
+                        <label class="form-check-label" for="active">Activo</label>
+                    </div>
+
+                </div>
+            </div>
+
+            @* Card 3: Contraseña *@
+            <div class="card shadow-sm">
+                <div class="card-header fw-semibold">Asignar Contraseña</div>
+                <div class="card-body">
+                    <div class="mb-3 form-check">
+                        <InputCheckbox @bind-Value="person.MustChangePassword" class="form-check-input" id="mustChangePwd" />
+                        <label class="form-check-label" for="mustChangePwd">Solicitar a usuario cambiar su contraseña</label>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            @(Id == 0 ? "Contraseña" : "Nueva contraseña")
+                            @if (Id != 0) { <span class="text-muted">(dejar vacío para no cambiar)</span> }
+                        </label>
+                        <input type="password" class="form-control" @bind="newPassword" autocomplete="new-password" />
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label">Confirmar contraseña</label>
+                        <input type="password" class="form-control" @bind="confirmPassword" autocomplete="new-password" />
+                    </div>
+                </div>
             </div>
         </div>
 
-        @* Card 3: Contraseña *@
-        <div class="card shadow-sm mb-3">
-            <div class="card-header fw-semibold">Asignar Contraseña</div>
-            <div class="card-body">
-                <div class="mb-3 form-check">
-                    <InputCheckbox @bind-Value="person.MustChangePassword" class="form-check-input" id="mustChangePwd" />
-                    <label class="form-check-label" for="mustChangePwd">Solicitar a usuario cambiar su contraseña</label>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">
-                        @(Id == 0 ? "Contraseña" : "Nueva contraseña")
-                        @if (Id != 0) { <span class="text-muted">(dejar vacío para no cambiar)</span> }
-                    </label>
-                    <input type="password" class="form-control" @bind="newPassword" autocomplete="new-password" />
-                </div>
-                <div class="mb-0">
-                    <label class="form-label">Confirmar contraseña</label>
-                    <input type="password" class="form-control" @bind="confirmPassword" autocomplete="new-password" />
-                </div>
-            </div>
-        </div>
 
-        <div class="d-flex gap-2">
-            <button type="submit" class="btn btn-primary" disabled="@saving">
-                @(saving ? "Guardando…" : "Guardar")
-            </button>
-            <a href="/personnel" class="btn btn-outline-secondary">Cancelar</a>
-        </div>
     </EditForm>
 }
 
@@ -128,6 +156,7 @@ else
     private string userId = "";
     private string newPassword = "";
     private string confirmPassword = "";
+    private bool confirmingDelete;
 
     protected override async Task OnInitializedAsync()
     {
@@ -151,6 +180,22 @@ else
     {
         if (selected) { if (!selectedRoleIds.Contains(roleId)) selectedRoleIds.Add(roleId); }
         else selectedRoleIds.Remove(roleId);
+    }
+
+    private async Task DeletePerson()
+    {
+        saving = true;
+        try
+        {
+            await PersonSvc.SoftDeleteAsync(Id, userId);
+            Nav.NavigateTo("/personnel");
+        }
+        catch (Exception ex)
+        {
+            saveError = ex.Message;
+            confirmingDelete = false;
+            saving = false;
+        }
     }
 
     private async Task Save()

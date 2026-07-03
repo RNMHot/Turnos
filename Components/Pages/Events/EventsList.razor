@@ -6,94 +6,117 @@
 @inject ExcelExportService Excel
 @inject AuthenticationStateProvider AuthState
 @inject IJSRuntime JS
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
 <PageTitle>Eventos — Turnos</PageTitle>
 
+<style>
+    .tbl-compact td, .tbl-compact th { padding: 7px 8px !important; }
+    .tbl-compact .mud-table-sort-label { font-size: inherit; }
+    .mud-picker-popover-paper { min-width: 310px !important; }
+</style>
+
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0"><i class="bi bi-calendar-event me-2"></i>Eventos</h4>
+    <MudText Typo="Typo.h5">Eventos</MudText>
     <div class="d-flex gap-2">
-        <button class="btn btn-outline-success btn-sm" @onclick="ExportExcel"><i class="bi bi-file-earmark-excel me-1"></i>Exportar</button>
-        <a href="/events/new" class="btn btn-primary btn-sm"><i class="bi bi-plus me-1"></i>Agregar Evento</a>
+        <MudButton Variant="Variant.Outlined" Color="Color.Success"
+                   StartIcon="@Icons.Material.Filled.FileDownload"
+                   OnClick="ExportExcel" Size="Size.Small">Exportar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   Href="/events/new" Size="Size.Small">Agregar Evento</MudButton>
     </div>
 </div>
 
-<div class="d-flex gap-2 mb-3 flex-wrap">
-    <input class="form-control form-control-sm" style="max-width:220px" placeholder="Búsqueda…" @bind="search" @bind:event="oninput" @bind:after="Load" />
-    <select class="form-select form-select-sm" style="max-width:180px" @bind="filterCompanyId" @bind:after="Load">
-        <option value="">Clientes</option>
+<div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
+    <MudTextField T="string" Value="@search" ValueChanged="OnSearchChanged"
+                  Placeholder="Búsqueda…" Adornment="Adornment.Start"
+                  AdornmentIcon="@Icons.Material.Filled.Search"
+                  Immediate="true" Clearable="true"
+                  Style="max-width:260px" Variant="Variant.Outlined" Margin="Margin.Dense" />
+
+    <MudSelect T="int?" Value="@filterCompanyId" ValueChanged="OnCompanyChanged"
+               Placeholder="Clientes" Style="max-width:310px"
+               Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
         @foreach (var c in companies)
         {
-            <option value="@c.CompanyId">@c.Name</option>
+            <MudSelectItem T="int?" Value="@((int?)c.CompanyId)">@c.Name</MudSelectItem>
         }
-    </select>
-    <input type="date" class="form-control form-control-sm" style="max-width:150px" @bind="filterFrom" @bind:after="Load" />
-    <input type="date" class="form-control form-control-sm" style="max-width:150px" @bind="filterTo" @bind:after="Load" />
-    <select class="form-select form-select-sm" style="max-width:160px" @bind="filterActive" @bind:after="Load">
-        <option value="">Todos</option>
-        <option value="true">Activos</option>
-        <option value="false">Inactivos</option>
-    </select>
+    </MudSelect>
+
+    <MudDatePicker Date="@filterFrom" DateChanged="OnFromChanged"
+                   Placeholder="Desde" Style="max-width:180px"
+                   Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" />
+
+    <MudDatePicker Date="@filterTo" DateChanged="OnToChanged"
+                   Placeholder="Hasta" Style="max-width:180px"
+                   Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" />
+
+    <MudSelect T="string" Value="@filterActive" ValueChanged="OnActiveChanged"
+               Placeholder="Estatus" Style="max-width:160px"
+               Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+        <MudSelectItem T="string" Value="@("true")">Activos</MudSelectItem>
+        <MudSelectItem T="string" Value="@("false")">Inactivos</MudSelectItem>
+    </MudSelect>
 </div>
 
-<div class="table-responsive">
-    <table class="table table-hover table-sm align-middle" style="font-size:0.85rem">
-        <thead class="table-light">
-            <tr><th>Evento</th><th>Cliente</th><th>Inicio</th><th>Fin</th><th>Personal</th><th>Localización</th><th>Estatus</th><th></th></tr>
-        </thead>
-        <tbody>
-            @foreach (var e in events)
-            {
-                <tr class="@(!e.Active ? "table-secondary text-muted" : "")">
-                    <td>@e.EventName</td>
-                    <td>@e.Company?.Name</td>
-                    <td>@e.StartDateTime.ToLocalTime().ToString("MMM d, h:mm tt")</td>
-                    <td>@e.EndDateTime.ToLocalTime().ToString("h:mm tt")</td>
-                    <td>@FormatRequirements(e)</td>
-                    <td>@(e.Location?.Name ?? "—")</td>
-                    <td>
-                        @if (e.Active)
-                        {
-                            <span class="badge bg-success">Activo</span>
-                        }
-                        else
-                        {
-                            <span class="badge bg-secondary">Inactivo</span>
-                        }
-                    </td>
-                    <td class="text-end" style="white-space:nowrap">
-                        <a href="/events/@e.EventId" class="btn btn-sm btn-outline-primary me-1" title="Editar evento"><i class="bi bi-pencil"></i></a>
-                        <button class="btn btn-sm btn-outline-danger" @onclick="() => pendingDelete = e" title="Eliminar evento"><i class="bi bi-x-circle"></i></button>
-                    </td>
-                </tr>
-            }
-            @if (!events.Any())
-            {
-                <tr><td colspan="8" class="text-muted text-center py-4">No se encontraron eventos.</td></tr>
-            }
-        </tbody>
-    </table>
-</div>
-
-@if (pendingDelete is not null)
-{
-    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.4)">
-        <div class="modal-dialog modal-sm">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Confirmar eliminación</h5>
-                    <button class="btn-close" @onclick="() => pendingDelete = null"></button>
-                </div>
-                <div class="modal-body">
-                    <p>¿Deseas eliminar el evento <strong>@pendingDelete.EventName</strong>?</p>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-danger rnm-btn-lg" @onclick="ConfirmDelete">Sí</button>
-                    <button class="btn btn-secondary rnm-btn-lg" @onclick="() => pendingDelete = null">No</button>
-                </div>
+<MudTable Items="@events" Dense="true" Hover="true"
+          T="Event" Elevation="2" Class="rounded tbl-compact" Style="font-size:0.8rem"
+          RowStyleFunc="@((item, _) => !item.Active ? "background-color:#e9ecef; color:#6c757d;" : null)">
+    <HeaderContent>
+        <MudTh>
+            <MudTableSortLabel SortBy="new Func<Event, object>(x => x.EventName)">Evento</MudTableSortLabel>
+        </MudTh>
+        <MudTh>
+            <MudTableSortLabel SortBy="new Func<Event, object>(x => x.Company?.Name ?? string.Empty)">Cliente</MudTableSortLabel>
+        </MudTh>
+        <MudTh>
+            <MudTableSortLabel SortBy="new Func<Event, object>(x => x.StartDateTime)">Inicio</MudTableSortLabel>
+        </MudTh>
+        <MudTh>Fin</MudTh>
+        <MudTh>Personal</MudTh>
+        <MudTh>Localización</MudTh>
+        <MudTh>
+            <MudTableSortLabel SortBy="new Func<Event, object>(x => x.Active)">Estatus</MudTableSortLabel>
+        </MudTh>
+        <MudTh></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Evento">@context.EventName</MudTd>
+        <MudTd DataLabel="Cliente">@context.Company?.Name</MudTd>
+        <MudTd DataLabel="Inicio">@context.StartDateTime.ToLocalTime().ToString("MMM d, h:mm tt")</MudTd>
+        <MudTd DataLabel="Fin">@context.EndDateTime.ToLocalTime().ToString("h:mm tt")</MudTd>
+        <MudTd DataLabel="Personal">@FormatRequirements(context)</MudTd>
+        <MudTd DataLabel="Localización">@(context.Location?.Name ?? "—")</MudTd>
+        <MudTd DataLabel="Estatus">
+            <MudChip T="string" Color="@(context.Active ? Color.Success : Color.Default)"
+                     Size="Size.Small" Variant="Variant.Filled" Class="ma-0">
+                @(context.Active ? "Activo" : "Inactivo")
+            </MudChip>
+        </MudTd>
+        <MudTd DataLabel="">
+            <div style="display:flex; align-items:center; justify-content:flex-end">
+                <MudTooltip Text="Editar">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
+                                   Size="Size.Small" Href="@($"/events/{context.EventId}")" />
+                </MudTooltip>
+                <MudTooltip Text="Eliminar">
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                                   Size="Size.Small" OnClick="() => ConfirmDelete(context)" />
+                </MudTooltip>
             </div>
-        </div>
-    </div>
-}
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText Typo="Typo.body1" Class="py-4 mud-text-secondary" Style="display:block;text-align:center">
+            No se encontraron eventos.
+        </MudText>
+    </NoRecordsContent>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="new int[] { 25, 50, 100 }" />
+    </PagerContent>
+</MudTable>
 
 @code {
     private List<Event> events = new();
@@ -104,7 +127,6 @@
     private DateTime? filterTo;
     private string filterActive = "";
     private string userId = "";
-    private Event? pendingDelete;
 
     protected override async Task OnInitializedAsync()
     {
@@ -120,12 +142,26 @@
         events = await EventSvc.GetAllAsync(search, filterCompanyId, filterFrom, filterTo, active);
     }
 
-    private async Task ConfirmDelete()
+    private async Task OnSearchChanged(string val) { search = val; await Load(); }
+    private async Task OnCompanyChanged(int? val) { filterCompanyId = val; await Load(); }
+    private async Task OnFromChanged(DateTime? val) { filterFrom = val; await Load(); }
+    private async Task OnToChanged(DateTime? val) { filterTo = val; await Load(); }
+    private async Task OnActiveChanged(string val) { filterActive = val ?? ""; await Load(); }
+
+    private async Task ConfirmDelete(Event e)
     {
-        if (pendingDelete is null) return;
-        await EventSvc.DeactivateAsync(pendingDelete.EventId, userId);
-        pendingDelete = null;
-        await Load();
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Eliminar Evento",
+            $"¿Deseas eliminar el evento {e.EventName}?",
+            yesText: "Sí, eliminar",
+            cancelText: "No");
+
+        if (confirmed == true)
+        {
+            await EventSvc.DeactivateAsync(e.EventId, userId);
+            Snackbar.Add("Evento eliminado", Severity.Info);
+            await Load();
+        }
     }
 
     private async Task ExportExcel()

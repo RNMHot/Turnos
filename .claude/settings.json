@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(cd \"c:\\\\Users\\\\RNM\\\\OneDrive\\\\Personal\\\\MyApps\\\\PeopleUshers\\\\Turnos\\\\Turnos\" && dotnet build --no-restore 2>&1 | Where-Object { $_ -match \"warning\" -and $_ -notmatch \"MSB3026|MSB3027|MSB3021|Turnos.exe|apphost\" } | Select-Object -First 20)",
+      "PowerShell(cd \"c:\\\\Users\\\\RNM\\\\OneDrive\\\\Personal\\\\MyApps\\\\PeopleUshers\\\\Turnos\\\\Turnos\" && dotnet build --no-restore 2>&1 | Where-Object { $_ -match \"error\" -and $_ -notmatch \"MSB3026|MSB3027|MSB3021|Turnos.exe|apphost\" } | Select-Object -First 20)",
+      "Read(//c//**)",
+      "Read(//c/Users/RNM/**)",
+      "Read(//c/Users/RNM/.nuget/**)",
+      "Bash(find \"/c/Users/RNM/.nuget/packages/mudblazor\" -maxdepth 2 2>/dev/null)",
+      "Read(//c/Users/RNM/.nuget/packages/mudblazor/**)",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(cat Properties/launchSettings.json)",
+      "Bash(cat appsettings.json)",
+      "Bash(cat appsettings.Development.json)",
+      "Bash(which chromium-cli *)",
+      "Bash(ls \"C:\\\\Users\\\\RNM\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\bundled-skills\\\\2.1.197\\\\7e961932026e16797da00630a6c3632a\\\\run\")",
+      "Bash(chromium-cli --help)",
+      "Bash(npx --yes playwright --version)",
+      "Bash(node -e \"console.log\\(require.resolve\\('playwright'\\)\\)\")",
+      "PowerShell(Get-Command node,npx -ErrorAction SilentlyContinue)",
+      "Bash(curl -sf -o /dev/null http://localhost:5029)",
+      "Bash(break)",
+      "Read(//tmp/**)",
+      "Bash(grep -i playwright Turnos.csproj *.sln)",
+      "Read(//c/Program Files/Google/Chrome/Application/**)",
+      "Read(//c/Program Files \\(x86\\)/Microsoft/Edge/Application/**)",
+      "Bash(find \"/c/Users/RNM/.nuget/packages\" -maxdepth 1 -iname \"*playwright*\" -o -maxdepth 1 -iname \"*puppeteer*\" 2>/dev/null)",
+      "Read(//c/Users/RNM/.nuget/packages/**)",
+      "PowerShell(powershell -NoProfile -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\RNM\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-RNM-OneDrive-Personal-MyApps-PeopleUshers-Turnos-Turnos\\\\3a00c4ac-3e7d-4b00-b3dc-58072801fdb0\\\\scratchpad\\\\cdp.ps1\")",
+      "Bash(taskkill //F //IM dotnet.exe //T)",
+      "PowerShell(powershell -NoProfile -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\RNM\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-RNM-OneDrive-Personal-MyApps-PeopleUshers-Turnos-Turnos\\\\3a00c4ac-3e7d-4b00-b3dc-58072801fdb0\\\\scratchpad\\\\cdp2.ps1\")",
+      "Bash(taskkill //F //IM chrome.exe //T)",
+      "Bash(powershell -NoProfile -Command \"Select-String -Path 'C:\\\\Users\\\\RNM\\\\.nuget\\\\packages\\\\mudblazor\\\\9.6.0\\\\staticwebassets\\\\MudBlazor.min.css' -Pattern 'mud-table-pagination' -AllMatches\")",
+      "Bash(Out-String -Width 4000)",
+      "PowerShell(powershell -NoProfile -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\RNM\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-RNM-OneDrive-Personal-MyApps-PeopleUshers-Turnos-Turnos\\\\3a00c4ac-3e7d-4b00-b3dc-58072801fdb0\\\\scratchpad\\\\cdp3.ps1\")"
+    ]
+  }
+}

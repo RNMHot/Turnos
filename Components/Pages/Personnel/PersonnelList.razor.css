@@ -1,0 +1,21 @@
+.table-scroll {
+    min-height: 0;
+    display: flex;
+}
+
+.table-scroll ::deep .mud-table {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: 0;
+}
+
+.table-scroll ::deep .mud-table-container {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.table-scroll ::deep .mud-table-pagination {
+    flex-shrink: 0;
+}

@@ -5,32 +5,28 @@
 @inject PersonService PersonSvc
 @inject AssignmentService AssignmentSvc
 @inject AuthenticationStateProvider AuthState
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
 <PageTitle>Events Board - Turnos</PageTitle>
 
 <div class="events-columns-container">
     <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
-        <h4 class="m-0">Eventos Activos</h4>
-        @if (dropMessage is not null)
-        {
-            <span class="badge @(dropSuccess ? "bg-success" : "bg-danger")">@dropMessage</span>
-        }
+        <MudText Typo="Typo.h5">Eventos Activos</MudText>
     </div>
 
     <div class="events-columns-board">
         <div class="personnel-panel">
             <div class="panel-header">
                 <strong>Personal Disponible</strong>
-                <input class="form-control form-control-sm mt-1"
-                       placeholder="Búsqueda..."
-                       @bind="personSearch"
-                       @bind:event="oninput"
-                       @bind:after="FilterPersonnel" />
+                <MudTextField T="string" Value="@personSearch" ValueChanged="OnPersonSearchChanged"
+                              Placeholder="Búsqueda…" Immediate="true" Clearable="true"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-1" />
             </div>
             <div id="panelbody" class="panel-body">
                 @if (filteredPersonnel.Count == 0)
                 {
-                    <div class="text-muted small px-1">No hay personal disponible.</div>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="px-1">No hay personal disponible.</MudText>
                 }
                 else
                 {
@@ -51,7 +47,7 @@
         <div class="events-columns-wrapper">
             @if (activeEvents.Count == 0)
             {
-                <div class="alert alert-light border">No hay eventos activos para mostrar.</div>
+                <MudAlert Severity="Severity.Info" Class="border">No hay eventos activos para mostrar.</MudAlert>
             }
             else
             {
@@ -71,9 +67,9 @@
                             </header>
 
                             <div class="event-column-body @(draggedPerson is not null ? "drop-target-active" : "")"
-                                   @ondragover="OnDragOver"
+                                 @ondragover="OnDragOver"
                                  @ondragover:preventDefault="true"
-                                   @ondrop:preventDefault="true"
+                                 @ondrop:preventDefault="true"
                                  @ondrop="() => OnDropOnEvent(ev)"
                                  @onclick="() => OnDropZoneClick(ev)">
                                 <div class="small text-muted mb-2 drop-zone-hint">
@@ -92,14 +88,16 @@
                                              @onclick:stopPropagation="true">
                                             <div class="d-flex align-items-center gap-2">
                                                 <span class="assignment-name">@a.Person.FullName</span>
-                                                <span class="badge @GetStatusBadge(a.Status)">@a.Status</span>
+                                                <MudChip T="string" Color="@GetStatusColor(a.Status)"
+                                                         Size="Size.Small" Variant="Variant.Filled" Class="ma-0">
+                                                    @a.Status
+                                                </MudChip>
                                             </div>
-                                            <button class="btn btn-sm btn-outline-danger"
-                                                    title="Eliminar asignación"
-                                                    @onclick="() => AskRemoveAssignment(a.AssignmentId, a.Person.FullName)"
-                                                    @onclick:stopPropagation="true">
-                                                <i class="bi bi-x"></i>
-                                            </button>
+                                            <span @onclick:stopPropagation="true">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Error"
+                                                               Size="Size.Small"
+                                                               OnClick="@(() => ConfirmRemoveAssignment(a.AssignmentId, a.Person.FullName))" />
+                                            </span>
                                         </div>
                                     }
                                 }
@@ -112,130 +110,7 @@
     </div>
 </div>
 
-@if (selectedEvent is not null)
-{
-    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.4)">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">@selectedEvent.EventName</h5>
-                    <button class="btn-close" @onclick="() => selectedEvent = null"></button>
-                </div>
-                <div class="modal-body">
-                    <p><strong>Cliente:</strong> @selectedEvent.Company?.Name</p>
-                    <p><strong>Hora:</strong> @selectedEvent.StartDateTime.ToLocalTime().ToString("MMM d, h:mm tt") – @selectedEvent.EndDateTime.ToLocalTime().ToString("h:mm tt")</p>
-                    <p><strong>Requeridos:</strong> @FormatRequirements(selectedEvent)</p>
-                    <p>
-                        <strong>Localización:</strong> @(selectedEvent.Location?.Name ?? "—")
-                        @if (selectedEvent.Location?.Latitude.HasValue == true)
-                        {
-                            <a href="https://maps.google.com/?q=@selectedEvent.Location.Latitude,@selectedEvent.Location.Longitude"
-                               target="_blank" rel="noopener" class="ms-2 small text-muted text-decoration-none">
-                                <i class="bi bi-pin-map"></i> Mapa
-                            </a>
-                        }
-                    </p>
-                    @if (!string.IsNullOrEmpty(selectedEvent.Notes))
-                    {
-                        <p><strong>Notas:</strong> @selectedEvent.Notes</p>
-                    }
-                    <hr />
-                    <h6>Asignados</h6>
-                    @foreach (var a in selectedEvent.Assignments)
-                    {
-                        <div class="d-flex align-items-center gap-2 mb-2">
-                            <span class="@GetRoleClass(a.Person) px-2 py-1 rounded small flex-grow-1">@a.Person.FullName</span>
-                            <select class="form-select form-select-sm" style="width:130px"
-                                    value="@a.Status.ToString()"
-                                    @onchange="async e => await ChangeStatus(a, e.Value?.ToString() ?? string.Empty)">
-                                <option value="Candidato">Candidato</option>
-                                <option value="Ofrecido">Ofrecido</option>
-                                <option value="Disponible">Disponible</option>
-                                <option value="Asignado">Asignado</option>
-                                <option value="Confirmado">Confirmado</option>
-                            </select>
-                            <button class="btn btn-sm btn-outline-danger" @onclick="() => AskRemoveAssignment(a.AssignmentId, a.Person.FullName)">
-                                <i class="bi bi-x"></i>
-                            </button>
-                        </div>
-                    }
-                </div>
-                <div class="modal-footer">
-                    <a href="/events/@selectedEvent.EventId" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-pencil me-1"></i> Editar Evento
-                    </a>
-                    <button class="btn btn-outline-success btn-sm" @onclick="OpenMessageModal">
-                        <i class="bi bi-whatsapp me-1"></i> Enviar Mensaje
-                    </button>
-                    <button class="btn btn-secondary" @onclick="() => selectedEvent = null">Cerrar</button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
-
-<MessageModal Show="showMessageModal" EventId="selectedEvent?.EventId" OnClose="CloseMessageModal" />
-
-@if (confirmRemoveAssignmentId.HasValue)
-{
-    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5)">
-        <div class="modal-dialog modal-sm">
-            <div class="modal-content">
-                <div class="modal-header py-2">
-                    <h6 class="modal-title">Confirmar eliminación</h6>
-                    <button class="btn-close" @onclick="CancelRemoveAssignment"></button>
-                </div>
-                <div class="modal-body">
-                    <p class="mb-0">Confirme remover a: <strong>@confirmRemovePersonName</strong></p>
-                </div>
-                <div class="modal-footer py-2">
-                    <button class="btn btn-secondary btn-sm" @onclick="CancelRemoveAssignment">No</button>
-                    <button class="btn btn-danger btn-sm" @onclick="ConfirmRemoveAssignment">Sí</button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
-
-@if (pickingForEvent is not null)
-{
-    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.4)" @onclick="ClosePicker">
-        <div class="modal-dialog modal-sm" @onclick:stopPropagation="true">
-            <div class="modal-content">
-                <div class="modal-header py-2">
-                    <h6 class="modal-title">Asignar a @pickingForEvent.EventName</h6>
-                    <button class="btn-close" @onclick="ClosePicker"></button>
-                </div>
-                <div class="modal-body p-2">
-                    <input class="form-control form-control-sm mb-2"
-                           placeholder="Búsqueda..."
-                           @bind="personPickerSearch"
-                           @bind:event="oninput"
-                           @bind:after="FilterPickerPersonnel" />
-                    <div style="max-height:300px;overflow-y:auto">
-                        @if (pickerPersonnel.Count == 0)
-                        {
-                            <div class="text-muted small px-1">Sin resultados</div>
-                        }
-                        else
-                        {
-                            @foreach (var person in pickerPersonnel)
-                            {
-                                <div class="person-chip @GetRoleClass(person) mb-1"
-                                     style="cursor:pointer"
-                                     @onclick="() => AssignPersonFromPicker(person)"
-                                     title="@GetRoleLabel(person)">
-                                    <i class="bi bi-person-fill me-1"></i>
-                                    <span>@person.FullName</span>
-                                </div>
-                            }
-                        }
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-}
+<MessageModal Show="showMessageModal" EventId="messageEventId" OnClose="CloseMessageModal" />
 
 @code {
     private List<Event> activeEvents = new();
@@ -243,16 +118,9 @@
     private List<Person> filteredPersonnel = new();
     private string personSearch = "";
     private Person? draggedPerson;
-    private Event? selectedEvent;
     private bool showMessageModal;
-    private string? dropMessage;
-    private bool dropSuccess;
+    private int? messageEventId;
     private string currentUserId = "";
-    private Event? pickingForEvent;
-    private string personPickerSearch = "";
-    private List<Person> pickerPersonnel = new();
-    private int? confirmRemoveAssignmentId;
-    private string confirmRemovePersonName = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -264,10 +132,7 @@
     private async Task LoadData()
     {
         activeEvents = await EventSvc.GetActiveWithAssignmentsAsync();
-
-        var allPeople = await PersonSvc.GetAllWithAvailabilityAsync(active: true);
-        availablePersonnel = allPeople;
-
+        availablePersonnel = await PersonSvc.GetAllWithAvailabilityAsync(active: true);
         FilterPersonnel();
     }
 
@@ -280,6 +145,12 @@
                 .ToList();
     }
 
+    private void OnPersonSearchChanged(string val)
+    {
+        personSearch = val;
+        FilterPersonnel();
+    }
+
     private void OnPersonDragStart(Person person) => draggedPerson = person;
 
     private static void OnDragOver(DragEventArgs _) { }
@@ -287,9 +158,7 @@
     private async Task OnDropOnEvent(Event ev)
     {
         if (draggedPerson is null)
-        {
             return;
-        }
 
         var assignment = new Assignment
         {
@@ -301,95 +170,89 @@
         };
 
         var (success, errMsg) = await AssignmentSvc.CreateAsync(assignment, currentUserId);
-        dropSuccess = success;
-        dropMessage = success
-            ? $"Asignado {draggedPerson.FullName} a {ev.EventName}"
-            : errMsg;
         draggedPerson = null;
 
         if (success)
         {
+            Snackbar.Add($"Asignado a {ev.EventName}", Severity.Success);
             await LoadData();
         }
-
-        _ = Task.Delay(4000).ContinueWith(_ =>
+        else
         {
-            dropMessage = null;
-            InvokeAsync(StateHasChanged);
-        });
+            Snackbar.Add(errMsg ?? "Error al asignar", Severity.Error);
+        }
     }
 
-    private void AskRemoveAssignment(int assignmentId, string personName)
+    private async Task ConfirmRemoveAssignment(int assignmentId, string personName)
     {
-        confirmRemoveAssignmentId = assignmentId;
-        confirmRemovePersonName = personName;
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Confirmar eliminación",
+            $"Confirme remover a: {personName}",
+            yesText: "Sí",
+            cancelText: "No");
+
+        if (confirmed == true)
+        {
+            await AssignmentSvc.DeleteAsync(assignmentId, currentUserId);
+            await LoadData();
+        }
     }
 
-    private void CancelRemoveAssignment()
-    {
-        confirmRemoveAssignmentId = null;
-        confirmRemovePersonName = "";
-    }
-
-    private async Task ConfirmRemoveAssignment()
-    {
-        if (confirmRemoveAssignmentId.HasValue)
-            await RemoveAssignment(confirmRemoveAssignmentId.Value);
-        confirmRemoveAssignmentId = null;
-        confirmRemovePersonName = "";
-    }
-
-    private async Task RemoveAssignment(int assignmentId)
-    {
-        await AssignmentSvc.DeleteAsync(assignmentId, currentUserId);
-        await LoadData();
-        if (selectedEvent is not null)
-            selectedEvent = activeEvents.FirstOrDefault(e => e.EventId == selectedEvent.EventId);
-    }
-
-    private void OnDropZoneClick(Event ev)
+    private async Task OnDropZoneClick(Event ev)
     {
         if (draggedPerson is not null) return;
-        pickingForEvent = ev;
-        personPickerSearch = "";
-        pickerPersonnel = availablePersonnel.ToList();
-    }
 
-    private void FilterPickerPersonnel()
-    {
-        pickerPersonnel = string.IsNullOrWhiteSpace(personPickerSearch)
-            ? availablePersonnel.ToList()
-            : availablePersonnel
-                .Where(p => p.FullName.Contains(personPickerSearch, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-    }
-
-    private async Task AssignPersonFromPicker(Person person)
-    {
-        if (pickingForEvent is null) return;
-        draggedPerson = person;
-        await OnDropOnEvent(pickingForEvent);
-        pickingForEvent = null;
-        personPickerSearch = "";
-    }
-
-    private void ClosePicker()
-    {
-        pickingForEvent = null;
-        personPickerSearch = "";
-    }
-
-    private void OpenEventDetail(Event ev) => selectedEvent = ev;
-    private void OpenMessageModal() => showMessageModal = true;
-    private void CloseMessageModal() => showMessageModal = false;
-
-    private async Task ChangeStatus(Assignment a, string statusStr)
-    {
-        if (Enum.TryParse<AssignmentStatus>(statusStr, out var status))
+        var parameters = new DialogParameters<PersonPickerDialog>
         {
-            await AssignmentSvc.UpdateStatusAsync(a.AssignmentId, status, currentUserId);
-            a.Status = status;
+            { x => x.EventName, ev.EventName },
+            { x => x.Personnel, availablePersonnel }
+        };
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<PersonPickerDialog>("", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: Person picked })
+        {
+            draggedPerson = picked;
+            await OnDropOnEvent(ev);
         }
+    }
+
+    private async Task OpenEventDetail(Event ev)
+    {
+        var parameters = new DialogParameters<EventColumnDetailDialog>
+        {
+            { x => x.Ev, ev },
+            { x => x.CurrentUserId, currentUserId }
+        };
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true
+        };
+        var dialog = await DialogService.ShowAsync<EventColumnDetailDialog>(ev.EventName, parameters, options);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: string action })
+        {
+            if (action == "whatsapp")
+            {
+                messageEventId = ev.EventId;
+                showMessageModal = true;
+            }
+            else if (action == "refresh")
+            {
+                await LoadData();
+            }
+        }
+    }
+
+    private void CloseMessageModal()
+    {
+        showMessageModal = false;
+        messageEventId = null;
     }
 
     private static string GetRoleClass(Person p)
@@ -419,19 +282,17 @@
             a.Status == AssignmentStatus.Asignado ||
             a.Status == AssignmentStatus.Confirmado);
 
-        return assignedTotal >= requiredTotal
-            ? "event-staffed"
-            : "event-unstaffed";
+        return assignedTotal >= requiredTotal ? "event-staffed" : "event-unstaffed";
     }
 
-    private static string GetStatusBadge(AssignmentStatus status) => status switch
+    private static Color GetStatusColor(AssignmentStatus status) => status switch
     {
-        AssignmentStatus.Confirmado => "bg-success",
-        AssignmentStatus.Asignado => "bg-primary",
-        AssignmentStatus.Disponible => "bg-info text-dark",
-        AssignmentStatus.Ofrecido => "bg-warning text-dark",
-        AssignmentStatus.Candidato => "bg-secondary",
-        _ => "bg-secondary"
+        AssignmentStatus.Confirmado => Color.Success,
+        AssignmentStatus.Asignado   => Color.Primary,
+        AssignmentStatus.Disponible => Color.Info,
+        AssignmentStatus.Ofrecido   => Color.Warning,
+        AssignmentStatus.Candidato  => Color.Default,
+        _ => Color.Default
     };
 
     private static string FormatRequirements(Event ev)

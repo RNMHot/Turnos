@@ -1,0 +1,108 @@
+@inject AssignmentService AssignmentSvc
+@inject IDialogService DialogService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@Ev.EventName</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid Spacing="1">
+            <MudItem xs="12">
+                <MudText><strong>Cliente:</strong> @Ev.Company?.Name</MudText>
+            </MudItem>
+            <MudItem xs="12">
+                <MudText><strong>Hora:</strong> @Ev.StartDateTime.ToLocalTime().ToString("MMM d, h:mm tt") – @Ev.EndDateTime.ToLocalTime().ToString("h:mm tt")</MudText>
+            </MudItem>
+            <MudItem xs="12">
+                <MudText><strong>Requeridos:</strong> @FormatRequirements(Ev)</MudText>
+            </MudItem>
+            <MudItem xs="12">
+                <MudText>
+                    <strong>Localización:</strong> @(Ev.Location?.Name ?? "—")
+                    @if (Ev.Location?.Latitude.HasValue == true)
+                    {
+                        <MudLink Href="@($"https://maps.google.com/?q={Ev.Location.Latitude},{Ev.Location.Longitude}")"
+                                 Target="_blank" Class="ms-2">
+                            <MudIcon Icon="@Icons.Material.Outlined.Map" Size="Size.Small" /> Mapa
+                        </MudLink>
+                    }
+                </MudText>
+            </MudItem>
+            @if (!string.IsNullOrEmpty(Ev.Notes))
+            {
+                <MudItem xs="12">
+                    <MudText><strong>Notas:</strong> @Ev.Notes</MudText>
+                </MudItem>
+            }
+        </MudGrid>
+
+        <MudDivider Class="my-3" />
+        <MudText Typo="Typo.subtitle2" Class="mb-2">Asignados</MudText>
+
+        @foreach (var a in Ev.Assignments)
+        {
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <MudText Typo="Typo.body2" Style="flex:1">@a.Person.FullName</MudText>
+                <MudSelect T="AssignmentStatus" Value="@a.Status"
+                           ValueChanged="@(s => ChangeStatus(a, s))"
+                           Style="width:140px" Margin="Margin.Dense" Variant="Variant.Outlined">
+                    @foreach (var s in Enum.GetValues<AssignmentStatus>())
+                    {
+                        <MudSelectItem Value="@s">@s</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Error"
+                               Size="Size.Small"
+                               OnClick="@(() => AskRemove(a.AssignmentId, a.Person.FullName))" />
+            </div>
+        }
+        @if (!Ev.Assignments.Any())
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary">No hay asignaciones aún.</MudText>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close" Variant="Variant.Text">Cerrar</MudButton>
+        <MudButton OnClick="SendWhatsApp" Color="Color.Success" Variant="Variant.Outlined"
+                   StartIcon="@Icons.Custom.Brands.WhatsApp">WhatsApp</MudButton>
+        <MudButton Href="@($"/events/{Ev.EventId}")" Color="Color.Info"
+                   Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Edit">Editar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public Event Ev { get; set; } = null!;
+    [Parameter] public string CurrentUserId { get; set; } = "";
+
+    private void Close() => MudDialog.Cancel();
+    private void SendWhatsApp() => MudDialog.Close(DialogResult.Ok("whatsapp"));
+
+    private async Task ChangeStatus(Assignment a, AssignmentStatus status)
+    {
+        await AssignmentSvc.UpdateStatusAsync(a.AssignmentId, status, CurrentUserId);
+        a.Status = status;
+        MudDialog.Close(DialogResult.Ok("refresh"));
+    }
+
+    private async Task AskRemove(int assignmentId, string personName)
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Confirmar eliminación",
+            $"Confirme remover a: {personName}",
+            yesText: "Sí",
+            cancelText: "No");
+
+        if (confirmed == true)
+        {
+            await AssignmentSvc.DeleteAsync(assignmentId, CurrentUserId);
+            MudDialog.Close(DialogResult.Ok("refresh"));
+        }
+    }
+
+    private static string FormatRequirements(Event ev)
+    {
+        var otherLabel = string.IsNullOrWhiteSpace(ev.RequiredOtherLabel) ? "Otro" : ev.RequiredOtherLabel;
+        return $"Sup: {ev.RequiredSupervisors} | Ushers: {ev.RequiredUshers} | {otherLabel}: {ev.RequiredOther}";
+    }
+}

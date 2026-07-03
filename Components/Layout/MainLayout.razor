@@ -1,6 +1,11 @@
 @inherits LayoutComponentBase
 @attribute [Authorize(Policy = "AppAccess")]
 
+<MudThemeProvider Theme="_theme" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
 <div class="page @(_sidebarCollapsed ? "sidebar-collapsed" : "")">
     <div class="sidebar">
         <NavMenu Collapsed="@_sidebarCollapsed" />
@@ -36,6 +41,22 @@
 
 @code {
     private bool _sidebarCollapsed = false;
+
+    private readonly MudTheme _theme = new()
+    {
+        PaletteLight = new PaletteLight
+        {
+            Primary = "#17324D",
+            Secondary = "#5B6F86",
+            Tertiary = "#C97832",
+            Success = "#2FA36B",
+            Warning = "#D99A1B",
+            Error = "#C94848",
+            Info = "#2D8C91",
+            Background = "#F5F7FA",
+            TextPrimary = "#1C2430",
+        }
+    };
 
     private void ToggleSidebar() => _sidebarCollapsed = !_sidebarCollapsed;
 }

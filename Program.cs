@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using MudBlazor.Services;
 using Turnos.Components;
 using Turnos.Data;
 using Turnos.Services;
@@ -51,6 +52,9 @@ builder.Services.AddAuthorizationCore(options =>
     options.AddPolicy("AppAccess", policy =>
         policy.RequireClaim(TurnosClaimTypes.AppAccess, "true"));
 });
+
+// MudBlazor
+builder.Services.AddMudServices();
 
 // MVC controllers (for CalendarController and AccountController)
 builder.Services.AddControllersWithViews();

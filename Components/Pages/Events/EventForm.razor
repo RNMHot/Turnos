@@ -9,215 +9,240 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @using System.Globalization
-@using Turnos.Models
-@using Turnos.Services
 
 <PageTitle>@(Id == 0 ? "Nuevo Evento" : "Editar Evento") — Turnos</PageTitle>
 
 <div class="d-flex align-items-center gap-2 mb-3">
-    <button class="btn btn-outline-secondary btn-sm" title="Regresar" @onclick="GoBack"><i class="bi bi-arrow-left"></i></button>
-    <h4 class="mb-0">@(Id == 0 ? "Nuevo Evento" : "Editar Evento")</h4>
+    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Variant="Variant.Outlined"
+                   Size="Size.Small" OnClick="GoBack" title="Regresar" />
+    <MudText Typo="Typo.h5">@(Id == 0 ? "Nuevo Evento" : "Editar Evento")</MudText>
 </div>
 
-<div class="card shadow-sm" style="max-width:700px">
-    <div class="card-body">
-        <EditForm Model="ev" OnValidSubmit="Save">
-            <DataAnnotationsValidator />
-            <ValidationSummary class="text-danger" />
+<MudPaper Elevation="2" Class="pa-4 rounded" Style="max-width:700px">
+    <EditForm Model="ev" OnValidSubmit="Save">
+        <DataAnnotationsValidator />
 
-            <div class="row g-3">
-                <div class="col-12">
-                    <label class="form-label">Nombre de evento *</label>
-                    <InputText @bind-Value="ev.EventName" class="form-control" />
-                    <ValidationMessage For="() => ev.EventName" />
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">Cliente *</label>
-                    <InputSelect @bind-Value="ev.CompanyId" class="form-select">
-                        <option value="0">— Seleccionar cliente —</option>
-                        @foreach (var c in companies)
-                        {
-                            <option value="@c.CompanyId">@c.Name</option>
-                        }
-                    </InputSelect>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">Localización</label>
-                    <InputSelect @bind-Value="ev.LocationId" class="form-select">
-                        <option value="">— Sin localización —</option>
-                        @foreach (var l in locations)
-                        {
-                            <option value="@l.LocationId">@l.Name</option>
-                        }
-                    </InputSelect>
-                </div>
-                <div class="col-md-6 @(createMultiple ? "d-none" : "")">
-                    <label class="form-label">Inicio</label>
-                    <input type="datetime-local" class="form-control" @bind="startLocal" @bind:after="OnStartChanged" />
-                </div>
-                <div class="col-md-6 @(createMultiple ? "d-none" : "")">
-                    <label class="form-label">Fin</label>
-                    <input type="datetime-local" class="form-control" @bind="endLocal" />
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Supervisores</label>
-                    <InputNumber @bind-Value="ev.RequiredSupervisors" class="form-control" />
-                    <ValidationMessage For="() => ev.RequiredSupervisors" />
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Ushers</label>
-                    <InputNumber @bind-Value="ev.RequiredUshers" class="form-control" />
-                    <ValidationMessage For="() => ev.RequiredUshers" />
-                </div>
-                <div class="col-md-4">
-                    @if (editingOtherLabel)
+        <MudGrid Spacing="3">
+            <MudItem xs="12">
+                <MudTextField @bind-Value="ev.EventName" For="() => ev.EventName"
+                              Label="Nombre de evento *"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="int" @bind-Value="ev.CompanyId" For="() => ev.CompanyId"
+                           Label="Cliente *" Variant="Variant.Outlined" Margin="Margin.Dense">
+                    <MudSelectItem T="int" Value="0">— Seleccionar cliente —</MudSelectItem>
+                    @foreach (var c in companies)
                     {
-                        <InputText id="txtbOtros" @bind-Value="ev.RequiredOtherLabel" class="form-control form-label"
-                                   @onblur="StopEditingOtherLabel"
-                                   @onkeydown="OnOtherLabelKeyDown" />
+                        <MudSelectItem T="int" Value="@c.CompanyId">@c.Name</MudSelectItem>
                     }
-                    else
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="int?" @bind-Value="ev.LocationId" Label="Localización"
+                           Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                    @foreach (var l in locations)
                     {
-                        <label id="lblOtros" class="form-label" @ondblclick="StartEditingOtherLabel" title="Doble clic para editar la etiqueta">@OtherLabelText</label>
+                        <MudSelectItem T="int?" Value="@((int?)l.LocationId)">@l.Name</MudSelectItem>
                     }
-                    <InputNumber @bind-Value="ev.RequiredOther" class="form-control" />
-                    <ValidationMessage For="() => ev.RequiredOther" />
-                </div>
-                @if (Id == 0)
-                {
-                    <div class="col-12">
-                        <div class="form-check">
-                            <input type="checkbox" @bind="createMultiple" class="form-check-input" id="recurring" />
-                            <label class="form-check-label" for="recurring">Crear varias ocurrencias</label>
-                        </div>
-                    </div>
-                }
-                @if (createMultiple && Id == 0)
-                {
-                    <div class="col-12">
-                        <div class="alert alert-info py-2 mb-2">
-                            Puedes agregar una o más reglas. Cada regla puede usar un horario diferente.
-                            Se crearán <strong>@PreviewCount evento(s)</strong> en total.
-                        </div>
-                        @if (recurrenceError is not null)
-                        {
-                            <div class="alert alert-danger py-2">@recurrenceError</div>
-                        }
-                    </div>
+                </MudSelect>
+            </MudItem>
 
-                    <div class="col-12">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <label class="form-label mb-0">Reglas de recurrencia</label>
-                            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="AddRecurrenceRule">
-                                <i class="bi bi-plus me-1"></i>Agregar regla
-                            </button>
-                        </div>
-
-                        @for (var i = 0; i < recurrenceRules.Count; i++)
-                        {
-                            var rule = recurrenceRules[i];
-                            <div class="border rounded p-3 mb-3 bg-light" @key="rule">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <strong>Regla @(i + 1)</strong>
-                                    @if (recurrenceRules.Count > 1)
-                                    {
-                                        <button type="button" class="btn btn-sm btn-outline-danger" @onclick="@(() => RemoveRecurrenceRule(rule))">Quitar</button>
-                                    }
-                                </div>
-
-                                <div class="row g-2">
-                                    <div class="col-md-4">
-                                        <label class="form-label">Tipo</label>
-                                        <select class="form-select" value="@rule.Kind.ToString()" @onchange="@(e => SetRuleKind(rule, e.Value?.ToString()))">
-                                            <option value="SingleDate">Un día</option>
-                                            <option value="WeekdaysInRange">Días de la semana en rango</option>
-                                            <option value="SpecificDates">Fechas específicas</option>
-                                        </select>
-                                    </div>
-
-                                    <div class="col-md-4">
-                                        <label class="form-label">Hora inicio</label>
-                                        <input type="time" class="form-control" value="@rule.StartTimeText" @onchange="@(e => rule.StartTimeText = e.Value?.ToString() ?? rule.StartTimeText)" />
-                                    </div>
-
-                                    <div class="col-md-4">
-                                        <label class="form-label">Hora fin</label>
-                                        <input type="time" class="form-control" value="@rule.EndTimeText" @onchange="@(e => rule.EndTimeText = e.Value?.ToString() ?? rule.EndTimeText)" />
-                                    </div>
-
-                                    @if (rule.Kind == RecurrenceRuleKind.SingleDate)
-                                    {
-                                        <div class="col-md-6">
-                                            <label class="form-label">Fecha</label>
-                                            <input type="date" class="form-control" value="@FormatDateInput(rule.SingleDate)" @onchange="@(e => SetRuleDate(rule, e.Value?.ToString()))" />
-                                        </div>
-                                    }
-                                    else if (rule.Kind == RecurrenceRuleKind.WeekdaysInRange)
-                                    {
-                                        <div class="col-md-6">
-                                            <label class="form-label">Desde</label>
-                                            <input type="date" class="form-control" value="@FormatDateInput(rule.RangeStartDate)" @onchange="@(e => SetRuleRangeStart(rule, e.Value?.ToString()))" />
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">Hasta</label>
-                                            <input type="date" class="form-control" value="@FormatDateInput(rule.RangeEndDate)" @onchange="@(e => SetRuleRangeEnd(rule, e.Value?.ToString()))" />
-                                        </div>
-                                        <div class="col-12">
-                                            <label class="form-label">Días de la semana</label>
-                                            <div class="d-flex flex-wrap gap-2">
-                                                @foreach (var day in DaysOrdered)
-                                                {
-                                                    var isChecked = rule.Days.Contains(day);
-                                                    <div class="form-check form-check-inline m-0" @key="day">
-                                                        <input class="form-check-input" type="checkbox"
-                                                               id="@($"rule_{i}_{day}")"
-                                                               checked="@isChecked"
-                                                               @onchange="@(e => ToggleRuleDay(rule, day, (bool)(e.Value ?? false)))" />
-                                                        <label class="form-check-label" for="@($"rule_{i}_{day}")">@DayName(day)</label>
-                                                    </div>
-                                                }
-                                            </div>
-                                        </div>
-                                    }
-                                    else if (rule.Kind == RecurrenceRuleKind.SpecificDates)
-                                    {
-                                        <div class="col-12">
-                                            <label class="form-label">Fechas</label>
-                                            <textarea class="form-control" rows="3"
-                                                      placeholder="Una fecha por línea o separadas por coma:&#10;2026-07-03&#10;2026-07-04, 2026-07-05"
-                                                      @onchange="@(e => SetRuleSpecificDates(rule, e.Value?.ToString()))">@rule.SpecificDatesText</textarea>
-                                            <div class="form-text">Formato: AAAA-MM-DD (ej. 2026-07-03). Una por línea o separadas por coma.</div>
-                                        </div>
-                                    }
-                                </div>
-                            </div>
-                        }
-                    </div>
-                }
-                <div class="col-12">
-                    <label class="form-label">Notas</label>
-                    <InputTextArea @bind-Value="ev.Notes" class="form-control" rows="3" />
-                </div>
-                <div class="col-12">
-                    <div class="form-check">
-                        <InputCheckbox @bind-Value="ev.Active" class="form-check-input" id="active" />
-                        <label class="form-check-label" for="active">Activo</label>
-                    </div>
-                </div>
-            </div>
-
-            @if (saveError is not null)
+            @if (!createMultiple)
             {
-                <div class="alert alert-danger py-2 mt-3">@saveError</div>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudDatePicker Date="@_startDate" DateChanged="OnStartDateChanged"
+                                   Label="Fecha inicio" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudTimePicker Time="@_startTime" TimeChanged="OnStartTimeChanged"
+                                   Label="Hora inicio" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                   AmPm="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudDatePicker Date="@_endDate" DateChanged="OnEndDateChanged"
+                                   Label="Fecha fin" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudTimePicker Time="@_endTime" TimeChanged="OnEndTimeChanged"
+                                   Label="Hora fin" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                   AmPm="true" />
+                </MudItem>
             }
 
-            <div class="d-flex gap-2 mt-3">
-                <button type="submit" class="btn btn-primary" disabled="@saving">@(saving ? "Guardando…" : "Guardar")</button>
-                <button class="btn btn-outline-secondary" @onclick="GoBack">Cancelar</button>
-            </div>
-        </EditForm>
-    </div>
-</div>
+            <MudItem xs="12" sm="4">
+                <MudNumericField T="int" @bind-Value="ev.RequiredSupervisors"
+                                 For="() => ev.RequiredSupervisors"
+                                 Label="Supervisores" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudNumericField T="int" @bind-Value="ev.RequiredUshers"
+                                 For="() => ev.RequiredUshers"
+                                 Label="Ushers" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                @if (editingOtherLabel)
+                {
+                    <MudTextField @bind-Value="ev.RequiredOtherLabel"
+                                  AutoFocus="true"
+                                  OnBlur="@(_ => StopEditingOtherLabel())"
+                                  OnKeyDown="OnOtherLabelKeyDown"
+                                  Label="Etiqueta"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense"
+                                  Class="mb-1" />
+                }
+                else
+                {
+                    <MudText Typo="Typo.caption" Color="Color.Secondary"
+                             Style="display:block;cursor:pointer;padding-bottom:2px"
+                             title="Doble clic para editar la etiqueta"
+                             @ondblclick="StartEditingOtherLabel">
+                        @OtherLabelText
+                    </MudText>
+                }
+                <MudNumericField T="int" @bind-Value="ev.RequiredOther"
+                                 For="() => ev.RequiredOther"
+                                 Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+            </MudItem>
+
+            @if (Id == 0)
+            {
+                <MudItem xs="12">
+                    <MudCheckBox T="bool" @bind-Value="createMultiple"
+                                 Label="Crear varias ocurrencias" />
+                </MudItem>
+            }
+
+            @if (createMultiple && Id == 0)
+            {
+                <MudItem xs="12">
+                    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
+                        Puedes agregar una o más reglas. Cada regla puede usar un horario diferente.
+                        Se crearán <strong>@PreviewCount evento(s)</strong> en total.
+                    </MudAlert>
+                    @if (recurrenceError is not null)
+                    {
+                        <MudAlert Severity="Severity.Error" Dense="true">@recurrenceError</MudAlert>
+                    }
+                </MudItem>
+
+                <MudItem xs="12">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <MudText Typo="Typo.subtitle2">Reglas de recurrencia</MudText>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Add" Size="Size.Small"
+                                   OnClick="AddRecurrenceRule">Agregar regla</MudButton>
+                    </div>
+
+                    @for (var i = 0; i < recurrenceRules.Count; i++)
+                    {
+                        var rule = recurrenceRules[i];
+                        var ruleIndex = i;
+                        <MudPaper Outlined="true" Class="pa-3 mb-3" @key="rule">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <MudText Typo="Typo.subtitle2">Regla @(ruleIndex + 1)</MudText>
+                                @if (recurrenceRules.Count > 1)
+                                {
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Error"
+                                               Size="Size.Small"
+                                               OnClick="@(() => RemoveRecurrenceRule(rule))">Quitar</MudButton>
+                                }
+                            </div>
+
+                            <MudGrid Spacing="2">
+                                <MudItem xs="12" sm="4">
+                                    <MudSelect T="RecurrenceRuleKind" @bind-Value="rule.Kind"
+                                               Label="Tipo" Variant="Variant.Outlined" Margin="Margin.Dense">
+                                        <MudSelectItem Value="RecurrenceRuleKind.SingleDate">Un día</MudSelectItem>
+                                        <MudSelectItem Value="RecurrenceRuleKind.WeekdaysInRange">Días de la semana en rango</MudSelectItem>
+                                        <MudSelectItem Value="RecurrenceRuleKind.SpecificDates">Fechas específicas</MudSelectItem>
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem xs="12" sm="4">
+                                    <MudTimePicker Time="@ParseRuleTime(rule.StartTimeText)"
+                                                   TimeChanged="@(t => rule.StartTimeText = FormatRuleTime(t, rule.StartTimeText))"
+                                                   Label="Hora inicio" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                   AmPm="true" />
+                                </MudItem>
+                                <MudItem xs="12" sm="4">
+                                    <MudTimePicker Time="@ParseRuleTime(rule.EndTimeText)"
+                                                   TimeChanged="@(t => rule.EndTimeText = FormatRuleTime(t, rule.EndTimeText))"
+                                                   Label="Hora fin" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                   AmPm="true" />
+                                </MudItem>
+
+                                @if (rule.Kind == RecurrenceRuleKind.SingleDate)
+                                {
+                                    <MudItem xs="12" sm="6">
+                                        <MudDatePicker Date="@((DateTime?)rule.SingleDate)"
+                                                       DateChanged="@(d => { if (d.HasValue) rule.SingleDate = d.Value.Date; })"
+                                                       Label="Fecha" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                    </MudItem>
+                                }
+                                else if (rule.Kind == RecurrenceRuleKind.WeekdaysInRange)
+                                {
+                                    <MudItem xs="12" sm="6">
+                                        <MudDatePicker Date="@((DateTime?)rule.RangeStartDate)"
+                                                       DateChanged="@(d => { if (d.HasValue) rule.RangeStartDate = d.Value.Date; })"
+                                                       Label="Desde" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudDatePicker Date="@((DateTime?)rule.RangeEndDate)"
+                                                       DateChanged="@(d => { if (d.HasValue) rule.RangeEndDate = d.Value.Date; })"
+                                                       Label="Hasta" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                    </MudItem>
+                                    <MudItem xs="12">
+                                        <MudText Typo="Typo.body2" Class="mb-1">Días de la semana</MudText>
+                                        <div class="d-flex flex-wrap gap-2">
+                                            @foreach (var day in DaysOrdered)
+                                            {
+                                                <MudCheckBox T="bool" Value="@rule.Days.Contains(day)"
+                                                             ValueChanged="@(v => ToggleRuleDay(rule, day, v))"
+                                                             Label="@DayName(day)" Dense="true" />
+                                            }
+                                        </div>
+                                    </MudItem>
+                                }
+                                else if (rule.Kind == RecurrenceRuleKind.SpecificDates)
+                                {
+                                    <MudItem xs="12">
+                                        <MudTextField T="string" Value="@rule.SpecificDatesText"
+                                                      ValueChanged="@(v => rule.SpecificDatesText = v ?? string.Empty)"
+                                                      Lines="3" Label="Fechas"
+                                                      Placeholder="Una fecha por línea o separadas por coma: 2026-07-03, 2026-07-04"
+                                                      HelperText="Formato: AAAA-MM-DD. Una por línea o separadas por coma."
+                                                      Variant="Variant.Outlined" />
+                                    </MudItem>
+                                }
+                            </MudGrid>
+                        </MudPaper>
+                    }
+                </MudItem>
+            }
+
+            <MudItem xs="12">
+                <MudTextField @bind-Value="ev.Notes" Label="Notas"
+                              Lines="3" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudCheckBox T="bool" @bind-Value="ev.Active" Label="Activo" />
+            </MudItem>
+        </MudGrid>
+
+        @if (saveError is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-3">@saveError</MudAlert>
+        }
+
+        <div class="d-flex gap-2 mt-4">
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"
+                       Color="Color.Primary" Disabled="@saving">
+                @(saving ? "Guardando…" : "Guardar")
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" OnClick="GoBack">Cancelar</MudButton>
+        </div>
+    </EditForm>
+</MudPaper>
 
 @code {
     [Parameter] public int Id { get; set; }
@@ -261,6 +286,10 @@
     private string userId = string.Empty;
     private DateTime startLocal;
     private DateTime endLocal;
+    private DateTime? _startDate;
+    private TimeSpan? _startTime;
+    private DateTime? _endDate;
+    private TimeSpan? _endTime;
     private readonly List<RecurrenceRuleEditor> recurrenceRules = new();
 
     protected override async Task OnInitializedAsync()
@@ -293,6 +322,41 @@
             endLocal = parsedStart.AddHours(4);
             OnStartChanged();
         }
+
+        _startDate = startLocal.Date;
+        _startTime = startLocal.TimeOfDay;
+        _endDate = endLocal.Date;
+        _endTime = endLocal.TimeOfDay;
+    }
+
+    private void OnStartDateChanged(DateTime? date)
+    {
+        _startDate = date;
+        startLocal = (date?.Date ?? DateTime.Today) + (_startTime ?? TimeSpan.Zero);
+        OnStartChanged();
+        _endDate = endLocal.Date;
+        _endTime = endLocal.TimeOfDay;
+    }
+
+    private void OnStartTimeChanged(TimeSpan? time)
+    {
+        _startTime = time;
+        startLocal = (_startDate?.Date ?? DateTime.Today) + (time ?? TimeSpan.Zero);
+        OnStartChanged();
+        _endDate = endLocal.Date;
+        _endTime = endLocal.TimeOfDay;
+    }
+
+    private void OnEndDateChanged(DateTime? date)
+    {
+        _endDate = date;
+        endLocal = (date?.Date ?? DateTime.Today) + (_endTime ?? TimeSpan.Zero);
+    }
+
+    private void OnEndTimeChanged(TimeSpan? time)
+    {
+        _endTime = time;
+        endLocal = (_endDate?.Date ?? DateTime.Today) + (time ?? TimeSpan.Zero);
     }
 
     private async Task Save()
@@ -385,33 +449,6 @@
         }
     }
 
-    private static void SetRuleKind(RecurrenceRuleEditor rule, string? value)
-    {
-        if (Enum.TryParse<RecurrenceRuleKind>(value, out var kind))
-            rule.Kind = kind;
-    }
-
-    private static void SetRuleDate(RecurrenceRuleEditor rule, string? value)
-    {
-        if (DateTime.TryParse(value, out var parsed))
-            rule.SingleDate = parsed.Date;
-    }
-
-    private static void SetRuleRangeStart(RecurrenceRuleEditor rule, string? value)
-    {
-        if (DateTime.TryParse(value, out var parsed))
-            rule.RangeStartDate = parsed.Date;
-    }
-
-    private static void SetRuleRangeEnd(RecurrenceRuleEditor rule, string? value)
-    {
-        if (DateTime.TryParse(value, out var parsed))
-            rule.RangeEndDate = parsed.Date;
-    }
-
-    private static void SetRuleSpecificDates(RecurrenceRuleEditor rule, string? value) =>
-        rule.SpecificDatesText = value ?? string.Empty;
-
     private List<Event> BuildOccurrences()
     {
         var occurrences = new List<Event>();
@@ -500,7 +537,11 @@
         return false;
     }
 
-    private static string FormatDateInput(DateTime value) => value.ToString("yyyy-MM-dd");
+    private static TimeSpan? ParseRuleTime(string text) =>
+        TimeSpan.TryParse(text, out var t) ? t : null;
+
+    private static string FormatRuleTime(TimeSpan? time, string fallback) =>
+        time?.ToString(@"hh\:mm") ?? fallback;
 
     private static RecurrenceRuleEditor CreateDefaultRule() => new()
     {

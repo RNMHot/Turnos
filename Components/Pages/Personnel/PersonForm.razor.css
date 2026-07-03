@@ -1,0 +1,9 @@
+.person-form-grid {
+    column-width: 320px;
+    column-gap: 1rem;
+}
+
+.person-form-grid > .card {
+    break-inside: avoid;
+    margin-bottom: 1rem;
+}

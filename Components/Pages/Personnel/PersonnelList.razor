@@ -5,91 +5,100 @@
 @inject ExcelExportService Excel
 @inject AuthenticationStateProvider AuthState
 @inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
 <PageTitle>Personal — Turnos</PageTitle>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0"><i class="bi bi-people me-2"></i>Personal</h4>
-    <div class="d-flex gap-2">
-        <button class="btn btn-outline-success btn-sm" @onclick="ExportExcel"><i class="bi bi-file-earmark-excel me-1"></i>Exportar</button>
-        <a href="/personnel/new" class="btn btn-primary btn-sm"><i class="bi bi-plus me-1"></i>Agregar Persona</a>
+<div class="d-flex flex-column" style="height:100%">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
+        <MudText Typo="Typo.h5">Personal</MudText>
+        <div class="d-flex gap-2">
+            <MudButton Variant="Variant.Outlined" Color="Color.Success"
+                       StartIcon="@Icons.Material.Filled.FileDownload"
+                       OnClick="ExportExcel" Size="Size.Small">Exportar</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       Href="/personnel/new" Size="Size.Small">Agregar Persona</MudButton>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 mb-3 flex-wrap flex-shrink-0">
+        <MudTextField @bind-Value="search" @bind-Value:after="Load" Placeholder="Buscar nombre / teléfono…"
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                      Immediate="true" Clearable="true" Style="max-width:260px"
+                      Variant="Variant.Outlined" Margin="Margin.Dense" />
+        <MudSelect T="int?" @bind-Value="filterRoleId" @bind-Value:after="Load" Placeholder="Roles"
+                   Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:190px">
+            @foreach (var role in roles)
+            {
+                <MudSelectItem T="int?" Value="@((int?)role.RoleId)">@role.Name</MudSelectItem>
+            }
+        </MudSelect>
+        <MudSelect T="string" @bind-Value="filterActive" @bind-Value:after="Load" Placeholder="Estatus"
+                   Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:150px">
+            <MudSelectItem T="string" Value="@("true")">Activos</MudSelectItem>
+            <MudSelectItem T="string" Value="@("false")">Inactivos</MudSelectItem>
+        </MudSelect>
+    </div>
+
+    <div class="table-scroll flex-grow-1">
+        <MudTable Items="@persons" Loading="loading" Dense="true" Hover="true"
+                  T="Person" Elevation="2" Class="rounded" Style="font-size:0.85rem"
+                  FixedHeader="true"
+                  RowClassFunc="@((p, i) => !p.Active ? "mud-text-secondary" : "")">
+    <HeaderContent>
+        <MudTh>
+            <MudTableSortLabel SortBy="new Func<Person, object>(x => x.FullName)">
+                Nombre
+            </MudTableSortLabel>
+        </MudTh>
+        <MudTh>Teléfono</MudTh>
+        <MudTh>eMail</MudTh>
+        <MudTh>Roles</MudTh>
+        <MudTh>Estatus</MudTh>
+        <MudTh></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Nombre">@context.FullName</MudTd>
+        <MudTd DataLabel="Teléfono">@context.PhoneNumber</MudTd>
+        <MudTd DataLabel="eMail">@context.Email</MudTd>
+        <MudTd DataLabel="Roles">@string.Join(", ", context.PersonRoles.Select(r => r.Role?.Name))</MudTd>
+        <MudTd DataLabel="Estatus">
+            <MudChip T="string" Color="@(context.Active ? Color.Success : Color.Secondary)" Size="Size.Small"
+                     Variant="Variant.Filled" Class="ma-0">
+                @(context.Active ? "Activo" : "Inactivo")
+            </MudChip>
+        </MudTd>
+        <MudTd DataLabel="">
+            <div style="display:flex; align-items:center; justify-content:flex-end">
+                <MudTooltip Text="Manejar disponibilidad">
+                    <MudIconButton Icon="@Icons.Material.Filled.CalendarMonth" Color="Color.Info"
+                                   Size="Size.Small" Href="@($"/personnel/{context.PersonId}/availability")" />
+                </MudTooltip>
+                <MudTooltip Text="Editar personal">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
+                                   Size="Size.Small" Href="@($"/personnel/{context.PersonId}")" />
+                </MudTooltip>
+                <MudTooltip Text="Desactivar personal">
+                    <MudIconButton Icon="@Icons.Material.Filled.PersonOff" Color="Color.Error"
+                                   Size="Size.Small" OnClick="() => ConfirmDeactivate(context)" />
+                </MudTooltip>
+            </div>
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText Typo="Typo.body1" Class="py-4 mud-text-secondary" Style="display:block;text-align:center">
+            No se encontró personal.
+        </MudText>
+    </NoRecordsContent>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="new int[] { 25, 50, 100 }" />
+    </PagerContent>
+        </MudTable>
     </div>
 </div>
-
-<!-- Filters -->
-<div class="d-flex gap-2 mb-3 flex-wrap">
-    <input class="form-control form-control-sm" style="max-width:220px" placeholder="Buscar nombre / teléfono…" @bind="search" @bind:event="oninput" @bind:after="Load" />
-    <select class="form-select form-select-sm" style="max-width:170px" @bind="filterRoleId" @bind:after="Load">
-        <option value="">Roles</option>
-        @foreach (var role in roles)
-        {
-            <option value="@role.RoleId">@role.Name</option>
-        }
-    </select>
-    <select class="form-select form-select-sm" style="max-width:130px" @bind="filterActive" @bind:after="Load">
-        <option value="">Estatus</option>
-        <option value="true">Activos</option>
-        <option value="false">Inactivos</option>
-    </select>
-</div>
-
-@if (loading)
-{
-    <p class="text-muted">Cargando…</p>
-}
-else
-{
-    <div class="table-responsive">
-        <table class="table table-hover table-sm align-middle">
-            <thead class="table-light">
-                <tr>
-                    <th>Nombre</th>
-                    <th>Teléfono</th>
-                    <th>eMail</th>
-                    <th>Roles</th>
-                    <th>Estatus</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var p in persons)
-                {
-                    <tr class="@(!p.Active ? "table-secondary text-muted" : "")">
-                        <td>@p.FullName</td>
-                        <td>@p.PhoneNumber</td>
-                        <td>@p.Email</td>
-                        <td>@string.Join(", ", p.PersonRoles.Select(r => r.Role?.Name))</td>
-                        <td>
-                            @if (p.Active)
-                            {
-                                <span class="badge bg-success">Activo</span>
-                            }
-                            else
-                            {
-                                <span class="badge bg-secondary">Inactivo</span>
-                            }
-                        </td>
-                        <td class="text-end">
-                            <a href="/personnel/@p.PersonId/availability" class="btn btn-sm btn-outline-info me-1" title="Manejar disponibilidad">
-                                <i class="bi bi-calendar3"></i>
-                            </a>
-                            <a href="/personnel/@p.PersonId" class="btn btn-sm btn-outline-primary me-1" title="Editar personal">
-                                <i class="bi bi-pencil"></i>
-                            </a>
-                            <button class="btn btn-sm btn-outline-danger" @onclick="() => Deactivate(p)" title="Desactivar personal">
-                                <i class="bi bi-person-x"></i>
-                            </button>
-                        </td>
-                    </tr>
-                }
-                @if (!persons.Any())
-                {
-                    <tr><td colspan="7" class="text-muted text-center py-4">No se encontró personal.</td></tr>
-                }
-            </tbody>
-        </table>
-    </div>
-}
 
 @code {
     private List<Person> persons = new();
@@ -116,10 +125,20 @@ else
         loading = false;
     }
 
-    private async Task Deactivate(Person p)
+    private async Task ConfirmDeactivate(Person p)
     {
-        await PersonSvc.SoftDeleteAsync(p.PersonId, userId);
-        await Load();
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Desactivar Personal",
+            $"¿Desea desactivar a {p.FullName}?",
+            yesText: "Sí, desactivar",
+            cancelText: "No");
+
+        if (confirmed == true)
+        {
+            await PersonSvc.SoftDeleteAsync(p.PersonId, userId);
+            Snackbar.Add("Personal desactivado", Severity.Info);
+            await Load();
+        }
     }
 
     private async Task ExportExcel()
@@ -127,6 +146,4 @@ else
         var bytes = Excel.ExportPersons(persons);
         await JS.InvokeVoidAsync("downloadFile", "personnel.xlsx", Convert.ToBase64String(bytes));
     }
-
-    [Inject] private IJSRuntime JS { get; set; } = default!;
 }

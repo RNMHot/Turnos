@@ -1,0 +1,68 @@
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Asignar a @EventName</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField T="string" Value="@_search" ValueChanged="OnSearchChanged"
+                      Placeholder="Búsqueda…" Immediate="true" Clearable="true"
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                      Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-2" />
+
+        <div style="max-height:300px;overflow-y:auto">
+            @if (_filtered.Count == 0)
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="px-1">Sin resultados</MudText>
+            }
+            else
+            {
+                @foreach (var person in _filtered)
+                {
+                    <MudChip T="string" OnClick="@(() => Pick(person))"
+                             Color="@GetRoleColor(person)" Variant="Variant.Filled"
+                             Icon="@Icons.Material.Filled.Person"
+                             Class="mb-1" Style="cursor:pointer;width:100%;justify-content:flex-start">
+                        @person.FullName
+                    </MudChip>
+                }
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Cancelar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public string EventName { get; set; } = "";
+    [Parameter] public List<Person> Personnel { get; set; } = new();
+
+    private string _search = "";
+    private List<Person> _filtered = new();
+
+    protected override void OnInitialized() => _filtered = Personnel.ToList();
+
+    private void OnSearchChanged(string val)
+    {
+        _search = val;
+        _filtered = string.IsNullOrWhiteSpace(val)
+            ? Personnel.ToList()
+            : Personnel.Where(p => p.FullName.Contains(val, StringComparison.OrdinalIgnoreCase)).ToList();
+    }
+
+    private void Pick(Person person) => MudDialog.Close(DialogResult.Ok(person));
+    private void Cancel() => MudDialog.Cancel();
+
+    private static Color GetRoleColor(Person p)
+    {
+        var roles = p.PersonRoles.Select(r => r.Role?.Name).ToList();
+        bool isUsher = roles.Contains("Usher");
+        bool isSup = roles.Contains("Supervisor");
+        return (isUsher, isSup) switch
+        {
+            (true, true) => Color.Tertiary,
+            (false, true) => Color.Secondary,
+            _ => Color.Primary
+        };
+    }
+}

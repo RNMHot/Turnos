@@ -13,12 +13,24 @@
     <h4 class="mb-0">@(Id == 0 ? "Nueva Localidad" : "Editar Localidad")</h4>
 </div>
 
-<div class="card shadow-sm" style="max-width:680px">
-    <div class="card-body">
-        <EditForm Model="loc" OnValidSubmit="Save">
-            <DataAnnotationsValidator />
-            <ValidationSummary class="text-danger" />
+<EditForm Model="loc" OnValidSubmit="Save">
+    <DataAnnotationsValidator />
 
+    <ValidationSummary class="text-danger mb-3" />
+
+    <div class="d-flex gap-2 justify-content-between">
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary" disabled="@saving">
+                @(saving ? "Guardando…" : "Guardar")
+            </button>
+            <a href="/locations" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+    </div>
+    <br />
+
+    <div class="card shadow-sm" style="max-width:680px">
+        <div class="card-header fw-semibold">Datos de la Localidad</div>
+        <div class="card-body">
             <div class="row g-3">
                 <div class="col-12">
                     <label class="form-label">Nombre *</label>
@@ -60,16 +72,9 @@
                                    placeholder="Describe las opciones de estacionamiento, costos, entradas…" />
                 </div>
             </div>
-
-            <div class="d-flex gap-2 mt-3">
-                <button type="submit" class="btn btn-primary" disabled="@saving">
-                    @(saving ? "Guardando…" : "Guardar")
-                </button>
-                <a href="/locations" class="btn btn-outline-secondary">Cancelar</a>
-            </div>
-        </EditForm>
+        </div>
     </div>
-</div>
+</EditForm>
 
 @if (Id != 0)
 {

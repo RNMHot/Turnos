@@ -1,0 +1,96 @@
+@inject AssignmentService AssignmentSvc
+@inject AuthenticationStateProvider AuthState
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Detalle de Asignación</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="6">
+                <MudText Typo="Typo.overline" Color="Color.Secondary">Persona</MudText>
+                <MudText Typo="Typo.body1" Style="font-weight:600">@Assignment.Person?.FullName</MudText>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudText Typo="Typo.overline" Color="Color.Secondary">Evento</MudText>
+                <MudText Typo="Typo.body1">@Assignment.Event?.EventName</MudText>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudText Typo="Typo.overline" Color="Color.Secondary">Cliente</MudText>
+                <MudText Typo="Typo.body2">@(Assignment.Event?.Company?.Name ?? "—")</MudText>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudText Typo="Typo.overline" Color="Color.Secondary">Posición</MudText>
+                <MudText Typo="Typo.body2">@(Assignment.LocationPosition?.Name ?? "—")</MudText>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudText Typo="Typo.overline" Color="Color.Secondary">Inicio</MudText>
+                <MudText Typo="Typo.body2">@Assignment.StartDateTime.ToString("MMM d yyyy, h:mm tt")</MudText>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudText Typo="Typo.overline" Color="Color.Secondary">Fin</MudText>
+                <MudText Typo="Typo.body2">@Assignment.EndDateTime.ToString("h:mm tt")</MudText>
+            </MudItem>
+            @if (!string.IsNullOrEmpty(Assignment.Notes))
+            {
+                <MudItem xs="12">
+                    <MudText Typo="Typo.overline" Color="Color.Secondary">Notas</MudText>
+                    <MudText Typo="Typo.body2">@Assignment.Notes</MudText>
+                </MudItem>
+            }
+            <MudItem xs="12">
+                <MudDivider Class="my-1" />
+                <MudSelect T="AssignmentStatus" Label="Estatus" @bind-Value="_status"
+                           Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-2">
+                    @foreach (var s in Enum.GetValues<AssignmentStatus>())
+                    {
+                        <MudSelectItem Value="@s">@s</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close" Variant="Variant.Text">Cerrar</MudButton>
+        <MudButton OnClick="SendWhatsApp" Color="Color.Success" Variant="Variant.Outlined"
+                   StartIcon="@Icons.Custom.Brands.WhatsApp">WhatsApp</MudButton>
+        <MudButton Href="@($"/assignments/{Assignment.AssignmentId}")" Color="Color.Info"
+                   Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Edit">Editar</MudButton>
+        <MudButton OnClick="SaveStatus" Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="_saving" StartIcon="@Icons.Material.Filled.Save">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public Assignment Assignment { get; set; } = null!;
+
+    private AssignmentStatus _status;
+    private bool _saving;
+    private string _userId = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _status = Assignment.Status;
+        var auth = await AuthState.GetAuthenticationStateAsync();
+        _userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+    }
+
+    private void Close() => MudDialog.Cancel();
+
+    private async Task SaveStatus()
+    {
+        _saving = true;
+        if (_status != Assignment.Status)
+        {
+            await AssignmentSvc.UpdateStatusAsync(Assignment.AssignmentId, _status, _userId);
+            MudDialog.Close(DialogResult.Ok(_status));
+        }
+        else
+        {
+            MudDialog.Close();
+        }
+    }
+
+    private void SendWhatsApp() => MudDialog.Close(DialogResult.Ok("whatsapp"));
+}
