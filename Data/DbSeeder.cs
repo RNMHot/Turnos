@@ -24,7 +24,7 @@ public static class DbSeeder
 
         db.StaffRoles.AddRange(
             new Role { Name = "User" },
-            new Role { Name = "Usher" },
+            new Role { Name = "Ujier" },
             new Role { Name = "Supervisor" }
         );
         await db.SaveChangesAsync();

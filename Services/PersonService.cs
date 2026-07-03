@@ -18,7 +18,7 @@ public class PersonService
         _userManager = userManager;
     }
 
-    public async Task<List<Person>> GetAllAsync(string? search = null, int? roleId = null, bool? active = null)
+    public async Task<List<Person>> GetAllAsync(string? search = null, int? roleId = null, bool? active = null, bool? isMassGroup = null)
     {
         await using var db = await _dbFactory.CreateDbContextAsync();
         var query = db.Persons.Include(p => p.PersonRoles).ThenInclude(pr => pr.Role).AsQueryable();
@@ -29,6 +29,8 @@ public class PersonService
             query = query.Where(p => p.PersonRoles.Any(pr => pr.RoleId == roleId));
         if (active.HasValue)
             query = query.Where(p => p.Active == active.Value);
+        if (isMassGroup.HasValue)
+            query = query.Where(p => p.IsMassGroup == isMassGroup.Value);
 
         return await query.OrderBy(p => p.FullName).ToListAsync();
     }
@@ -42,7 +44,7 @@ public class PersonService
             .FirstOrDefaultAsync(p => p.PersonId == id);
     }
 
-    public async Task<List<Person>> GetAllWithAvailabilityAsync(bool? active = null)
+    public async Task<List<Person>> GetAllWithAvailabilityAsync(bool? active = null, bool? isMassGroup = null)
     {
         await using var db = await _dbFactory.CreateDbContextAsync();
         var query = db.Persons
@@ -52,6 +54,8 @@ public class PersonService
 
         if (active.HasValue)
             query = query.Where(p => p.Active == active.Value);
+        if (isMassGroup.HasValue)
+            query = query.Where(p => p.IsMassGroup == isMassGroup.Value);
 
         return await query.OrderBy(p => p.FullName).ToListAsync();
     }

@@ -41,6 +41,11 @@
             <MudSelectItem T="string" Value="@("true")">Activos</MudSelectItem>
             <MudSelectItem T="string" Value="@("false")">Inactivos</MudSelectItem>
         </MudSelect>
+        <MudSelect T="string" @bind-Value="filterGroup" @bind-Value:after="Load" Placeholder="Grupo"
+                   Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:150px">
+            <MudSelectItem T="string" Value="@("regular")">Regulares</MudSelectItem>
+            <MudSelectItem T="string" Value="@("mass")">Masivos</MudSelectItem>
+        </MudSelect>
     </div>
 
     <div class="table-scroll flex-grow-1">
@@ -57,6 +62,7 @@
         <MudTh>Teléfono</MudTh>
         <MudTh>eMail</MudTh>
         <MudTh>Roles</MudTh>
+        <MudTh>Grupo</MudTh>
         <MudTh>Estatus</MudTh>
         <MudTh></MudTh>
     </HeaderContent>
@@ -65,6 +71,12 @@
         <MudTd DataLabel="Teléfono">@context.PhoneNumber</MudTd>
         <MudTd DataLabel="eMail">@context.Email</MudTd>
         <MudTd DataLabel="Roles">@string.Join(", ", context.PersonRoles.Select(r => r.Role?.Name))</MudTd>
+        <MudTd DataLabel="Grupo">
+            <MudChip T="string" Color="@(context.IsMassGroup ? Color.Tertiary : Color.Default)" Size="Size.Small"
+                     Variant="Variant.Filled" Class="ma-0">
+                @(context.IsMassGroup ? "Misa" : "Regular")
+            </MudChip>
+        </MudTd>
         <MudTd DataLabel="Estatus">
             <MudChip T="string" Color="@(context.Active ? Color.Success : Color.Secondary)" Size="Size.Small"
                      Variant="Variant.Filled" Class="ma-0">
@@ -105,6 +117,7 @@
     private List<Role> roles = new();
     private string search = "";
     private string filterActive = "";
+    private string filterGroup = "";
     private int? filterRoleId;
     private bool loading = true;
     private string userId = "";
@@ -121,7 +134,8 @@
     {
         loading = true;
         bool? active = filterActive == "true" ? true : filterActive == "false" ? false : null;
-        persons = await PersonSvc.GetAllAsync(search, filterRoleId, active);
+        bool? isMassGroup = filterGroup == "mass" ? true : filterGroup == "regular" ? false : null;
+        persons = await PersonSvc.GetAllAsync(search, filterRoleId, active, isMassGroup);
         loading = false;
     }
 

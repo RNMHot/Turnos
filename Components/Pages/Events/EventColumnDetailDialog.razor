@@ -1,4 +1,5 @@
 @inject AssignmentService AssignmentSvc
+@inject PersonService PersonSvc
 @inject IDialogService DialogService
 
 <MudDialog>
@@ -6,6 +7,7 @@
         <MudText Typo="Typo.h6">@Ev.EventName</MudText>
     </TitleContent>
     <DialogContent>
+        <MudDivider Class="mb-3" Style="border-top-width:2px; opacity:0.6;" />
         <MudGrid Spacing="1">
             <MudItem xs="12">
                 <MudText><strong>Cliente:</strong> @Ev.Company?.Name</MudText>
@@ -17,15 +19,11 @@
                 <MudText><strong>Requeridos:</strong> @FormatRequirements(Ev)</MudText>
             </MudItem>
             <MudItem xs="12">
+                <MudText><strong>Asignados:</strong> @FormatAssigned(Ev)</MudText>
+            </MudItem>
+            <MudItem xs="12">
                 <MudText>
                     <strong>Localización:</strong> @(Ev.Location?.Name ?? "—")
-                    @if (Ev.Location?.Latitude.HasValue == true)
-                    {
-                        <MudLink Href="@($"https://maps.google.com/?q={Ev.Location.Latitude},{Ev.Location.Longitude}")"
-                                 Target="_blank" Class="ms-2">
-                            <MudIcon Icon="@Icons.Material.Outlined.Map" Size="Size.Small" /> Mapa
-                        </MudLink>
-                    }
                 </MudText>
             </MudItem>
             @if (!string.IsNullOrEmpty(Ev.Notes))
@@ -36,30 +34,56 @@
             }
         </MudGrid>
 
-        <MudDivider Class="my-3" />
+        <MudDivider Class="my-3" Style="border-top-width:2px; opacity:0.6;" />
         <MudText Typo="Typo.subtitle2" Class="mb-2">Asignados</MudText>
 
-        @foreach (var a in Ev.Assignments)
-        {
-            <div class="d-flex align-items-center gap-2 mb-2">
-                <MudText Typo="Typo.body2" Style="flex:1">@a.Person.FullName</MudText>
-                <MudSelect T="AssignmentStatus" Value="@a.Status"
-                           ValueChanged="@(s => ChangeStatus(a, s))"
-                           Style="width:140px" Margin="Margin.Dense" Variant="Variant.Outlined">
-                    @foreach (var s in Enum.GetValues<AssignmentStatus>())
+        <div style="max-height:280px; overflow-y:auto;">
+            @foreach (var a in Ev.Assignments)
+            {
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <div style="flex:1; background-color:#DDF3E4; border-radius:6px; padding:6px 12px;">
+                        <MudText Typo="Typo.body2" Style="color:#1B6E52; font-weight:500">@a.Person.FullName</MudText>
+                    </div>
+                    @if (Ev.Location?.Positions?.Any() == true)
                     {
-                        <MudSelectItem Value="@s">@s</MudSelectItem>
+                        <MudSelect T="int?" Value="@a.LocationPositionId"
+                                   ValueChanged="@(p => ChangePosition(a, p))"
+                                   Style="width:100px" Margin="Margin.Dense" Variant="Variant.Outlined"
+                                   Placeholder="Posición">
+                            <MudSelectItem T="int?" Value="@((int?)null)">—</MudSelectItem>
+                            @foreach (var pos in Ev.Location.Positions.OrderBy(p => p.DisplayOrder).ThenBy(p => p.Name))
+                            {
+                                <MudSelectItem T="int?" Value="@((int?)pos.LocationPositionId)">@pos.Name</MudSelectItem>
+                            }
+                        </MudSelect>
                     }
-                </MudSelect>
-                <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Error"
-                               Size="Size.Small"
-                               OnClick="@(() => AskRemove(a.AssignmentId, a.Person.FullName))" />
-            </div>
-        }
-        @if (!Ev.Assignments.Any())
-        {
-            <MudText Typo="Typo.body2" Color="Color.Secondary">No hay asignaciones aún.</MudText>
-        }
+                    <MudSelect T="int?" Value="@EffectiveRoleId(a)"
+                               ValueChanged="@(r => ChangeRole(a, r))"
+                               Style="width:10px" Margin="Margin.Dense" Variant="Variant.Outlined"
+                               Placeholder="Rol">
+                        @foreach (var role in _allRoles)
+                        {
+                            <MudSelectItem T="int?" Value="@((int?)role.RoleId)">@role.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudSelect T="AssignmentStatus" Value="@a.Status"
+                               ValueChanged="@(s => ChangeStatus(a, s))"
+                               Style="width:10px" Margin="Margin.Dense" Variant="Variant.Outlined">
+                        @foreach (var s in Enum.GetValues<AssignmentStatus>())
+                        {
+                            <MudSelectItem Value="@s">@s</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Error"
+                                   Size="Size.Small"
+                                   OnClick="@(() => AskRemove(a.AssignmentId, a.Person.FullName))" />
+                </div>
+            }
+            @if (!Ev.Assignments.Any())
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary">No hay asignaciones aún.</MudText>
+            }
+        </div>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Close" Variant="Variant.Text">Cerrar</MudButton>
@@ -75,6 +99,13 @@
     [Parameter] public Event Ev { get; set; } = null!;
     [Parameter] public string CurrentUserId { get; set; } = "";
 
+    private List<Role> _allRoles = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allRoles = await PersonSvc.GetRolesAsync();
+    }
+
     private void Close() => MudDialog.Cancel();
     private void SendWhatsApp() => MudDialog.Close(DialogResult.Ok("whatsapp"));
 
@@ -84,6 +115,25 @@
         a.Status = status;
         MudDialog.Close(DialogResult.Ok("refresh"));
     }
+
+    private async Task ChangePosition(Assignment a, int? locationPositionId)
+    {
+        await AssignmentSvc.UpdatePositionAsync(a.AssignmentId, locationPositionId, CurrentUserId);
+        a.LocationPositionId = locationPositionId;
+        MudDialog.Close(DialogResult.Ok("refresh"));
+    }
+
+    private async Task ChangeRole(Assignment a, int? roleId)
+    {
+        await AssignmentSvc.UpdateRoleAsync(a.AssignmentId, roleId, CurrentUserId);
+        a.RoleId = roleId;
+        a.Role = _allRoles.FirstOrDefault(r => r.RoleId == roleId);
+        MudDialog.Close(DialogResult.Ok("refresh"));
+    }
+
+    // Falls back to the person's highest-rank role when the event has no explicit override yet.
+    private static int? EffectiveRoleId(Assignment a) =>
+        a.RoleId ?? AssignmentService.GetHighestRankRoleId(a.Person);
 
     private async Task AskRemove(int assignmentId, string personName)
     {
@@ -103,6 +153,25 @@
     private static string FormatRequirements(Event ev)
     {
         var otherLabel = string.IsNullOrWhiteSpace(ev.RequiredOtherLabel) ? "Otro" : ev.RequiredOtherLabel;
-        return $"Sup: {ev.RequiredSupervisors} | Ushers: {ev.RequiredUshers} | {otherLabel}: {ev.RequiredOther}";
+        return $"Sup: {ev.RequiredSupervisors} | Ujieres: {ev.RequiredUshers} | {otherLabel}: {ev.RequiredOther}";
+    }
+
+    private static string FormatAssigned(Event ev)
+    {
+        var otherLabel = string.IsNullOrWhiteSpace(ev.RequiredOtherLabel) ? "Otro" : ev.RequiredOtherLabel;
+        int sup = 0, usher = 0, other = 0;
+        foreach (var a in ev.Assignments)
+        {
+            var roleName = a.Role?.Name;
+            if (roleName is null)
+            {
+                var roleId = EffectiveRoleId(a);
+                roleName = a.Person.PersonRoles.FirstOrDefault(pr => pr.RoleId == roleId)?.Role?.Name;
+            }
+            if (roleName == "Supervisor") sup++;
+            else if (roleName == "Ujier") usher++;
+            else other++;
+        }
+        return $"Sup: {sup} | Ujieres: {usher} | {otherLabel}: {other}";
     }
 }

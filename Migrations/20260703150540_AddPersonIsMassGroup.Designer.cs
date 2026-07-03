@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Turnos.Data;
 
@@ -11,9 +12,11 @@ using Turnos.Data;
 namespace Turnos.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260703150540_AddPersonIsMassGroup")]
+    partial class AddPersonIsMassGroup
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -259,9 +262,6 @@ namespace Turnos.Migrations
                     b.Property<int>("PersonId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("RoleId")
-                        .HasColumnType("int");
-
                     b.Property<DateTime>("StartDateTime")
                         .HasColumnType("datetime2");
 
@@ -273,8 +273,6 @@ namespace Turnos.Migrations
                     b.HasIndex("EventId");
 
                     b.HasIndex("LocationPositionId");
-
-                    b.HasIndex("RoleId");
 
                     b.HasIndex("PersonId", "StartDateTime", "EndDateTime");
 
@@ -758,9 +756,6 @@ namespace Turnos.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<int>("Rank")
-                        .HasColumnType("int");
-
                     b.HasKey("RoleId");
 
                     b.ToTable("StaffRoles");
@@ -868,18 +863,11 @@ namespace Turnos.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Turnos.Models.Role", "Role")
-                        .WithMany()
-                        .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.Navigation("Event");
 
                     b.Navigation("LocationPosition");
 
                     b.Navigation("Person");
-
-                    b.Navigation("Role");
                 });
 
             modelBuilder.Entity("Turnos.Models.Attendance", b =>

@@ -33,7 +33,16 @@
       "Bash(taskkill //F //IM chrome.exe //T)",
       "Bash(powershell -NoProfile -Command \"Select-String -Path 'C:\\\\Users\\\\RNM\\\\.nuget\\\\packages\\\\mudblazor\\\\9.6.0\\\\staticwebassets\\\\MudBlazor.min.css' -Pattern 'mud-table-pagination' -AllMatches\")",
       "Bash(Out-String -Width 4000)",
-      "PowerShell(powershell -NoProfile -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\RNM\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-RNM-OneDrive-Personal-MyApps-PeopleUshers-Turnos-Turnos\\\\3a00c4ac-3e7d-4b00-b3dc-58072801fdb0\\\\scratchpad\\\\cdp3.ps1\")"
+      "PowerShell(powershell -NoProfile -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\RNM\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-RNM-OneDrive-Personal-MyApps-PeopleUshers-Turnos-Turnos\\\\3a00c4ac-3e7d-4b00-b3dc-58072801fdb0\\\\scratchpad\\\\cdp3.ps1\")",
+      "Bash(dotnet ef *)",
+      "Bash(find / -iname \"MudNumericField.razor*\" 2>/dev/null | head -20; find / -path \"*mudblazor*\" -iname \"*.nupkg\" 2>/dev/null | head -5)",
+      "Bash(find /c/Users/RNM/.nuget/packages -maxdepth 1 -iname \"*mudblazor*\" 2>/dev/null)",
+      "Bash(xargs grep -l \"CaptureUnmatchedValues\")",
+      "Bash(dotnet --version)",
+      "Bash(tasklist //FI \"IMAGENAME eq Turnos.exe\")",
+      "Bash(taskkill //F //PID 28384)",
+      "Bash(sqlcmd -?)",
+      "Bash(sqlcmd -S turnossql91713.database.windows.net -d TurnosDb -U turnosadmin -P 'Turnos459663aA#' -Q \"SELECT c.name, t.name AS type_name FROM sys.columns c JOIN sys.types t ON c.user_type_id = t.user_type_id WHERE c.object_id = OBJECT_ID\\('StaffRoles'\\) ORDER BY c.column_id;\" -C)"
     ]
   }
 }

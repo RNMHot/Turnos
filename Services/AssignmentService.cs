@@ -24,6 +24,7 @@ public class AssignmentService
             .Include(a => a.Person).ThenInclude(p => p.PersonRoles).ThenInclude(pr => pr.Role)
             .Include(a => a.Event).ThenInclude(e => e.Company)
             .Include(a => a.LocationPosition)
+            .Include(a => a.Role)
             .AsQueryable();
 
         if (eventId.HasValue) query = query.Where(a => a.EventId == eventId);
@@ -39,6 +40,7 @@ public class AssignmentService
             .Include(a => a.Person).ThenInclude(p => p.Availabilities)
             .Include(a => a.Event)
             .Include(a => a.LocationPosition)
+            .Include(a => a.Role)
             .FirstOrDefaultAsync(a => a.AssignmentId == id);
     }
 
@@ -56,11 +58,17 @@ public class AssignmentService
         assignment.EndDateTime = ToUtc(assignment.EndDateTime);
 
         if (await HasOverlapAsync(db, assignment.PersonId, assignment.StartDateTime, assignment.EndDateTime))
-            return (false, "This person already has an overlapping assignment.");
+            return (false, "Esta persona ya está asignada a este evento.");
 
-        var person = await db.Persons.Include(p => p.Availabilities).FirstOrDefaultAsync(p => p.PersonId == assignment.PersonId);
+        var person = await db.Persons
+            .Include(p => p.Availabilities)
+            .Include(p => p.PersonRoles).ThenInclude(pr => pr.Role)
+            .FirstOrDefaultAsync(p => p.PersonId == assignment.PersonId);
         if (person is not null && !_availability.IsPersonAvailable(person, assignment.StartDateTime, assignment.EndDateTime))
-            return (false, "This person is not available at this time.");
+            return (false, "Esta persona no está disponible en este momento.");
+
+        if (assignment.RoleId is null && person is not null)
+            assignment.RoleId = GetHighestRankRoleId(person);
 
         db.Assignments.Add(assignment);
         await db.SaveChangesAsync();
@@ -77,7 +85,7 @@ public class AssignmentService
         assignment.EndDateTime = ToUtc(assignment.EndDateTime);
 
         if (await HasOverlapAsync(db, assignment.PersonId, assignment.StartDateTime, assignment.EndDateTime, assignment.AssignmentId))
-            return (false, "This person already has an overlapping assignment.");
+            return (false, "Esta persona ya está asignada a este evento.");
 
         db.Assignments.Update(assignment);
         await db.SaveChangesAsync();
@@ -105,6 +113,33 @@ public class AssignmentService
         await db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Update", "Assignment", id, $"Status changed to {status}");
     }
+
+    public async Task UpdatePositionAsync(int id, int? locationPositionId, string actorUserId)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var a = await db.Assignments.FindAsync(id);
+        if (a is null) return;
+        a.LocationPositionId = locationPositionId;
+        await db.SaveChangesAsync();
+        await _audit.LogAsync(actorUserId, "Update", "Assignment", id, "Position changed");
+    }
+
+    public async Task UpdateRoleAsync(int id, int? roleId, string actorUserId)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var a = await db.Assignments.FindAsync(id);
+        if (a is null) return;
+        a.RoleId = roleId;
+        await db.SaveChangesAsync();
+        await _audit.LogAsync(actorUserId, "Update", "Assignment", id, "Role changed for this event");
+    }
+
+    public static int? GetHighestRankRoleId(Person person) =>
+        person.PersonRoles
+            .Where(pr => !pr.Deleted)
+            .OrderBy(pr => pr.Role.Rank)
+            .Select(pr => (int?)pr.RoleId)
+            .FirstOrDefault();
 
     private static async Task<bool> HasOverlapAsync(AppDbContext db, int personId, DateTime start, DateTime end, int? excludeId = null)
     {

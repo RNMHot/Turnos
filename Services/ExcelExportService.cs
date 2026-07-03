@@ -16,6 +16,7 @@ public class ExcelExportService
         ws.Cell(1, 4).Value = "Email";
         ws.Cell(1, 5).Value = "Active";
         ws.Cell(1, 6).Value = "Roles";
+        ws.Cell(1, 7).Value = "Group";
         ws.Row(1).Style.Font.Bold = true;
 
         for (int i = 0; i < persons.Count; i++)
@@ -28,6 +29,7 @@ public class ExcelExportService
             ws.Cell(row, 4).Value = p.Email ?? "";
             ws.Cell(row, 5).Value = p.Active ? "Yes" : "No";
             ws.Cell(row, 6).Value = string.Join(", ", p.PersonRoles.Select(pr => pr.Role?.Name ?? ""));
+            ws.Cell(row, 7).Value = p.IsMassGroup ? "Mass" : "Regular";
         }
 
         ws.Columns().AdjustToContents();

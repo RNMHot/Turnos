@@ -258,7 +258,7 @@
     private static string GetRoleClass(Person p)
     {
         var roles = p.PersonRoles.Select(r => r.Role?.Name).ToList();
-        bool isUsher = roles.Contains("Usher");
+        bool isUsher = roles.Contains("Ujier");
         bool isSup = roles.Contains("Supervisor");
         return (isUsher, isSup) switch
         {

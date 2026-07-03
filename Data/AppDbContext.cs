@@ -125,6 +125,12 @@ public class AppDbContext : IdentityDbContext
             .HasForeignKey(a => a.LocationPositionId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        builder.Entity<Assignment>()
+            .HasOne(a => a.Role)
+            .WithMany()
+            .HasForeignKey(a => a.RoleId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         // SQL Server returns DateTime without Kind; mark all as UTC so ToLocalTime() converts correctly.
         var utcConverter = new ValueConverter<DateTime, DateTime>(
             v => v,

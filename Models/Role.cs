@@ -8,6 +8,7 @@ public class Role
 
     [Required, MaxLength(50)]
     public string Name { get; set; } = string.Empty;
+    public int Rank { get; set; }
 
     public bool Deleted { get; set; }
 

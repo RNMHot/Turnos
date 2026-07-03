@@ -88,21 +88,17 @@
                                   OnBlur="@(_ => StopEditingOtherLabel())"
                                   OnKeyDown="OnOtherLabelKeyDown"
                                   Label="Etiqueta"
-                                  Variant="Variant.Outlined" Margin="Margin.Dense"
-                                  Class="mb-1" />
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" />
                 }
                 else
                 {
-                    <MudText Typo="Typo.caption" Color="Color.Secondary"
-                             Style="display:block;cursor:pointer;padding-bottom:2px"
-                             title="Doble clic para editar la etiqueta"
-                             @ondblclick="StartEditingOtherLabel">
-                        @OtherLabelText
-                    </MudText>
+                    <div @ondblclick="StartEditingOtherLabel" title="Doble clic para editar la etiqueta">
+                        <MudNumericField T="int" @bind-Value="ev.RequiredOther"
+                                         For="() => ev.RequiredOther"
+                                         Label="@OtherLabelText"
+                                         Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                    </div>
                 }
-                <MudNumericField T="int" @bind-Value="ev.RequiredOther"
-                                 For="() => ev.RequiredOther"
-                                 Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
             </MudItem>
 
             @if (Id == 0)

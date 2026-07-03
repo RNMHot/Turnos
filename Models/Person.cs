@@ -19,6 +19,8 @@ public class Person
 
     public bool Deleted { get; set; }
 
+    public bool IsMassGroup { get; set; }
+
     public bool MustChangePassword { get; set; }
 
     public string? Notes { get; set; }

@@ -19,6 +19,9 @@ public class Assignment
     public int PersonId { get; set; }
     public Person Person { get; set; } = null!;
 
+    public int? RoleId { get; set; }
+    public Role? Role { get; set; }
+
     public DateTime StartDateTime { get; set; }
     public DateTime EndDateTime { get; set; }
 

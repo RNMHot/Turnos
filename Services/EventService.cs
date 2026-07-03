@@ -76,8 +76,10 @@ public class EventService
         return await db.Events
             .AsNoTracking()
             .Include(e => e.Company)
-            .Include(e => e.Location)
-            .Include(e => e.Assignments.Where(a => !a.Deleted)).ThenInclude(a => a.Person)
+            .Include(e => e.Location).ThenInclude(l => l!.Positions)
+            .Include(e => e.Assignments.Where(a => !a.Deleted)).ThenInclude(a => a.Person).ThenInclude(p => p.PersonRoles).ThenInclude(pr => pr.Role)
+            .Include(e => e.Assignments.Where(a => !a.Deleted)).ThenInclude(a => a.LocationPosition)
+            .Include(e => e.Assignments.Where(a => !a.Deleted)).ThenInclude(a => a.Role)
             .Where(e => e.Active)
             .OrderBy(e => e.StartDateTime)
             .ToListAsync();

@@ -142,13 +142,6 @@
                     <p><strong>Requeridos:</strong> @FormatRequirements(selectedEvent)</p>
                     <p>
                         <strong>Localización:</strong> @(selectedEvent.Location?.Name ?? "—")
-                        @if (selectedEvent.Location?.Latitude.HasValue == true)
-                        {
-                            <a href="https://maps.google.com/?q=@selectedEvent.Location.Latitude,@selectedEvent.Location.Longitude"
-                               target="_blank" rel="noopener" class="ms-2 small text-muted text-decoration-none">
-                                <i class="bi bi-pin-map"></i> Mapa
-                            </a>
-                        }
                     </p>
                     @if (!string.IsNullOrEmpty(selectedEvent.Notes))
                     {
@@ -332,7 +325,7 @@
             PersonId = draggedPerson.PersonId,
             StartDateTime = ev.StartDateTime,
             EndDateTime = ev.EndDateTime,
-            Status = AssignmentStatus.Asignado
+            Status = AssignmentStatus.Candidato
         };
 
         var (success, errMsg) = await AssignmentSvc.CreateAsync(assignment, currentUserId);
@@ -403,7 +396,7 @@
     private static string GetRoleClass(Person p)
     {
         var roles = p.PersonRoles.Select(r => r.Role?.Name).ToList();
-        bool isUsher = roles.Contains("Usher");
+        bool isUsher = roles.Contains("Ujier");
         bool isSup = roles.Contains("Supervisor");
         return (isUsher, isSup) switch
         {
