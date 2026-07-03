@@ -8,6 +8,7 @@
 @inject AuthenticationStateProvider AuthState
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject AppSettingsState SettingsState
 @using System.Globalization
 
 <PageTitle>@(Id == 0 ? "Nuevo Evento" : "Editar Evento") — Turnos</PageTitle>
@@ -306,10 +307,10 @@
             ev.RequiredOtherLabel = "Otros";
 
         if (Id == 0 && recurrenceRules.Count == 0)
-            recurrenceRules.Add(CreateDefaultRule());
+            recurrenceRules.Add(CreateDefaultRule(SettingsState.Today));
 
-        startLocal = ToLocalInputTime(ev.StartDateTime);
-        endLocal = ToLocalInputTime(ev.EndDateTime);
+        startLocal = SettingsState.ToDisplay(ev.StartDateTime);
+        endLocal = SettingsState.ToDisplay(ev.EndDateTime);
 
         if (Id == 0 && !string.IsNullOrEmpty(StartParam) &&
             DateTime.TryParse(StartParam, out var parsedStart))
@@ -328,7 +329,7 @@
     private void OnStartDateChanged(DateTime? date)
     {
         _startDate = date;
-        startLocal = (date?.Date ?? DateTime.Today) + (_startTime ?? TimeSpan.Zero);
+        startLocal = (date?.Date ?? SettingsState.Today) + (_startTime ?? TimeSpan.Zero);
         OnStartChanged();
         _endDate = endLocal.Date;
         _endTime = endLocal.TimeOfDay;
@@ -337,7 +338,7 @@
     private void OnStartTimeChanged(TimeSpan? time)
     {
         _startTime = time;
-        startLocal = (_startDate?.Date ?? DateTime.Today) + (time ?? TimeSpan.Zero);
+        startLocal = (_startDate?.Date ?? SettingsState.Today) + (time ?? TimeSpan.Zero);
         OnStartChanged();
         _endDate = endLocal.Date;
         _endTime = endLocal.TimeOfDay;
@@ -346,13 +347,13 @@
     private void OnEndDateChanged(DateTime? date)
     {
         _endDate = date;
-        endLocal = (date?.Date ?? DateTime.Today) + (_endTime ?? TimeSpan.Zero);
+        endLocal = (date?.Date ?? SettingsState.Today) + (_endTime ?? TimeSpan.Zero);
     }
 
     private void OnEndTimeChanged(TimeSpan? time)
     {
         _endTime = time;
-        endLocal = (_endDate?.Date ?? DateTime.Today) + (time ?? TimeSpan.Zero);
+        endLocal = (_endDate?.Date ?? SettingsState.Today) + (time ?? TimeSpan.Zero);
     }
 
     private async Task Save()
@@ -378,8 +379,8 @@
             }
             else
             {
-                ev.StartDateTime = DateTime.SpecifyKind(startLocal, DateTimeKind.Local).ToUniversalTime();
-                ev.EndDateTime = DateTime.SpecifyKind(endLocal, DateTimeKind.Local).ToUniversalTime();
+                ev.StartDateTime = SettingsState.ToUtc(startLocal);
+                ev.EndDateTime = SettingsState.ToUtc(endLocal);
 
                 if (Id == 0)
                     await EventSvc.CreateAsync(ev, userId);
@@ -399,16 +400,6 @@
         }
     }
 
-    private static DateTime ToLocalInputTime(DateTime value)
-    {
-        return value.Kind switch
-        {
-            DateTimeKind.Utc => value.ToLocalTime(),
-            DateTimeKind.Local => value,
-            _ => DateTime.SpecifyKind(value, DateTimeKind.Local)
-        };
-    }
-
     private void OnStartChanged()
     {
         if (Id != 0)
@@ -424,7 +415,7 @@
         }
     }
 
-    private void AddRecurrenceRule() => recurrenceRules.Add(CreateDefaultRule());
+    private void AddRecurrenceRule() => recurrenceRules.Add(CreateDefaultRule(SettingsState.Today));
 
     private void RemoveRecurrenceRule(RecurrenceRuleEditor rule)
     {
@@ -481,8 +472,8 @@
             {
                 CompanyId = ev.CompanyId,
                 EventName = ev.EventName,
-                StartDateTime = DateTime.SpecifyKind(start, DateTimeKind.Local).ToUniversalTime(),
-                EndDateTime = DateTime.SpecifyKind(end, DateTimeKind.Local).ToUniversalTime(),
+                StartDateTime = SettingsState.ToUtc(start),
+                EndDateTime = SettingsState.ToUtc(end),
                 RequiredSupervisors = ev.RequiredSupervisors,
                 RequiredUshers = ev.RequiredUshers,
                 RequiredOther = ev.RequiredOther,
@@ -539,12 +530,12 @@
     private static string FormatRuleTime(TimeSpan? time, string fallback) =>
         time?.ToString(@"hh\:mm") ?? fallback;
 
-    private static RecurrenceRuleEditor CreateDefaultRule() => new()
+    private static RecurrenceRuleEditor CreateDefaultRule(DateTime today) => new()
     {
         Kind = RecurrenceRuleKind.SingleDate,
-        SingleDate = DateTime.Today,
-        RangeStartDate = DateTime.Today,
-        RangeEndDate = DateTime.Today.AddDays(30),
+        SingleDate = today,
+        RangeStartDate = today,
+        RangeEndDate = today.AddDays(30),
         StartTimeText = "09:00",
         EndTimeText = "17:00"
     };

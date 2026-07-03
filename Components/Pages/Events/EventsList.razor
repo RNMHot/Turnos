@@ -8,6 +8,7 @@
 @inject IJSRuntime JS
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject AppSettingsState SettingsState
 
 <PageTitle>Eventos — Turnos</PageTitle>
 
@@ -85,8 +86,8 @@
     <RowTemplate>
         <MudTd DataLabel="Evento">@context.EventName</MudTd>
         <MudTd DataLabel="Cliente">@context.Company?.Name</MudTd>
-        <MudTd DataLabel="Inicio">@context.StartDateTime.ToLocalTime().ToString("MMM d, h:mm tt")</MudTd>
-        <MudTd DataLabel="Fin">@context.EndDateTime.ToLocalTime().ToString("h:mm tt")</MudTd>
+        <MudTd DataLabel="Inicio">@SettingsState.ToDisplay(context.StartDateTime).ToString("MMM d, h:mm tt")</MudTd>
+        <MudTd DataLabel="Fin">@SettingsState.ToDisplay(context.EndDateTime).ToString("h:mm tt")</MudTd>
         <MudTd DataLabel="Personal">@FormatRequirements(context)</MudTd>
         <MudTd DataLabel="Localización">@(context.Location?.Name ?? "—")</MudTd>
         <MudTd DataLabel="Estatus">

@@ -3,46 +3,68 @@
 @rendermode InteractiveServer
 @inject CompanyService CompanySvc
 @inject AuthenticationStateProvider AuthState
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
 <PageTitle>Clientes — Turnos</PageTitle>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0"><i class="bi bi-building me-2"></i>Clientes</h4>
-    <a href="/companies/new" class="btn btn-primary btn-sm"><i class="bi bi-plus me-1"></i>Agregar Cliente</a>
+    <MudText Typo="Typo.h5">Clientes</MudText>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add"
+               Href="/companies/new" Size="Size.Small">Agregar Cliente</MudButton>
 </div>
 
-<input class="form-control form-control-sm mb-3" style="max-width:280px" placeholder="Buscar…" @bind="search" @bind:event="oninput" @bind:after="Load" />
+<MudTextField @bind-Value="_searchString" Placeholder="Buscar cliente..."
+              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+              Immediate="true" Clearable="true" Class="mb-3" Style="max-width:400px"
+              Variant="Variant.Outlined" Margin="Margin.Dense" DebounceInterval="300"
+              OnDebounceIntervalElapsed="OnSearchChanged" OnClearButtonClick="OnSearchCleared" />
 
-<div class="table-responsive">
-    <table class="table table-hover table-sm align-middle">
-        <thead class="table-light">
-            <tr><th>Nombre</th><th>Contacto</th><th>Teléfono</th><th>Email</th><th></th></tr>
-        </thead>
-        <tbody>
-            @foreach (var c in companies)
-            {
-                <tr>
-                    <td>@c.Name</td>
-                    <td>@c.ContactName</td>
-                    <td>@c.PhoneNumber</td>
-                    <td>@c.Email</td>
-                    <td class="text-end">
-                        <a href="/companies/@c.CompanyId" class="btn btn-sm btn-outline-primary me-1" title="Editar"><i class="bi bi-pencil"></i></a>
-                        <button class="btn btn-sm btn-outline-danger" @onclick="() => Delete(c)" title="Eliminar"><i class="bi bi-trash"></i></button>
-                    </td>
-                </tr>
-            }
-            @if (!companies.Any())
-            {
-                <tr><td colspan="5" class="text-muted text-center py-4">No se encontraron clientes.</td></tr>
-            }
-        </tbody>
-    </table>
-</div>
+<MudTable Items="@companies" Dense="true" Hover="true"
+          T="Company" Elevation="2" Class="rounded" Style="font-size:0.85rem">
+    <HeaderContent>
+        <MudTh>
+            <MudTableSortLabel SortBy="new Func<Company, object>(x => x.Name)">
+                Nombre
+            </MudTableSortLabel>
+        </MudTh>
+        <MudTh>Contacto</MudTh>
+        <MudTh>Teléfono</MudTh>
+        <MudTh>Email</MudTh>
+        <MudTh></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Nombre">@context.Name</MudTd>
+        <MudTd DataLabel="Contacto">@context.ContactName</MudTd>
+        <MudTd DataLabel="Teléfono">@context.PhoneNumber</MudTd>
+        <MudTd DataLabel="Email">@context.Email</MudTd>
+        <MudTd DataLabel="">
+            <div style="display:flex; align-items:center; justify-content:flex-end">
+                <MudTooltip Text="Editar">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
+                                   Size="Size.Small" Href="@($"/companies/{context.CompanyId}")" />
+                </MudTooltip>
+                <MudTooltip Text="Eliminar">
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                                   Size="Size.Small" OnClick="() => ConfirmDelete(context)" />
+                </MudTooltip>
+            </div>
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText Typo="Typo.body1" Class="py-4 mud-text-secondary" Style="display:block;text-align:center">
+            No se encontraron clientes.
+        </MudText>
+    </NoRecordsContent>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="new int[] { 25, 50, 100 }" />
+    </PagerContent>
+</MudTable>
 
 @code {
     private List<Company> companies = new();
-    private string search = "";
+    private string _searchString = "";
     private string userId = "";
 
     protected override async Task OnInitializedAsync()
@@ -52,11 +74,29 @@
         await Load();
     }
 
-    private async Task Load() => companies = await CompanySvc.GetAllAsync(search);
+    private async Task Load() => companies = await CompanySvc.GetAllAsync(_searchString);
 
-    private async Task Delete(Company c)
+    private async Task OnSearchChanged() => await Load();
+
+    private async Task OnSearchCleared()
     {
-        await CompanySvc.DeleteAsync(c.CompanyId, userId);
+        _searchString = "";
         await Load();
+    }
+
+    private async Task ConfirmDelete(Company c)
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Eliminar Cliente",
+            $"¿Desea eliminar el cliente {c.Name}?",
+            yesText: "Sí, eliminar",
+            cancelText: "No");
+
+        if (confirmed == true)
+        {
+            await CompanySvc.DeleteAsync(c.CompanyId, userId);
+            Snackbar.Add("Cliente eliminado", Severity.Info);
+            await Load();
+        }
     }
 }

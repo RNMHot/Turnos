@@ -1,0 +1,54 @@
+@page "/settings/biweekly-period"
+@attribute [Authorize(Policy = "AppAccess", Roles = "Gerencia,Admin")]
+@rendermode InteractiveServer
+@inject AppSettingService SettingsSvc
+@inject AppSettingsState SettingsState
+
+<PageTitle>Periodo bisemanal — Turnos</PageTitle>
+
+<div class="d-flex align-items-center mb-4 gap-3">
+    <a href="/settings" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Volver
+    </a>
+    <h4 class="mb-0"><i class="bi bi-calendar2-week me-2"></i>Periodo bisemanal</h4>
+</div>
+
+<div class="card" style="max-width:500px">
+    <div class="card-body">
+        <p class="text-muted small mb-3">
+            Define la fecha de inicio de referencia para los periodos bisemanales (14 días) usados
+            en Asistencia. Los periodos se calculan en ciclos de 14 días a partir de esta fecha.
+        </p>
+
+        <div class="mb-3">
+            <label class="form-label">Fecha de inicio del periodo bisemanal</label>
+            <input type="date" class="form-control" @bind="_startDate" />
+        </div>
+
+        <button class="btn btn-primary" @onclick="Save">
+            <i class="bi bi-check-lg me-1"></i>Guardar
+        </button>
+
+        @if (!string.IsNullOrEmpty(_message))
+        {
+            <div class="alert alert-success mt-3 py-2 mb-0">@_message</div>
+        }
+    </div>
+</div>
+
+@code {
+    private DateTime _startDate = AppSettingsState.DefaultBiweeklyPeriodStartDate;
+    private string _message = "";
+
+    protected override void OnInitialized()
+    {
+        _startDate = SettingsState.BiweeklyPeriodStartDate;
+    }
+
+    private async Task Save()
+    {
+        await SettingsSvc.SetValueAsync("BiweeklyPeriodStartDate", _startDate.ToString("yyyy-MM-dd"));
+        SettingsState.SetBiweeklyPeriodStartDate(_startDate);
+        _message = "Periodo bisemanal guardado correctamente.";
+    }
+}

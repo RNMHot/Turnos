@@ -7,8 +7,13 @@ namespace Turnos.Services;
 public class AvailabilityService
 {
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
+    private readonly AppSettingsState _settings;
 
-    public AvailabilityService(IDbContextFactory<AppDbContext> dbFactory) => _dbFactory = dbFactory;
+    public AvailabilityService(IDbContextFactory<AppDbContext> dbFactory, AppSettingsState settings)
+    {
+        _dbFactory = dbFactory;
+        _settings = settings;
+    }
 
     public async Task<List<Availability>> GetForPersonAsync(int personId)
     {
@@ -40,7 +45,7 @@ public class AvailabilityService
         await db.SaveChangesAsync();
     }
 
-    private static DateTime ToLocal(DateTime dt) => dt.Kind == DateTimeKind.Utc ? dt.ToLocalTime() : dt;
+    private DateTime ToLocal(DateTime dt) => _settings.ToDisplay(dt);
 
     public bool IsPersonAvailable(Person person, DateTime start, DateTime end)
     {

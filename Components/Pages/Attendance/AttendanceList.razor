@@ -6,180 +6,198 @@
 @inject ExcelExportService Excel
 @inject AuthenticationStateProvider AuthState
 @inject IJSRuntime JS
+@inject AppSettingsState SettingsState
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
 <PageTitle>Asistencia - Turnos</PageTitle>
 
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-    <h4 class="mb-0"><i class="bi bi-clock-history me-2"></i>Asistencia</h4>
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+        <MudText Typo="Typo.h5">Asistencia</MudText>
+        @if (periodMode == "week" || periodMode == "biweekly")
+        {
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                <MudIcon Icon="@Icons.Material.Filled.DateRange" Size="Size.Small" Class="mr-1" />
+                Periodo: <strong>@PeriodRangeLabel</strong>
+            </MudText>
+        }
+    </div>
     <div class="d-flex gap-2">
-        <button class="btn btn-outline-success btn-sm" @onclick="ExportExcel">
-            <i class="bi bi-file-earmark-excel me-1"></i>Exportar
-        </button>
-        <a href="/attendance/new" class="btn btn-primary btn-sm">
-            <i class="bi bi-plus me-1"></i>Agregar Asistencia
-        </a>
+        <MudButton Variant="Variant.Outlined" Color="Color.Success"
+                   StartIcon="@Icons.Material.Filled.FileDownload"
+                   OnClick="ExportExcel" Size="Size.Small">Exportar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   Href="/attendance/new" Size="Size.Small">Agregar Asistencia</MudButton>
     </div>
 </div>
 
-<div class="card shadow-sm mb-3">
-    <div class="card-body">
-        <div class="row g-2 align-items-end">
-            <div class="col-12 col-md-3">
-                <label class="form-label mb-1">Persona</label>
-                <select class="form-select form-select-sm" @bind="filterPersonId" @bind:after="Load">
-                    <option value="">Todas</option>
-                    @foreach (var p in persons)
-                    {
-                        <option value="@p.PersonId">@p.FullName</option>
-                    }
-                </select>
-            </div>
-            <div class="col-12 col-md-2">
-                <label class="form-label mb-1">Periodo</label>
-                <select class="form-select form-select-sm" @bind="periodMode" @bind:after="Load">
-                    <option value="week">Semana</option>
-                    <option value="range">Rango</option>
-                </select>
-            </div>
-
-            @if (periodMode == "week")
+<MudPaper Elevation="2" Class="pa-3 mb-3 rounded">
+    <div class="d-flex gap-2 flex-wrap align-items-start">
+        <MudSelect T="int?" @bind-Value="filterPersonId" @bind-Value:after="Load" Label="Persona"
+                   Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width:220px">
+            @foreach (var p in persons)
             {
-                <div class="col-12 col-md-3">
-                    <label class="form-label mb-1">Semana (lunes)</label>
-                    <input type="date" class="form-control form-control-sm" @bind="weekStartDate" @bind:after="Load" />
-                </div>
+                <MudSelectItem T="int?" Value="@((int?)p.PersonId)">@p.FullName</MudSelectItem>
             }
-            else
-            {
-                <div class="col-6 col-md-2">
-                    <label class="form-label mb-1">Desde</label>
-                    <input type="date" class="form-control form-control-sm" @bind="rangeStartDate" @bind:after="Load" />
-                </div>
-                <div class="col-6 col-md-2">
-                    <label class="form-label mb-1">Hasta</label>
-                    <input type="date" class="form-control form-control-sm" @bind="rangeEndDate" @bind:after="Load" />
-                </div>
-            }
+        </MudSelect>
+        <MudSelect T="string" @bind-Value="periodMode" @bind-Value:after="Load" Label="Periodo"
+                   Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width:150px">
+            <MudSelectItem T="string" Value="@("week")">Semana</MudSelectItem>
+            <MudSelectItem T="string" Value="@("biweekly")">Bisemanal</MudSelectItem>
+            <MudSelectItem T="string" Value="@("range")">Rango</MudSelectItem>
+        </MudSelect>
 
-            <div class="col-12 col-md-2">
-                <button class="btn btn-sm btn-outline-secondary w-100" @onclick="Load">
-                    <i class="bi bi-arrow-clockwise me-1"></i>Actualizar
-                </button>
-            </div>
-        </div>
+        @if (periodMode == "week")
+        {
+            <MudDatePicker Date="@weekStartDate" DateChanged="OnWeekStartDateChanged"
+                           Label="Semana (lunes)" Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width:190px" />
+        }
+        else if (periodMode == "biweekly")
+        {
+            <MudDatePicker Date="@biweeklyStartDate" DateChanged="OnBiweeklyStartDateChanged"
+                           Label="Periodo bisemanal (fecha de referencia)" Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width:220px" />
+        }
+        else
+        {
+            <MudDatePicker Date="@rangeStartDate" DateChanged="OnRangeStartDateChanged"
+                           Label="Desde" Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width:160px" />
+            <MudDatePicker Date="@rangeEndDate" DateChanged="OnRangeEndDateChanged"
+                           Label="Hasta" Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width:160px" />
+        }
+
+        <MudSelect T="string" @bind-Value="viewMode" Label="Vista"
+                   Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width:190px">
+            <MudSelectItem T="string" Value="@("detail")">Detallada</MudSelectItem>
+            <MudSelectItem T="string" Value="@("summary")">Resumen por persona</MudSelectItem>
+        </MudSelect>
     </div>
-</div>
+</MudPaper>
 
-@if (!string.IsNullOrWhiteSpace(statusMsg))
+<MudPaper Elevation="0" Class="pa-3 mb-3 rounded" Style="max-width:280px; background-color:var(--mud-palette-background-gray)">
+    <MudText Typo="Typo.body2" Class="mud-text-secondary">Total del periodo</MudText>
+    <MudText Typo="Typo.h5">@FormatHours(totalPeriodHours)</MudText>
+</MudPaper>
+
+<MudTextField @bind-Value="_searchString" Placeholder="Buscar persona o evento..."
+              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+              Immediate="true" Clearable="true" Class="mb-3" Style="max-width:400px"
+              Variant="Variant.Outlined" Margin="Margin.Dense" />
+
+@if (viewMode == "summary")
 {
-    <div class="alert alert-info py-2">@statusMsg</div>
+    <MudTable Items="@personTotals" Dense="true" Hover="true" Filter="@FilterSummaryFunc"
+              T="PersonTotal" Elevation="2" Class="rounded" Style="font-size:0.85rem">
+        <HeaderContent>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<PersonTotal, object>(x => x.PersonName)">
+                    Persona
+                </MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<PersonTotal, object>(x => x.Hours)">
+                    Horas en el periodo
+                </MudTableSortLabel>
+            </MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Persona">@context.PersonName</MudTd>
+            <MudTd DataLabel="Horas en el periodo" Class="mud-text-bold">@FormatHours(context.Hours)</MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText Typo="Typo.body1" Class="py-4 mud-text-secondary" Style="display:block;text-align:center">
+                No hay asistencia registrada en este periodo.
+            </MudText>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[] { 25, 50, 100 }" />
+        </PagerContent>
+    </MudTable>
 }
-
-<div class="row g-3 mb-3">
-    <div class="col-12 col-lg-4">
-        <div class="card border-0 bg-light h-100">
-            <div class="card-body">
-                <div class="text-muted small">Total del periodo</div>
-                <div class="fs-4 fw-semibold">@FormatHours(totalPeriodHours)</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-12 col-lg-8">
-        <div class="card h-100">
-            <div class="card-header py-2">Totales por dia</div>
-            <div class="card-body py-2">
-                @if (dayTotals.Any())
-                {
-                    <div class="table-responsive">
-                        <table class="table table-sm mb-0">
-                            <thead>
-                                <tr><th>Dia</th><th class="text-end">Horas</th></tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var d in dayTotals)
-                                {
-                                    <tr>
-                                        <td>@d.Day.ToString("ddd, MMM d")</td>
-                                        <td class="text-end">@FormatHours(d.Hours)</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                }
-                else
-                {
-                    <div class="text-muted small">No hay datos para el periodo seleccionado.</div>
-                }
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="table-responsive">
-    <table class="table table-hover table-sm align-middle">
-        <thead class="table-light">
-            <tr>
-                <th>Persona</th>
-                <th>Evento</th>
-                <th>Entrada</th>
-                <th>Salida</th>
-                <th>Descansos</th>
-                <th>Horas por turno</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var item in attendance)
-            {
-                var breakMinutes = GetBreakMinutes(item);
-                var workedHours = GetWorkedHours(item);
-                <tr>
-                    <td>@item.Person.FullName</td>
-                    <td>
-                        <div>@item.Event.EventName</div>
-                        <div class="small text-muted">@item.Event.Company?.Name</div>
-                    </td>
-                    <td>@item.CheckInDateTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
-                    <td>@(item.CheckOutDateTime.HasValue ? item.CheckOutDateTime.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm") : "Abierta")</td>
-                    <td>@Math.Round(breakMinutes, 0) min (@item.Breaks.Count)</td>
-                    <td class="fw-semibold">@FormatHours(workedHours)</td>
-                    <td class="text-end">
-                        <a href="/attendance/@item.AttendanceId" class="btn btn-sm btn-outline-primary me-1" title="Editar">
-                            <i class="bi bi-pencil"></i>
-                        </a>
-                        <button class="btn btn-sm btn-outline-danger" @onclick="() => Delete(item.AttendanceId)" title="Eliminar">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            }
-            @if (!attendance.Any())
-            {
-                <tr><td colspan="7" class="text-center text-muted py-4">No hay asistencia registrada en este periodo.</td></tr>
-            }
-        </tbody>
-    </table>
-</div>
+else
+{
+    <MudTable Items="@attendance" Dense="true" Hover="true" Filter="@FilterDetailFunc"
+              T="Attendance" Elevation="2" Class="rounded" Style="font-size:0.85rem">
+        <HeaderContent>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<Attendance, object>(x => x.Person.FullName)">
+                    Persona
+                </MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<Attendance, object>(x => x.Event.EventName)">
+                    Evento
+                </MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<Attendance, object>(x => x.CheckInDateTime)">
+                    Entrada
+                </MudTableSortLabel>
+            </MudTh>
+            <MudTh>Salida</MudTh>
+            <MudTh>Descansos</MudTh>
+            <MudTh>Horas por turno</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Persona">@context.Person.FullName</MudTd>
+            <MudTd DataLabel="Evento">
+                <div>@context.Event.EventName</div>
+                <div class="mud-text-secondary" style="font-size:0.8rem">@context.Event.Company?.Name</div>
+            </MudTd>
+            <MudTd DataLabel="Entrada">@SettingsState.ToDisplay(context.CheckInDateTime).ToString("yyyy-MM-dd HH:mm")</MudTd>
+            <MudTd DataLabel="Salida">@(context.CheckOutDateTime.HasValue ? SettingsState.ToDisplay(context.CheckOutDateTime.Value).ToString("yyyy-MM-dd HH:mm") : "Abierta")</MudTd>
+            <MudTd DataLabel="Descansos">@Math.Round(GetBreakMinutes(context), 0) min (@context.Breaks.Count)</MudTd>
+            <MudTd DataLabel="Horas por turno" Class="mud-text-bold">@FormatHours(GetWorkedHours(context))</MudTd>
+            <MudTd DataLabel="">
+                <div style="display:flex; align-items:center; justify-content:flex-end">
+                    <MudTooltip Text="Editar">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
+                                       Size="Size.Small" Href="@($"/attendance/{context.AttendanceId}")" />
+                    </MudTooltip>
+                    <MudTooltip Text="Eliminar">
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                                       Size="Size.Small" OnClick="() => ConfirmDelete(context)" />
+                    </MudTooltip>
+                </div>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText Typo="Typo.body1" Class="py-4 mud-text-secondary" Style="display:block;text-align:center">
+                No hay asistencia registrada en este periodo.
+            </MudText>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[] { 25, 50, 100 }" />
+        </PagerContent>
+    </MudTable>
+}
 
 @code {
     private List<Attendance> attendance = new();
     private List<Person> persons = new();
     private int? filterPersonId;
     private string periodMode = "week";
-    private DateTime weekStartDate = GetMonday(DateTime.Today);
-    private DateTime rangeStartDate = DateTime.Today.AddDays(-7);
-    private DateTime rangeEndDate = DateTime.Today;
+    private string viewMode = "detail";
+    private DateTime weekStartDate;
+    private DateTime biweeklyStartDate;
+    private DateTime rangeStartDate;
+    private DateTime rangeEndDate;
     private string userId = "";
-    private string? statusMsg;
+    private string _searchString = "";
     private decimal totalPeriodHours;
-    private List<DayTotal> dayTotals = new();
+    private List<PersonTotal> personTotals = new();
     private int _loadVersion = 0;
 
     protected override async Task OnInitializedAsync()
     {
         var auth = await AuthState.GetAuthenticationStateAsync();
         userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+        weekStartDate = GetMonday(SettingsState.Today);
+        biweeklyStartDate = SettingsState.GetBiweeklyPeriodStart(SettingsState.Today);
+        rangeStartDate = SettingsState.Today.AddDays(-7);
+        rangeEndDate = SettingsState.Today;
         persons = await PersonSvc.GetAllAsync(active: true);
         await Load();
     }
@@ -189,6 +207,8 @@
         var version = ++_loadVersion;
         if (periodMode == "week")
             weekStartDate = GetMonday(weekStartDate);
+        else if (periodMode == "biweekly")
+            biweeklyStartDate = SettingsState.GetBiweeklyPeriodStart(biweeklyStartDate);
         var (fromUtc, toUtc) = GetCurrentRangeUtc();
         var result = await AttendanceSvc.GetByRangeAsync(fromUtc, toUtc, filterPersonId);
         if (version != _loadVersion) return;
@@ -196,7 +216,37 @@
         RecalculateTotals();
     }
 
+    private async Task OnWeekStartDateChanged(DateTime? date)
+    {
+        if (date.HasValue) weekStartDate = date.Value;
+        await Load();
+    }
+
+    private async Task OnBiweeklyStartDateChanged(DateTime? date)
+    {
+        if (date.HasValue) biweeklyStartDate = date.Value;
+        await Load();
+    }
+
+    private async Task OnRangeStartDateChanged(DateTime? date)
+    {
+        if (date.HasValue) rangeStartDate = date.Value;
+        await Load();
+    }
+
+    private async Task OnRangeEndDateChanged(DateTime? date)
+    {
+        if (date.HasValue) rangeEndDate = date.Value;
+        await Load();
+    }
+
     private (DateTime FromUtc, DateTime ToUtc) GetCurrentRangeUtc()
+    {
+        var (fromLocal, toLocal) = GetCurrentRangeLocal();
+        return (ToUtc(fromLocal), ToUtc(toLocal));
+    }
+
+    private (DateTime FromLocal, DateTime ToLocal) GetCurrentRangeLocal()
     {
         DateTime fromLocal;
         DateTime toLocal;
@@ -207,6 +257,12 @@
             fromLocal = monday;
             toLocal = monday.AddDays(7);
         }
+        else if (periodMode == "biweekly")
+        {
+            var periodStart = SettingsState.GetBiweeklyPeriodStart(biweeklyStartDate);
+            fromLocal = periodStart;
+            toLocal = periodStart.AddDays(14);
+        }
         else
         {
             if (rangeEndDate < rangeStartDate)
@@ -216,16 +272,25 @@
             toLocal = rangeEndDate.Date.AddDays(1);
         }
 
-        return (ToUtc(fromLocal), ToUtc(toLocal));
+        return (fromLocal, toLocal);
+    }
+
+    private string PeriodRangeLabel
+    {
+        get
+        {
+            var (fromLocal, toLocal) = GetCurrentRangeLocal();
+            return $"{fromLocal:MM/dd/yyyy} - {toLocal.AddDays(-1):MM/dd/yyyy}";
+        }
     }
 
     private void RecalculateTotals()
     {
         totalPeriodHours = attendance.Sum(a => (decimal)GetWorkedHours(a));
-        dayTotals = attendance
-            .GroupBy(a => a.CheckInDateTime.ToLocalTime().Date)
-            .Select(g => new DayTotal(g.Key, g.Sum(GetWorkedHours)))
-            .OrderBy(x => x.Day)
+        personTotals = attendance
+            .GroupBy(a => a.Person.FullName)
+            .Select(g => new PersonTotal(g.Key, g.Sum(GetWorkedHours)))
+            .OrderBy(x => x.PersonName)
             .ToList();
     }
 
@@ -243,11 +308,29 @@
             .Sum(b => ((b.BreakEndDateTime ?? DateTime.UtcNow) - b.BreakStartDateTime).TotalMinutes);
     }
 
-    private async Task Delete(int attendanceId)
+    private bool FilterDetailFunc(Attendance a) =>
+        string.IsNullOrWhiteSpace(_searchString)
+        || (a.Person?.FullName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false)
+        || (a.Event?.EventName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false);
+
+    private bool FilterSummaryFunc(PersonTotal p) =>
+        string.IsNullOrWhiteSpace(_searchString)
+        || p.PersonName.Contains(_searchString, StringComparison.OrdinalIgnoreCase);
+
+    private async Task ConfirmDelete(Attendance item)
     {
-        await AttendanceSvc.DeleteAsync(attendanceId, userId);
-        await Load();
-        statusMsg = "Registro eliminado.";
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Eliminar Asistencia",
+            $"¿Desea eliminar el registro de asistencia de {item.Person.FullName} — {item.Event.EventName}?",
+            yesText: "Sí, eliminar",
+            cancelText: "No");
+
+        if (confirmed == true)
+        {
+            await AttendanceSvc.DeleteAsync(item.AttendanceId, userId);
+            Snackbar.Add("Registro eliminado", Severity.Info);
+            await Load();
+        }
     }
 
     private async Task ExportExcel()
@@ -256,10 +339,7 @@
         await JS.InvokeVoidAsync("downloadFile", "attendance.xlsx", Convert.ToBase64String(bytes));
     }
 
-    private static DateTime ToUtc(DateTime local)
-    {
-        return DateTime.SpecifyKind(local, DateTimeKind.Local).ToUniversalTime();
-    }
+    private DateTime ToUtc(DateTime local) => SettingsState.ToUtc(local);
 
     private static string FormatHours(decimal hours) => $"{hours:0.##} h";
 
@@ -271,5 +351,5 @@
         return date.AddDays(-diff).Date;
     }
 
-    private record DayTotal(DateTime Day, double Hours);
+    private record PersonTotal(string PersonName, double Hours);
 }

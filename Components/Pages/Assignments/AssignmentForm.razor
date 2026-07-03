@@ -8,6 +8,7 @@
 @inject LocationService LocationSvc
 @inject AuthenticationStateProvider AuthState
 @inject NavigationManager Nav
+@inject AppSettingsState SettingsState
 
 <PageTitle>@(Id == 0 ? "New Assignment" : "Edit Assignment") — Turnos</PageTitle>
 
@@ -42,7 +43,7 @@
                     <option value="0">— Select event —</option>
                     @foreach (var e in events)
                     {
-                        <option value="@e.EventId">@e.EventName (@e.StartDateTime.ToString("MMM d"))</option>
+                        <option value="@e.EventId">@e.EventName (@SettingsState.ToDisplay(e.StartDateTime).ToString("MMM d"))</option>
                     }
                 </InputSelect>
             </div>
@@ -103,8 +104,8 @@
     private bool saving;
     private string? saveError;
     private string userId = "";
-    private DateTime startLocal = DateTime.Now;
-    private DateTime endLocal = DateTime.Now.AddHours(4);
+    private DateTime startLocal;
+    private DateTime endLocal;
 
     private string positionIdStr
     {
@@ -116,6 +117,8 @@
     {
         var auth = await AuthState.GetAuthenticationStateAsync();
         userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+        startLocal = SettingsState.Now;
+        endLocal = SettingsState.Now.AddHours(4);
         persons = await PersonSvc.GetAllAsync(active: true);
         events = await EventSvc.GetAllAsync(active: true);
 
@@ -135,8 +138,7 @@
         }
     }
 
-    private static DateTime ToLocal(DateTime dt) =>
-        dt.Kind == DateTimeKind.Utc ? dt.ToLocalTime() : dt;
+    private DateTime ToLocal(DateTime dt) => SettingsState.ToDisplay(dt);
 
     private async Task OnEventSelected()
     {

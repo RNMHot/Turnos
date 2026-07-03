@@ -5,6 +5,10 @@ namespace Turnos.Services;
 
 public class ExcelExportService
 {
+    private readonly AppSettingsState _settings;
+
+    public ExcelExportService(AppSettingsState settings) => _settings = settings;
+
     public byte[] ExportPersons(List<Person> persons)
     {
         using var wb = new XLWorkbook();
@@ -63,8 +67,8 @@ public class ExcelExportService
             ws.Cell(row, 1).Value = e.EventId;
             ws.Cell(row, 2).Value = e.EventName;
             ws.Cell(row, 3).Value = e.Company?.Name ?? "";
-            ws.Cell(row, 4).Value = e.StartDateTime.ToString("yyyy-MM-dd HH:mm");
-            ws.Cell(row, 5).Value = e.EndDateTime.ToString("yyyy-MM-dd HH:mm");
+            ws.Cell(row, 4).Value = _settings.ToDisplay(e.StartDateTime).ToString("yyyy-MM-dd HH:mm");
+            ws.Cell(row, 5).Value = _settings.ToDisplay(e.EndDateTime).ToString("yyyy-MM-dd HH:mm");
             ws.Cell(row, 6).Value = e.Location?.Name ?? "";
             ws.Cell(row, 7).Value = e.RequiredSupervisors;
             ws.Cell(row, 8).Value = e.RequiredUshers;
@@ -101,8 +105,8 @@ public class ExcelExportService
             ws.Cell(row, 2).Value = a.Person?.FullName ?? "";
             ws.Cell(row, 3).Value = a.Event?.EventName ?? "";
             ws.Cell(row, 4).Value = a.Event?.Company?.Name ?? "";
-            ws.Cell(row, 5).Value = a.StartDateTime.ToString("yyyy-MM-dd HH:mm");
-            ws.Cell(row, 6).Value = a.EndDateTime.ToString("yyyy-MM-dd HH:mm");
+            ws.Cell(row, 5).Value = _settings.ToDisplay(a.StartDateTime).ToString("yyyy-MM-dd HH:mm");
+            ws.Cell(row, 6).Value = _settings.ToDisplay(a.EndDateTime).ToString("yyyy-MM-dd HH:mm");
             ws.Cell(row, 7).Value = a.Status.ToString();
         }
 
@@ -143,9 +147,9 @@ public class ExcelExportService
             ws.Cell(row, 2).Value = item.Person?.FullName ?? "";
             ws.Cell(row, 3).Value = item.Event?.EventName ?? "";
             ws.Cell(row, 4).Value = item.Event?.Company?.Name ?? "";
-            ws.Cell(row, 5).Value = item.CheckInDateTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+            ws.Cell(row, 5).Value = _settings.ToDisplay(item.CheckInDateTime).ToString("yyyy-MM-dd HH:mm");
             ws.Cell(row, 6).Value = item.CheckOutDateTime.HasValue
-                ? item.CheckOutDateTime.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+                ? _settings.ToDisplay(item.CheckOutDateTime.Value).ToString("yyyy-MM-dd HH:mm")
                 : "";
             ws.Cell(row, 7).Value = Math.Round(breakMinutes, 2);
             ws.Cell(row, 8).Value = Math.Round(workedHours, 2);

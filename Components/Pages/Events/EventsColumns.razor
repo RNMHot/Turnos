@@ -7,6 +7,7 @@
 @inject AuthenticationStateProvider AuthState
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject AppSettingsState SettingsState
 
 <PageTitle>Events Board - Turnos</PageTitle>
 
@@ -18,7 +19,11 @@
     <div class="events-columns-board">
         <div class="personnel-panel">
             <div class="panel-header">
-                <strong>Personal Disponible</strong>
+                <MudToggleGroup T="string" Value="@personnelFilter" ValueChanged="OnPersonnelFilterChanged"
+                                 Color="Color.Primary" Size="Size.Small" Delimiters="false" Class="mb-1 personnel-filter-toggle">
+                    <MudToggleItem Value="@("Regular")" Text="Regular" />
+                    <MudToggleItem Value="@("Masivos")" Text="Masivos" />
+                </MudToggleGroup>
                 <MudTextField T="string" Value="@personSearch" ValueChanged="OnPersonSearchChanged"
                               Placeholder="Búsqueda…" Immediate="true" Clearable="true"
                               Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-1" />
@@ -54,8 +59,8 @@
                 <div class="events-columns-grid">
                     @foreach (var ev in activeEvents)
                     {
-                        var localStart = ev.StartDateTime.ToLocalTime();
-                        var localEnd = ev.EndDateTime.ToLocalTime();
+                        var localStart = SettingsState.ToDisplay(ev.StartDateTime);
+                        var localEnd = SettingsState.ToDisplay(ev.EndDateTime);
 
                         <section class="event-column">
                             <header class="event-column-header @GetEventClass(ev)" style="cursor:pointer" @onclick="() => OpenEventDetail(ev)">
@@ -117,6 +122,7 @@
     private List<Person> availablePersonnel = new();
     private List<Person> filteredPersonnel = new();
     private string personSearch = "";
+    private string personnelFilter = "Regular";
     private Person? draggedPerson;
     private bool showMessageModal;
     private int? messageEventId;
@@ -132,8 +138,19 @@
     private async Task LoadData()
     {
         activeEvents = await EventSvc.GetActiveWithAssignmentsAsync();
-        availablePersonnel = await PersonSvc.GetAllWithAvailabilityAsync(active: true);
+        await LoadPersonnel();
+    }
+
+    private async Task LoadPersonnel()
+    {
+        availablePersonnel = await PersonSvc.GetAllWithAvailabilityAsync(active: true, isMassGroup: personnelFilter == "Masivos");
         FilterPersonnel();
+    }
+
+    private async Task OnPersonnelFilterChanged(string value)
+    {
+        personnelFilter = value;
+        await LoadPersonnel();
     }
 
     private void FilterPersonnel()
@@ -160,27 +177,36 @@
         if (draggedPerson is null)
             return;
 
+        var person = draggedPerson;
+        draggedPerson = null;
+        await AssignPersonToEvent(ev, person);
+    }
+
+    private async Task<bool> AssignPersonToEvent(Event ev, Person person)
+    {
         var assignment = new Assignment
         {
             EventId = ev.EventId,
-            PersonId = draggedPerson.PersonId,
+            PersonId = person.PersonId,
             StartDateTime = ev.StartDateTime,
             EndDateTime = ev.EndDateTime,
             Status = AssignmentStatus.Candidato
         };
 
         var (success, errMsg) = await AssignmentSvc.CreateAsync(assignment, currentUserId);
-        draggedPerson = null;
 
         if (success)
         {
             Snackbar.Add($"Asignado a {ev.EventName}", Severity.Success);
             await LoadData();
+            StateHasChanged();
         }
         else
         {
             Snackbar.Add(errMsg ?? "Error al asignar", Severity.Error);
         }
+
+        return success;
     }
 
     private async Task ConfirmRemoveAssignment(int assignmentId, string personName)
@@ -205,17 +231,11 @@
         var parameters = new DialogParameters<PersonPickerDialog>
         {
             { x => x.EventName, ev.EventName },
-            { x => x.Personnel, availablePersonnel }
+            { x => x.Personnel, availablePersonnel },
+            { x => x.OnPick, (Func<Person, Task<bool>>)(person => AssignPersonToEvent(ev, person)) }
         };
         var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
-        var dialog = await DialogService.ShowAsync<PersonPickerDialog>("", parameters, options);
-        var result = await dialog.Result;
-
-        if (result is { Canceled: false, Data: Person picked })
-        {
-            draggedPerson = picked;
-            await OnDropOnEvent(ev);
-        }
+        await DialogService.ShowAsync<PersonPickerDialog>("", parameters, options);
     }
 
     private async Task OpenEventDetail(Event ev)

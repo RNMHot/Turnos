@@ -1,6 +1,7 @@
 @inject AssignmentService AssignmentSvc
 @inject PersonService PersonSvc
 @inject IDialogService DialogService
+@inject AppSettingsState SettingsState
 
 <MudDialog>
     <TitleContent>
@@ -13,7 +14,7 @@
                 <MudText><strong>Cliente:</strong> @Ev.Company?.Name</MudText>
             </MudItem>
             <MudItem xs="12">
-                <MudText><strong>Hora:</strong> @Ev.StartDateTime.ToLocalTime().ToString("MMM d, h:mm tt") – @Ev.EndDateTime.ToLocalTime().ToString("h:mm tt")</MudText>
+                <MudText><strong>Hora:</strong> @SettingsState.ToDisplay(Ev.StartDateTime).ToString("MMM d, h:mm tt") – @SettingsState.ToDisplay(Ev.EndDateTime).ToString("h:mm tt")</MudText>
             </MudItem>
             <MudItem xs="12">
                 <MudText><strong>Requeridos:</strong> @FormatRequirements(Ev)</MudText>
@@ -40,7 +41,7 @@
         <div style="max-height:280px; overflow-y:auto;">
             @foreach (var a in Ev.Assignments)
             {
-                <div class="d-flex align-items-center gap-2 mb-2">
+                <div class="d-flex align-items-center gap-2 mb-1">
                     <div style="flex:1; background-color:#DDF3E4; border-radius:6px; padding:6px 12px;">
                         <MudText Typo="Typo.body2" Style="color:#1B6E52; font-weight:500">@a.Person.FullName</MudText>
                     </div>

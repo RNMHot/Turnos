@@ -1,0 +1,69 @@
+@page "/settings/timezone"
+@attribute [Authorize(Policy = "AppAccess", Roles = "Gerencia,Admin")]
+@rendermode InteractiveServer
+@inject AppSettingService SettingsSvc
+@inject AppSettingsState SettingsState
+
+<PageTitle>Zona horaria — Turnos</PageTitle>
+
+<div class="d-flex align-items-center mb-4 gap-3">
+    <a href="/settings" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Volver
+    </a>
+    <h4 class="mb-0"><i class="bi bi-globe-americas me-2"></i>Zona horaria</h4>
+</div>
+
+<div class="card" style="max-width:500px">
+    <div class="card-body">
+        <p class="text-muted small mb-3">
+            Define la zona horaria usada para mostrar e ingresar fechas y horas en toda la aplicación,
+            independientemente de dónde esté alojado el servidor.
+        </p>
+
+        <div class="mb-3">
+            <label class="form-label">Zona horaria (UTC)</label>
+            <select class="form-select" @bind="_selectedOffset">
+                @foreach (var offset in _offsets)
+                {
+                    <option value="@offset">@FormatOffset(offset)</option>
+                }
+            </select>
+        </div>
+
+        <button class="btn btn-primary" @onclick="Save">
+            <i class="bi bi-check-lg me-1"></i>Guardar
+        </button>
+
+        @if (!string.IsNullOrEmpty(_message))
+        {
+            <div class="alert alert-success mt-3 py-2 mb-0">@_message</div>
+        }
+    </div>
+</div>
+
+@code {
+    private readonly double[] _offsets = Enumerable.Range(-24, 57).Select(x => x / 2.0).ToArray();
+    private double _selectedOffset = AppSettingsState.DefaultTimeZoneOffsetHours;
+    private string _message = "";
+
+    protected override void OnInitialized()
+    {
+        _selectedOffset = SettingsState.TimeZoneOffsetHours;
+    }
+
+    private static string FormatOffset(double offset)
+    {
+        var sign = offset >= 0 ? "+" : "-";
+        var abs = Math.Abs(offset);
+        var hours = (int)abs;
+        var minutes = (int)Math.Round((abs - hours) * 60);
+        return $"UTC{sign}{hours:00}:{minutes:00}";
+    }
+
+    private async Task Save()
+    {
+        await SettingsSvc.SetValueAsync("TimeZoneOffsetHours", _selectedOffset.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        SettingsState.SetTimeZoneOffsetHours(_selectedOffset);
+        _message = "Zona horaria guardada correctamente.";
+    }
+}

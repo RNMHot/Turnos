@@ -8,11 +8,13 @@ public class AttendanceService
 {
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly AuditService _audit;
+    private readonly AppSettingsState _settings;
 
-    public AttendanceService(IDbContextFactory<AppDbContext> dbFactory, AuditService audit)
+    public AttendanceService(IDbContextFactory<AppDbContext> dbFactory, AuditService audit, AppSettingsState settings)
     {
         _dbFactory = dbFactory;
         _audit = audit;
+        _settings = settings;
     }
 
     public async Task<List<Attendance>> GetByRangeAsync(DateTime fromUtc, DateTime toUtc, int? personId = null)
@@ -312,13 +314,6 @@ public class AttendanceService
         return null;
     }
 
-    private static DateTime NormalizeUtc(DateTime value)
-    {
-        return value.Kind switch
-        {
-            DateTimeKind.Utc => value,
-            DateTimeKind.Local => value.ToUniversalTime(),
-            _ => DateTime.SpecifyKind(value, DateTimeKind.Local).ToUniversalTime()
-        };
-    }
+    private DateTime NormalizeUtc(DateTime value) =>
+        value.Kind == DateTimeKind.Utc ? value : _settings.ToUtc(value);
 }

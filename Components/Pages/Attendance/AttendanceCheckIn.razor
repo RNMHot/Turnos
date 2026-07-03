@@ -6,6 +6,7 @@
 @inject EventService EventSvc
 @inject AuthenticationStateProvider AuthState
 @inject NavigationManager Nav
+@inject AppSettingsState SettingsState
 
 <PageTitle>Registro de asistencia - Turnos</PageTitle>
 
@@ -32,7 +33,7 @@
                     <option value="0">Seleccione evento</option>
                     @foreach (var e in events)
                     {
-                        <option value="@e.EventId">@e.EventName (@e.StartDateTime.ToLocalTime().ToString("MMM d, h:mm tt"))</option>
+                        <option value="@e.EventId">@e.EventName (@SettingsState.ToDisplay(e.StartDateTime).ToString("MMM d, h:mm tt"))</option>
                     }
                 </select>
             </div>
@@ -91,7 +92,7 @@
                 <hr />
                 <div class="small text-muted">Turno abierto</div>
                 <div class="fw-semibold">@openAttendance.Event.EventName</div>
-                <div class="small">Entrada: @openAttendance.CheckInDateTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</div>
+                <div class="small">Entrada: @SettingsState.ToDisplay(openAttendance.CheckInDateTime).ToString("yyyy-MM-dd HH:mm")</div>
                 <div class="small">Descansos: @openAttendance.Breaks.Count</div>
             }
         </div>
@@ -107,10 +108,10 @@
     private string currentPersonName = "";
     private Attendance? openAttendance;
 
-    private DateTime checkInLocal = DateTime.Now;
-    private DateTime checkOutLocal = DateTime.Now;
-    private DateTime breakStartLocal = DateTime.Now;
-    private DateTime breakEndLocal = DateTime.Now.AddMinutes(15);
+    private DateTime checkInLocal;
+    private DateTime checkOutLocal;
+    private DateTime breakStartLocal;
+    private DateTime breakEndLocal;
 
     private string? statusMsg;
     private bool statusOk;
@@ -130,7 +131,12 @@
         people = await PersonSvc.GetAllAsync(active: true);
         currentPersonName = people.FirstOrDefault(p => p.PersonId == personId)?.FullName ?? "Colaborador";
 
-        events = await EventSvc.GetAllAsync(from: DateTime.Today.AddDays(-1), to: DateTime.Today.AddDays(14), active: true);
+        checkInLocal = SettingsState.Now;
+        checkOutLocal = SettingsState.Now;
+        breakStartLocal = SettingsState.Now;
+        breakEndLocal = SettingsState.Now.AddMinutes(15);
+
+        events = await EventSvc.GetAllAsync(from: SettingsState.Today.AddDays(-1), to: SettingsState.Today.AddDays(14), active: true);
         await LoadOpenAttendance();
     }
 

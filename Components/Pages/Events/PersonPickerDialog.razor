@@ -17,10 +17,11 @@
             {
                 @foreach (var person in _filtered)
                 {
+                    var assigned = _assignedIds.Contains(person.PersonId);
                     <MudChip T="string" OnClick="@(() => Pick(person))"
-                             Color="@GetRoleColor(person)" Variant="Variant.Filled"
-                             Icon="@Icons.Material.Filled.Person"
-                             Class="mb-1" Style="cursor:pointer;width:100%;justify-content:flex-start">
+                             Color="@GetRoleColor(person)" Variant="@(assigned ? Variant.Outlined : Variant.Filled)"
+                             Icon="@(assigned ? Icons.Material.Filled.Check : Icons.Material.Filled.Person)"
+                             Class="mb-1" Style="@($"cursor:pointer;width:100%;justify-content:flex-start;{(assigned ? "opacity:0.6" : "")}")">
                         @person.FullName
                     </MudChip>
                 }
@@ -28,7 +29,7 @@
         </div>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="Cancel" Variant="Variant.Text">Cancelar</MudButton>
+        <MudButton OnClick="Close" Variant="Variant.Text">Cerrar</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -36,9 +37,11 @@
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
     [Parameter] public string EventName { get; set; } = "";
     [Parameter] public List<Person> Personnel { get; set; } = new();
+    [Parameter] public Func<Person, Task<bool>>? OnPick { get; set; }
 
     private string _search = "";
     private List<Person> _filtered = new();
+    private readonly HashSet<int> _assignedIds = new();
 
     protected override void OnInitialized() => _filtered = Personnel.ToList();
 
@@ -50,8 +53,15 @@
             : Personnel.Where(p => p.FullName.Contains(val, StringComparison.OrdinalIgnoreCase)).ToList();
     }
 
-    private void Pick(Person person) => MudDialog.Close(DialogResult.Ok(person));
-    private void Cancel() => MudDialog.Cancel();
+    private async Task Pick(Person person)
+    {
+        if (_assignedIds.Contains(person.PersonId) || OnPick is null) return;
+
+        if (await OnPick(person))
+            _assignedIds.Add(person.PersonId);
+    }
+
+    private void Close() => MudDialog.Close();
 
     private static Color GetRoleColor(Person p)
     {

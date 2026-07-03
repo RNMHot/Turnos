@@ -3,82 +3,82 @@
 @rendermode InteractiveServer
 @inject LocationService LocationSvc
 @inject AuthenticationStateProvider AuthState
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
 <PageTitle>Localidades — Turnos</PageTitle>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0"><i class="bi bi-geo-alt me-2"></i>Localidades</h4>
-    <a href="/locations/new" class="btn btn-primary btn-sm"><i class="bi bi-plus me-1"></i>Agregar Localidad</a>
+    <MudText Typo="Typo.h5">Localidades</MudText>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add"
+               Href="/locations/new" Size="Size.Small">Agregar Localidad</MudButton>
 </div>
 
-<input class="form-control form-control-sm mb-3" style="max-width:280px"
-       placeholder="Buscar…" @bind="search" @bind:event="oninput" @bind:after="Load" />
+<MudTextField @bind-Value="_searchString" Placeholder="Buscar..."
+              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+              Immediate="true" Clearable="true" Class="mb-3" Style="max-width:400px"
+              Variant="Variant.Outlined" Margin="Margin.Dense" DebounceInterval="300"
+              OnDebounceIntervalElapsed="OnSearchChanged" OnClearButtonClick="OnSearchCleared" />
 
-@if (deleteError is not null)
-{
-    <div class="alert alert-warning alert-dismissible py-2">
-        @deleteError
-        <button class="btn-close" @onclick="() => deleteError = null"></button>
-    </div>
-}
-
-<div class="table-responsive">
-    <table class="table table-hover table-sm align-middle">
-        <thead class="table-light">
-            <tr>
-                <th>Nombre</th>
-                <th>Dirección</th>
-                <th>Coordenadas</th>
-                <th>Estacionamiento</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var loc in locations)
+<MudTable Items="@locations" Dense="true" Hover="true"
+          T="Location" Elevation="2" Class="rounded" Style="font-size:0.85rem">
+    <HeaderContent>
+        <MudTh>
+            <MudTableSortLabel SortBy="new Func<Location, object>(x => x.Name)">
+                Nombre
+            </MudTableSortLabel>
+        </MudTh>
+        <MudTh>Dirección</MudTh>
+        <MudTh>Coordenadas</MudTh>
+        <MudTh>Estacionamiento</MudTh>
+        <MudTh></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Nombre" Class="mud-text-bold">@context.Name</MudTd>
+        <MudTd DataLabel="Dirección" Class="mud-text-secondary">@Truncate(context.Address, 60)</MudTd>
+        <MudTd DataLabel="Coordenadas">
+            @if (context.Latitude.HasValue && context.Longitude.HasValue)
             {
-                <tr>
-                    <td class="fw-semibold">@loc.Name</td>
-                    <td class="text-muted small">@Truncate(loc.Address, 60)</td>
-                    <td class="small">
-                        @if (loc.Latitude.HasValue && loc.Longitude.HasValue)
-                        {
-                            <a href="https://maps.google.com/?q=@loc.Latitude,@loc.Longitude"
-                               target="_blank" rel="noopener"
-                               class="text-decoration-none text-muted"
-                               title="Open in Google Maps">
-                                <i class="bi bi-pin-map me-1"></i>
-                                @loc.Latitude.Value.ToString("F5"), @loc.Longitude.Value.ToString("F5")
-                            </a>
-                        }
-                        else
-                        {
-                            <span class="text-muted">—</span>
-                        }
-                    </td>
-                    <td class="text-muted small">@Truncate(loc.ParkingInfo, 50)</td>
-                    <td class="text-end">
-                        <a href="/locations/@loc.LocationId" class="btn btn-sm btn-outline-primary me-1">
-                            <i class="bi bi-pencil"></i>
-                        </a>
-                        <button class="btn btn-sm btn-outline-danger" @onclick="() => Delete(loc)">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </td>
-                </tr>
+                <MudLink Href="@($"https://maps.google.com/?q={context.Latitude},{context.Longitude}")"
+                         Target="_blank" Color="Color.Inherit" Class="mud-text-secondary">
+                    <MudIcon Icon="@Icons.Material.Filled.PinDrop" Size="Size.Small" Class="mr-1" />
+                    @context.Latitude.Value.ToString("F5"), @context.Longitude.Value.ToString("F5")
+                </MudLink>
             }
-            @if (!locations.Any())
+            else
             {
-                <tr><td colspan="5" class="text-muted text-center py-4">No se encontraron localidades.</td></tr>
+                <span class="mud-text-secondary">—</span>
             }
-        </tbody>
-    </table>
-</div>
+        </MudTd>
+        <MudTd DataLabel="Estacionamiento" Class="mud-text-secondary">@Truncate(context.ParkingInfo, 50)</MudTd>
+        <MudTd DataLabel="">
+            <div style="display:flex; align-items:center; justify-content:flex-end">
+                <MudTooltip Text="Editar localidad">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
+                                   Size="Size.Small" Href="@($"/locations/{context.LocationId}")" />
+                </MudTooltip>
+                <MudTooltip Text="Eliminar localidad">
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                                   Size="Size.Small" OnClick="() => ConfirmDelete(context)" />
+                </MudTooltip>
+            </div>
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText Typo="Typo.body1" Class="py-4 mud-text-secondary" Style="display:block;text-align:center">
+            No se encontraron localidades.
+        </MudText>
+    </NoRecordsContent>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="new int[] { 25, 50, 100 }" />
+    </PagerContent>
+</MudTable>
 
 @code {
     private List<Location> locations = new();
-    private string search = "";
+    private string _searchString = "";
     private string userId = "";
-    private string? deleteError;
 
     protected override async Task OnInitializedAsync()
     {
@@ -87,15 +87,35 @@
         await Load();
     }
 
-    private async Task Load() => locations = await LocationSvc.GetAllAsync(search);
+    private async Task Load() => locations = await LocationSvc.GetAllAsync(_searchString);
 
-    private async Task Delete(Location loc)
+    private async Task OnSearchChanged() => await Load();
+
+    private async Task OnSearchCleared()
     {
-        var ok = await LocationSvc.DeleteAsync(loc.LocationId, userId);
-        if (!ok)
-            deleteError = $"\"{loc.Name}\" está asignada a uno o más eventos y no se puede eliminar. Primero elimínela de esos eventos.";
-        else
-            await Load();
+        _searchString = "";
+        await Load();
+    }
+
+    private async Task ConfirmDelete(Location loc)
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Eliminar Localidad",
+            $"¿Desea eliminar la localidad {loc.Name}?",
+            yesText: "Sí, eliminar",
+            cancelText: "No");
+
+        if (confirmed == true)
+        {
+            var ok = await LocationSvc.DeleteAsync(loc.LocationId, userId);
+            if (!ok)
+                Snackbar.Add($"\"{loc.Name}\" está asignada a uno o más eventos y no se puede eliminar. Primero elimínela de esos eventos.", Severity.Warning);
+            else
+            {
+                Snackbar.Add("Localidad eliminada", Severity.Info);
+                await Load();
+            }
+        }
     }
 
     private static string? Truncate(string? value, int max) =>

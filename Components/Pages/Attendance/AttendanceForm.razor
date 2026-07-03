@@ -7,6 +7,7 @@
 @inject EventService EventSvc
 @inject AuthenticationStateProvider AuthState
 @inject NavigationManager Nav
+@inject AppSettingsState SettingsState
 
 <PageTitle>@(Id == 0 ? "Nueva Asistencia" : "Editar Asistencia") - Turnos</PageTitle>
 
@@ -43,7 +44,7 @@
                         <option value="0">Seleccione un evento</option>
                         @foreach (var e in events)
                         {
-                            <option value="@e.EventId">@e.EventName (@e.StartDateTime.ToLocalTime().ToString("MMM d, h:mm tt"))</option>
+                            <option value="@e.EventId">@e.EventName (@SettingsState.ToDisplay(e.StartDateTime).ToString("MMM d, h:mm tt"))</option>
                         }
                     </InputSelect>
                 </div>
@@ -155,8 +156,8 @@
     private Attendance attendance = new();
     private List<Person> persons = new();
     private List<Event> events = new();
-    private DateTime checkInLocal = DateTime.Now;
-    private DateTime checkOutLocal = DateTime.Now;
+    private DateTime checkInLocal;
+    private DateTime checkOutLocal;
     private bool hasCheckOut;
     private bool saving;
     private string userId = "";
@@ -167,6 +168,9 @@
         var auth = await AuthState.GetAuthenticationStateAsync();
         userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
 
+        checkInLocal = SettingsState.Now;
+        checkOutLocal = SettingsState.Now;
+
         persons = await PersonSvc.GetAllAsync(active: true);
         events = await EventSvc.GetAllAsync(active: true);
 
@@ -176,9 +180,11 @@
             if (existing is not null)
             {
                 attendance = existing;
-                checkInLocal = attendance.CheckInDateTime.ToLocalTime();
+                checkInLocal = SettingsState.ToDisplay(attendance.CheckInDateTime);
                 hasCheckOut = attendance.CheckOutDateTime.HasValue;
-                checkOutLocal = attendance.CheckOutDateTime?.ToLocalTime() ?? DateTime.Now;
+                checkOutLocal = attendance.CheckOutDateTime.HasValue
+                    ? SettingsState.ToDisplay(attendance.CheckOutDateTime.Value)
+                    : SettingsState.Now;
             }
         }
     }
@@ -244,7 +250,7 @@
 
     private async Task AddBreak()
     {
-        var breakStart = attendance.CheckInDateTime.ToLocalTime();
+        var breakStart = SettingsState.ToDisplay(attendance.CheckInDateTime);
         var breakEnd = breakStart.AddMinutes(15);
         await AttendanceSvc.AddBreakAsync(attendance.AttendanceId, breakStart, breakEnd, null, userId);
         await ReloadAttendance();
@@ -272,9 +278,9 @@
             attendance = updated;
     }
 
-    private static string ToLocalInputValue(DateTime? value)
+    private string ToLocalInputValue(DateTime? value)
     {
-        return value.HasValue ? value.Value.ToLocalTime().ToString("yyyy-MM-ddTHH:mm") : string.Empty;
+        return value.HasValue ? SettingsState.ToDisplay(value.Value).ToString("yyyy-MM-ddTHH:mm") : string.Empty;
     }
 
     private static void OnBreakStartChanged(AttendanceBreak attendanceBreak, string? value)

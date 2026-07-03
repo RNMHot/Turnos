@@ -188,6 +188,18 @@ a, .btn-link { color: var(--color-accent); }
     gap: 4px;
 }
 
+.personnel-filter-toggle {
+    height: 22px;
+}
+.personnel-filter-toggle .mud-toggle-item {
+    padding: 1px 8px;
+    min-height: unset;
+}
+.personnel-filter-toggle .mud-toggle-item .mud-typography {
+    font-size: 0.7rem;
+    line-height: 1.4;
+}
+
 .person-chip {
     padding: 5px 8px;
     border-radius: 6px;

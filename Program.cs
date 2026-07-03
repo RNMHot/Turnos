@@ -113,4 +113,27 @@ catch (Exception ex)
     "Database initialization failed. Verify ConnectionStrings:DefaultConnection for the current environment.");
 }
 
+// Load app-wide settings (e.g. display time zone) into the shared in-memory state
+try
+{
+    using var scope = app.Services.CreateScope();
+    var settingsSvc = scope.ServiceProvider.GetRequiredService<AppSettingService>();
+    var settingsState = app.Services.GetRequiredService<AppSettingsState>();
+    var tzValue = await settingsSvc.GetValueAsync("TimeZoneOffsetHours");
+    if (double.TryParse(tzValue, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var tzOffset))
+    {
+        settingsState.SetTimeZoneOffsetHours(tzOffset);
+    }
+
+    var biweeklyStartValue = await settingsSvc.GetValueAsync("BiweeklyPeriodStartDate");
+    if (DateTime.TryParse(biweeklyStartValue, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var biweeklyStart))
+    {
+        settingsState.SetBiweeklyPeriodStartDate(biweeklyStart);
+    }
+}
+catch (Exception ex)
+{
+    startupLogger.LogError(ex, "Failed to load app settings on startup.");
+}
+
 app.Run();

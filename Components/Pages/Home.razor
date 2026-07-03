@@ -7,38 +7,42 @@
 @inject IJSRuntime JS
 @inject AuthenticationStateProvider AuthState
 @inject NavigationManager Nav
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject AppSettingsState SettingsState
 @using System.Globalization
+@using Turnos.Components.Pages.Events
 
 <PageTitle>Itinerario — Turnos</PageTitle>
 
 <div class="schedule-container">
     <!-- Top toolbar -->
     <div class="d-flex align-items-center gap-2 mb-3">
-        <button class="btn btn-outline-secondary btn-sm" @onclick="PrevWeek"><i class="bi bi-chevron-left"></i></button>
-        <button class="btn btn-outline-primary btn-sm" @onclick="GoToday">Hoy</button>
-        <button class="btn btn-outline-secondary btn-sm" @onclick="NextWeek"><i class="bi bi-chevron-right"></i></button>
-        <span class="fw-semibold">@WeekLabel</span>
-        @if (dropMessage is not null)
-        {
-            <span class="ms-3 badge @(dropSuccess ? "bg-success" : "bg-danger")">@dropMessage</span>
-        }
+        <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Variant="Variant.Outlined"
+                       Color="Color.Secondary" Size="Size.Small" OnClick="PrevWeek" />
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="GoToday">Hoy</MudButton>
+        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Variant="Variant.Outlined"
+                       Color="Color.Secondary" Size="Size.Small" OnClick="NextWeek" />
+        <MudText Typo="Typo.subtitle1" Class="fw-semibold ms-2">@WeekLabel</MudText>
     </div>
 
     <div class="schedule-board">
         <!-- Left panel: personnel list -->
         <div class="personnel-panel">
             <div class="panel-header">
-                <strong>Personal Disponible</strong>
-                <input class="form-control form-control-sm mt-1" 
-                    placeholder="Búsqueda…" 
-                    @bind="personSearch" 
-                    @bind:event="oninput" 
-                    @bind:after="FilterPersonnel" />
+                <MudToggleGroup T="string" Value="@personnelFilter" ValueChanged="OnPersonnelFilterChanged"
+                                 Color="Color.Primary" Size="Size.Small" Delimiters="false" Class="mb-1 personnel-filter-toggle">
+                    <MudToggleItem Value="@("Regular")" Text="Regular" />
+                    <MudToggleItem Value="@("Masivos")" Text="Masivos" />
+                </MudToggleGroup>
+                <MudTextField T="string" Value="@personSearch" ValueChanged="OnPersonSearchChanged"
+                              Placeholder="Búsqueda…" Immediate="true" Clearable="true"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-1" />
             </div>
             <div id="panelbody" class="panel-body">
                 @if (filteredPersonnel.Count == 0)
                 {
-                    <div class="text-muted small px-1">No hay personal disponible.</div>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="px-1">No hay personal disponible.</MudText>
                 }
                 else
                 {
@@ -65,7 +69,7 @@
                 @for (int d = 0; d < 7; d++)
                 {
                     var day = weekStart.AddDays(d);
-                    var isToday = day.Date == DateTime.Today;
+                    var isToday = day.Date == SettingsState.Today;
                     <div class="day-header @(isToday ? "hoy" : "")">
                         <div class="day-name">@day.ToString("ddd", new CultureInfo("es-ES")).ToUpper()</div>
                         <div class="day-date">@day.ToString("MMM d")</div>
@@ -98,7 +102,7 @@
                                         <div class="event-name">@ev.EventName</div>
                                         <div class="event-company small">@ev.Company?.Name</div>
                                         <div class="small text-opacity-75">
-                                            @ev.StartDateTime.ToLocalTime().ToString("h:mm tt") – @ev.EndDateTime.ToLocalTime().ToString("h:mm tt")
+                                            @SettingsState.ToDisplay(ev.StartDateTime).ToString("h:mm tt") – @SettingsState.ToDisplay(ev.EndDateTime).ToString("h:mm tt")
                                         </div>
                                         <div class="small text-opacity-75">
                                             @FormatRequirements(ev)
@@ -126,103 +130,7 @@
     </div>
 </div>
 
-<!-- Event detail modal -->
-@if (selectedEvent is not null)
-{
-    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.4)">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">@selectedEvent.EventName</h5>
-                    <button class="btn-close" @onclick="() => selectedEvent = null"></button>
-                </div>
-                <div class="modal-body">
-                    <p><strong>Cliente:</strong> @selectedEvent.Company?.Name</p>
-                    <p><strong>Hora:</strong> @selectedEvent.StartDateTime.ToLocalTime().ToString("MMM d, h:mm tt") – @selectedEvent.EndDateTime.ToLocalTime().ToString("h:mm tt")</p>
-                    <p><strong>Requeridos:</strong> @FormatRequirements(selectedEvent)</p>
-                    <p>
-                        <strong>Localización:</strong> @(selectedEvent.Location?.Name ?? "—")
-                    </p>
-                    @if (!string.IsNullOrEmpty(selectedEvent.Notes))
-                    {
-                        <p><strong>Notas:</strong> @selectedEvent.Notes</p>
-                    }
-                    <hr />
-                    <h6>Asignados</h6>
-                    @foreach (var a in selectedEvent.Assignments)
-                    {
-                        <div class="d-flex align-items-center gap-2 mb-2">
-                            <span class="@GetRoleClass(a.Person) px-2 py-1 rounded small flex-grow-1">@a.Person.FullName</span>
-                            <select class="form-select form-select-sm" style="width:130px"
-                                    value="@a.Status.ToString()"
-                                    @onchange="async e => await ChangeStatus(a, e.Value?.ToString() ?? string.Empty)">
-                                <option value="Candidato">Candidato</option>
-                                <option value="Ofrecido">Ofrecido</option>
-                                <option value="Disponible">Disponible</option>
-                                <option value="Asignado">Asignado</option>
-                                <option value="Confirmado">Confirmado</option>
-                            </select>
-                            <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveAssignment(a.AssignmentId)">
-                                <i class="bi bi-x"></i>
-                            </button>
-                        </div>
-                    }
-                </div>
-                <div class="modal-footer">
-                    <a href="/events/@selectedEvent.EventId" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-pencil me-1"></i> Editar Evento
-                    </a>
-                    <button class="btn btn-outline-success btn-sm" @onclick="OpenMessageModal">
-                        <i class="bi bi-whatsapp me-1"></i> Enviar Mensaje
-                    </button>
-                    <button class="btn btn-secondary" @onclick="() => selectedEvent = null">Cerrar</button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
-
-<MessageModal Show="showMessageModal" EventId="selectedEvent?.EventId" OnClose="CloseMessageModal" />
-
-@if (pickingForEvent is not null)
-{
-    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.4)" @onclick="ClosePicker">
-        <div class="modal-dialog modal-sm" @onclick:stopPropagation="true">
-            <div class="modal-content">
-                <div class="modal-header py-2">
-                    <h6 class="modal-title">Asignar a @pickingForEvent.EventName</h6>
-                    <button class="btn-close" @onclick="ClosePicker"></button>
-                </div>
-                <div class="modal-body p-2">
-                    <input class="form-control form-control-sm mb-2"
-                           placeholder="Búsqueda..."
-                           @bind="personPickerSearch"
-                           @bind:event="oninput"
-                           @bind:after="FilterPickerPersonnel" />
-                    <div style="max-height:300px;overflow-y:auto">
-                        @if (pickerPersonnel.Count == 0)
-                        {
-                            <div class="text-muted small px-1">Sin resultados</div>
-                        }
-                        else
-                        {
-                            @foreach (var person in pickerPersonnel)
-                            {
-                                <div class="person-chip @GetRoleClass(person) mb-1"
-                                     style="cursor:pointer"
-                                     @onclick="() => AssignPersonFromPicker(person)"
-                                     title="@GetRoleLabel(person)">
-                                    <i class="bi bi-person-fill me-1"></i>
-                                    <span>@person.FullName</span>
-                                </div>
-                            }
-                        }
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-}
+<MessageModal Show="showMessageModal" EventId="messageEventId" OnClose="CloseMessageModal" />
 
 @code {
     private DateTime weekStart;
@@ -230,19 +138,15 @@
     private List<Person> allPersonnel = new();
     private List<Person> filteredPersonnel = new();
     private string personSearch = "";
+    private string personnelFilter = "Regular";
     private Person? draggedPerson;
-    private Event? selectedEvent;
     private bool showMessageModal;
-    private string? dropMessage;
-    private bool dropSuccess;
+    private int? messageEventId;
     private string currentUserId = "";
-    private Event? pickingForEvent;
-    private string personPickerSearch = "";
-    private List<Person> pickerPersonnel = new();
 
     protected override async Task OnInitializedAsync()
     {
-        weekStart = GetMonday(DateTime.Today);
+        weekStart = GetMonday(SettingsState.Today);
         var authState = await AuthState.GetAuthenticationStateAsync();
         currentUserId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
         await LoadData();
@@ -256,7 +160,7 @@
         {
             var allActiveEvents = await EventSvc.GetActiveWithAssignmentsAsync();
             var nearestEvent = allActiveEvents
-                .OrderBy(e => Math.Abs((NormalizeToLocal(e.StartDateTime) - DateTime.Now).TotalMinutes))
+                .OrderBy(e => Math.Abs((NormalizeToLocal(e.StartDateTime) - SettingsState.Now).TotalMinutes))
                 .FirstOrDefault();
 
             if (nearestEvent is not null)
@@ -266,9 +170,20 @@
             }
         }
 
-        allPersonnel = await PersonSvc.GetAllAsync(active: true);
-        FilterPersonnel();
+        await LoadPersonnel();
         ComputeAllLayouts();
+    }
+
+    private async Task LoadPersonnel()
+    {
+        allPersonnel = await PersonSvc.GetAllAsync(active: true, isMassGroup: personnelFilter == "Masivos");
+        FilterPersonnel();
+    }
+
+    private async Task OnPersonnelFilterChanged(string value)
+    {
+        personnelFilter = value;
+        await LoadPersonnel();
     }
 
     private void FilterPersonnel()
@@ -278,11 +193,17 @@
             : allPersonnel.Where(p => p.FullName.Contains(personSearch, StringComparison.OrdinalIgnoreCase)).ToList();
     }
 
+    private void OnPersonSearchChanged(string val)
+    {
+        personSearch = val;
+        FilterPersonnel();
+    }
+
     private string WeekLabel => $"{weekStart:MMM d} – {weekStart.AddDays(6):MMM d, yyyy}";
 
     private async Task PrevWeek() { weekStart = weekStart.AddDays(-7); await LoadData(); }
     private async Task NextWeek() { weekStart = weekStart.AddDays(7); await LoadData(); }
-    private async Task GoToday() { weekStart = GetMonday(DateTime.Today); await LoadData(); }
+    private async Task GoToday() { weekStart = GetMonday(SettingsState.Today); await LoadData(); }
 
     private static DateTime GetMonday(DateTime date)
     {
@@ -300,7 +221,7 @@
     }
 
     // Pixel height = duration × slot height, so event block spans its full time range
-    private static double GetEventHeightPx(Event ev)
+    private double GetEventHeightPx(Event ev)
     {
         const int slotPx = 56;
         var duration = NormalizeToLocal(ev.EndDateTime) - NormalizeToLocal(ev.StartDateTime);
@@ -319,78 +240,90 @@
             NormalizeToLocal(e.EndDateTime) > slotStart);
         if (ev is null) { draggedPerson = null; return; }
 
+        var person = draggedPerson;
+        draggedPerson = null;
+        await AssignPersonToEvent(ev, person);
+    }
+
+    private async Task<bool> AssignPersonToEvent(Event ev, Person person)
+    {
         var assignment = new Assignment
         {
             EventId = ev.EventId,
-            PersonId = draggedPerson.PersonId,
+            PersonId = person.PersonId,
             StartDateTime = ev.StartDateTime,
             EndDateTime = ev.EndDateTime,
             Status = AssignmentStatus.Candidato
         };
 
         var (success, errMsg) = await AssignmentSvc.CreateAsync(assignment, currentUserId);
-        dropSuccess = success;
-        dropMessage = success ? $"Asignado {draggedPerson.FullName} a {ev.EventName}" : errMsg;
-        draggedPerson = null;
 
-        if (success) await LoadData();
+        if (success)
+        {
+            Snackbar.Add($"Asignado {person.FullName} a {ev.EventName}", Severity.Success);
+            await LoadData();
+            StateHasChanged();
+        }
+        else
+        {
+            Snackbar.Add(errMsg ?? "Error al asignar", Severity.Error);
+        }
 
-        _ = Task.Delay(4000).ContinueWith(_ => { dropMessage = null; InvokeAsync(StateHasChanged); });
+        return success;
     }
 
     private void OpenNewEvent(DateTime slotStart) => Nav.NavigateTo($"/events/new?start={slotStart:yyyy-MM-ddTHH:mm}");
     private void OpenPersonAvailability(int personId) => Nav.NavigateTo($"/personnel/{personId}/availability");
 
-    private void OpenEventDetail(Event ev) => selectedEvent = ev;
-
-    private async Task RemoveAssignment(int id)
+    private async Task OpenEventDetail(Event ev)
     {
-        await AssignmentSvc.DeleteAsync(id, currentUserId);
-        await LoadData();
-        if (selectedEvent is not null)
-            selectedEvent = weekEvents.FirstOrDefault(e => e.EventId == selectedEvent.EventId);
+        var parameters = new DialogParameters<EventColumnDetailDialog>
+        {
+            { x => x.Ev, ev },
+            { x => x.CurrentUserId, currentUserId }
+        };
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true
+        };
+        var dialog = await DialogService.ShowAsync<EventColumnDetailDialog>(ev.EventName, parameters, options);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: string action })
+        {
+            if (action == "whatsapp")
+            {
+                messageEventId = ev.EventId;
+                showMessageModal = true;
+            }
+            else if (action == "refresh")
+            {
+                await LoadData();
+            }
+        }
     }
 
-    private void OnAssignmentsAreaClick(Event ev)
+    private async Task OnAssignmentsAreaClick(Event ev)
     {
         if (draggedPerson is not null) return;
-        pickingForEvent = ev;
-        personPickerSearch = "";
-        pickerPersonnel = allPersonnel.ToList();
-    }
 
-    private void FilterPickerPersonnel()
-    {
-        pickerPersonnel = string.IsNullOrWhiteSpace(personPickerSearch)
-            ? allPersonnel.ToList()
-            : allPersonnel.Where(p => p.FullName.Contains(personPickerSearch, StringComparison.OrdinalIgnoreCase)).ToList();
-    }
-
-    private async Task AssignPersonFromPicker(Person person)
-    {
-        if (pickingForEvent is null) return;
-        draggedPerson = person;
-        await OnDropOnSlot(NormalizeToLocal(pickingForEvent.StartDateTime));
-        pickingForEvent = null;
-        personPickerSearch = "";
-    }
-
-    private void ClosePicker()
-    {
-        pickingForEvent = null;
-        personPickerSearch = "";
-    }
-
-    private void OpenMessageModal() => showMessageModal = true;
-    private void CloseMessageModal() => showMessageModal = false;
-
-    private async Task ChangeStatus(Assignment a, string statusStr)
-    {
-        if (Enum.TryParse<AssignmentStatus>(statusStr, out var status))
+        var parameters = new DialogParameters<PersonPickerDialog>
         {
-            await AssignmentSvc.UpdateStatusAsync(a.AssignmentId, status, currentUserId);
-            a.Status = status;
-        }
+            { x => x.EventName, ev.EventName },
+            { x => x.Personnel, allPersonnel },
+            { x => x.OnPick, (Func<Person, Task<bool>>)(person => AssignPersonToEvent(ev, person)) }
+        };
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
+        await DialogService.ShowAsync<PersonPickerDialog>("", parameters, options);
+    }
+
+    private void CloseMessageModal()
+    {
+        showMessageModal = false;
+        messageEventId = null;
     }
 
     private static string GetRoleClass(Person p)
@@ -424,31 +357,13 @@
         return ev.Active ? staffClass : $"{staffClass} event-inactive";
     }
 
-    private static string GetStatusBadge(AssignmentStatus status) => status switch
-    {
-        AssignmentStatus.Confirmado => "bg-success",
-        AssignmentStatus.Asignado => "bg-primary",
-        AssignmentStatus.Disponible => "bg-info text-dark",
-        AssignmentStatus.Ofrecido => "bg-warning text-dark",
-        AssignmentStatus.Candidato => "bg-secondary",
-        _ => "bg-secondary"
-    };
-
     private static string FormatRequirements(Event ev)
     {
         var otherLabel = string.IsNullOrWhiteSpace(ev.RequiredOtherLabel) ? "Otro" : ev.RequiredOtherLabel;
         return $"Supervisores: {ev.RequiredSupervisors}, Ushers: {ev.RequiredUshers}, {otherLabel}: {ev.RequiredOther}";
     }
 
-    private static DateTime NormalizeToLocal(DateTime value)
-    {
-        return value.Kind switch
-        {
-            DateTimeKind.Utc => value.ToLocalTime(),
-            DateTimeKind.Local => value,
-            _ => DateTime.SpecifyKind(value, DateTimeKind.Local)
-        };
-    }
+    private DateTime NormalizeToLocal(DateTime value) => SettingsState.ToDisplay(value);
 
     // ── Overlap layout ──────────────────────────────────────────────────────
 

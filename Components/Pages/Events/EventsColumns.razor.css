@@ -13,8 +13,8 @@
 }
 
 .personnel-panel {
-    width: 220px;
-    min-width: 200px;
+    width: 200px;
+    min-width: 180px;
     flex-shrink: 0;
     border-right: 1px solid #D8DEE6;
     display: flex;
@@ -142,8 +142,8 @@
 
 @media (max-width: 767.98px) {
     .personnel-panel {
-        width: 160px;
-        min-width: 150px;
+        width: 140px;
+        min-width: 120px;
     }
 
     .events-columns-grid {

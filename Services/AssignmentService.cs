@@ -9,12 +9,14 @@ public class AssignmentService
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly AuditService _audit;
     private readonly AvailabilityService _availability;
+    private readonly AppSettingsState _settings;
 
-    public AssignmentService(IDbContextFactory<AppDbContext> dbFactory, AuditService audit, AvailabilityService availability)
+    public AssignmentService(IDbContextFactory<AppDbContext> dbFactory, AuditService audit, AvailabilityService availability, AppSettingsState settings)
     {
         _dbFactory = dbFactory;
         _audit = audit;
         _availability = availability;
+        _settings = settings;
     }
 
     public async Task<List<Assignment>> GetAllAsync(int? eventId = null, int? personId = null)
@@ -44,12 +46,8 @@ public class AssignmentService
             .FirstOrDefaultAsync(a => a.AssignmentId == id);
     }
 
-    private static DateTime ToUtc(DateTime value) => value.Kind switch
-    {
-        DateTimeKind.Utc => value,
-        DateTimeKind.Local => value.ToUniversalTime(),
-        _ => DateTime.SpecifyKind(value, DateTimeKind.Local).ToUniversalTime()
-    };
+    private DateTime ToUtc(DateTime value) =>
+        value.Kind == DateTimeKind.Utc ? value : _settings.ToUtc(value);
 
     public async Task<(bool Success, string Error)> CreateAsync(Assignment assignment, string actorUserId)
     {

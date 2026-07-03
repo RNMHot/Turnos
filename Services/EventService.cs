@@ -8,11 +8,13 @@ public class EventService
 {
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly AuditService _audit;
+    private readonly AppSettingsState _settings;
 
-    public EventService(IDbContextFactory<AppDbContext> dbFactory, AuditService audit)
+    public EventService(IDbContextFactory<AppDbContext> dbFactory, AuditService audit, AppSettingsState settings)
     {
         _dbFactory = dbFactory;
         _audit = audit;
+        _settings = settings;
     }
 
     public async Task<List<Event>> GetAllAsync(string? search = null, int? companyId = null,
@@ -20,7 +22,7 @@ public class EventService
     {
         await using var db = await _dbFactory.CreateDbContextAsync();
 
-        var today = DateTime.UtcNow.Date;
+        var today = _settings.ToUtc(_settings.Today);
         await db.Events
             .Where(e => e.Active && e.EndDateTime < today)
             .ExecuteUpdateAsync(s => s.SetProperty(e => e.Active, false));
@@ -54,8 +56,10 @@ public class EventService
         var events = await db.Events
             .AsNoTracking()
             .Include(e => e.Company)
-            .Include(e => e.Location)
-            .Include(e => e.Assignments.Where(a => !a.Deleted)).ThenInclude(a => a.Person)
+            .Include(e => e.Location).ThenInclude(l => l!.Positions)
+            .Include(e => e.Assignments.Where(a => !a.Deleted)).ThenInclude(a => a.Person).ThenInclude(p => p.PersonRoles).ThenInclude(pr => pr.Role)
+            .Include(e => e.Assignments.Where(a => !a.Deleted)).ThenInclude(a => a.LocationPosition)
+            .Include(e => e.Assignments.Where(a => !a.Deleted)).ThenInclude(a => a.Role)
             //.Where(e => e.Active)
             .OrderBy(e => e.StartDateTime)
             .ToListAsync();
@@ -85,15 +89,7 @@ public class EventService
             .ToListAsync();
     }
 
-    private static DateTime NormalizeToLocal(DateTime value)
-    {
-        return value.Kind switch
-        {
-            DateTimeKind.Utc => value.ToLocalTime(),
-            DateTimeKind.Local => value,
-            _ => DateTime.SpecifyKind(value, DateTimeKind.Local)
-        };
-    }
+    private DateTime NormalizeToLocal(DateTime value) => _settings.ToDisplay(value);
 
     public async Task<Event?> GetByIdAsync(int id)
     {
@@ -126,15 +122,8 @@ public class EventService
         await _audit.LogAsync(actorUserId, "Update", "Event", ev.EventId, $"Updated {ev.EventName}");
     }
 
-    private static DateTime ToUtc(DateTime value)
-    {
-        return value.Kind switch
-        {
-            DateTimeKind.Utc => value,
-            DateTimeKind.Local => value.ToUniversalTime(),
-            _ => DateTime.SpecifyKind(value, DateTimeKind.Local).ToUniversalTime()
-        };
-    }
+    private DateTime ToUtc(DateTime value) =>
+        value.Kind == DateTimeKind.Utc ? value : _settings.ToUtc(value);
 
     public async Task DeactivateAsync(int id, string actorUserId)
     {
