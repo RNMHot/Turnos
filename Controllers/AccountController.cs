@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 
 namespace Turnos.Controllers;
 
@@ -36,15 +37,18 @@ public class AccountController : Controller
             }
 
             if (await _accessControl.MustChangePasswordAsync(user))
-                return Redirect("/account/change-password?returnUrl=" + Uri.EscapeDataString(returnUrl ?? ""));
+                return RedirectAfterAuth("/account/change-password?returnUrl=" + Uri.EscapeDataString(returnUrl ?? ""));
 
             var roles = await _accessControl.GetRoleNamesAsync(user);
             var hasFullAccess = roles.Contains("Gerencia") || roles.Contains("Admin");
 
             if (!hasFullAccess)
-                return Redirect(string.IsNullOrEmpty(returnUrl) ? "/attendance/checkin" : returnUrl);
+            {
+                var defaultUrl = roles.Contains("Supervisor") ? "/supervisor" : "/attendance/checkin";
+                return RedirectAfterAuth(IsUsableReturnUrl(returnUrl) ? returnUrl! : defaultUrl);
+            }
 
-            return Redirect(returnUrl ?? "/");
+            return RedirectAfterAuth(returnUrl ?? "/");
         }
 
         return Redirect("/account/login?error=1&returnUrl=" + Uri.EscapeDataString(returnUrl ?? ""));
@@ -74,10 +78,29 @@ public class AccountController : Controller
         var hasFullAccess = roles.Contains("Gerencia") || roles.Contains("Admin");
 
         if (!hasFullAccess)
-            return Redirect(string.IsNullOrEmpty(returnUrl) ? "/attendance/checkin" : returnUrl);
+        {
+            var defaultUrl = roles.Contains("Supervisor") ? "/supervisor" : "/attendance/checkin";
+            return RedirectAfterAuth(IsUsableReturnUrl(returnUrl) ? returnUrl! : defaultUrl);
+        }
 
-        return Redirect(returnUrl ?? "/");
+        return RedirectAfterAuth(returnUrl ?? "/");
     }
+
+    // Safari on iOS can drop a cookie set on a response that also carries a 3xx redirect
+    // (observed on some devices right after sign-in). Sending a 200 page that navigates via
+    // JS gives the cookie jar a chance to commit before the next request is made.
+    private IActionResult RedirectAfterAuth(string url)
+    {
+        var html = $"<!DOCTYPE html><html><head><meta charset=\"utf-8\"></head>" +
+                   $"<body><script>location.replace({JsonSerializer.Serialize(url)});</script></body></html>";
+        return Content(html, "text/html");
+    }
+
+    // "/" is the Gerencia/Admin-only home page. Blindly honoring a returnUrl of "/" for a
+    // non-full-access user sends them straight into an access-denied bounce back to this same
+    // login page, looking exactly like a failed sign-in.
+    private static bool IsUsableReturnUrl(string? returnUrl) =>
+        !string.IsNullOrEmpty(returnUrl) && returnUrl != "/";
 
     [HttpGet("signout")]
     public async Task<IActionResult> SignOutUser()

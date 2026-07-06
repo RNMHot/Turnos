@@ -22,7 +22,7 @@
     </div>
 </div>
 
-<MudTextField @bind-Value="_searchString" Placeholder="Buscar persona, evento o cliente..."
+<MudTextField @bind-Value="_searchString" Placeholder="Buscar persona, evento o localización..."
               Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
               Immediate="true" Clearable="true" Class="mb-3" Style="max-width:400px"
               Variant="Variant.Outlined" Margin="Margin.Dense" />
@@ -37,12 +37,12 @@
                 Persona
             </MudTableSortLabel>
         </MudTh>
+        <MudTh>Localización</MudTh>
         <MudTh>
             <MudTableSortLabel SortBy="new Func<Assignment, object>(x => x.Event?.EventName ?? string.Empty)">
                 Evento
             </MudTableSortLabel>
         </MudTh>
-        <MudTh>Cliente</MudTh>
         <MudTh>Posición</MudTh>
         <MudTh>
             <MudTableSortLabel SortBy="new Func<Assignment, object>(x => x.StartDateTime)">
@@ -59,8 +59,8 @@
     </HeaderContent>
     <RowTemplate>
         <MudTd DataLabel="Persona">@context.Person?.FullName</MudTd>
+        <MudTd DataLabel="Locación">@(context.Event?.Location?.Name ?? "—")</MudTd>
         <MudTd DataLabel="Evento">@context.Event?.EventName</MudTd>
-        <MudTd DataLabel="Cliente">@(context.Event?.Company?.Name ?? "—")</MudTd>
         <MudTd DataLabel="Posición">@(context.LocationPosition?.Name ?? "—")</MudTd>
         <MudTd DataLabel="Inicio">@context.StartDateTime.ToString("MMM d, h:mm tt")</MudTd>
         <MudTd DataLabel="Fin">@context.EndDateTime.ToString("h:mm tt")</MudTd>
@@ -120,7 +120,7 @@
         string.IsNullOrWhiteSpace(_searchString)
         || (a.Person?.FullName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false)
         || (a.Event?.EventName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false)
-        || (a.Event?.Company?.Name?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false)
+        || (a.Event?.Location?.Name?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false)
         || (a.LocationPosition?.Name?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false);
 
     private async Task OpenDetailDialog(TableRowClickEventArgs<Assignment> args)

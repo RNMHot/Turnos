@@ -87,16 +87,28 @@
                                 }
                                 else
                                 {
-                                    @foreach (var a in ev.Assignments)
+                                    @foreach (var a in ev.Assignments.OrderBy(a => a.Person.FullName))
                                     {
                                         <div class="assignment-row d-flex align-items-center justify-content-between gap-2"
                                              @onclick:stopPropagation="true">
-                                            <div class="d-flex align-items-center gap-2">
-                                                <span class="assignment-name">@a.Person.FullName</span>
-                                                <MudChip T="string" Color="@GetStatusColor(a.Status)"
-                                                         Size="Size.Small" Variant="Variant.Filled" Class="ma-0">
-                                                    @a.Status
-                                                </MudChip>
+                                            <div class="d-flex flex-column">
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <span class="assignment-name">@a.Person.FullName</span>
+                                                    @if (a.LocationPosition is not null)
+                                                    {
+                                                        <span class="small text-muted">(@a.LocationPosition.Name)</span>
+                                                    }
+                                                    <MudChip T="string" Color="@GetStatusColor(a.Status)"
+                                                             Size="Size.Small" Variant="Variant.Filled" Class="ma-0">
+                                                        @a.Status
+                                                    </MudChip>
+                                                </div>
+                                                @if (HasCustomTime(a, ev))
+                                                {
+                                                    <span class="small text-muted">
+                                                        @SettingsState.ToDisplay(a.StartDateTime).ToString("h:mm tt") - @SettingsState.ToDisplay(a.EndDateTime).ToString("h:mm tt")
+                                                    </span>
+                                                }
                                             </div>
                                             <span @onclick:stopPropagation="true">
                                                 <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Error"
@@ -304,6 +316,9 @@
 
         return assignedTotal >= requiredTotal ? "event-staffed" : "event-unstaffed";
     }
+
+    private static bool HasCustomTime(Assignment a, Event ev) =>
+        a.StartDateTime != ev.StartDateTime || a.EndDateTime != ev.EndDateTime;
 
     private static Color GetStatusColor(AssignmentStatus status) => status switch
     {

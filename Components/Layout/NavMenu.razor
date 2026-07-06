@@ -6,6 +6,9 @@
 
 <div class="nav-container @(Collapsed ? "nav-collapsed" : "")">
     <div class="top-row ps-3 navbar navbar-dark">
+        <button class="mobile-nav-toggle" @onclick="ToggleNavMenu" @onclick:stopPropagation="true" title="Abrir menú" aria-label="Abrir menú">
+            <i class="bi bi-list"></i>
+        </button>
         <div class="container-fluid justify-content-center">
             <a class="navbar-brand text-center" href="/">
                 @if (!string.IsNullOrEmpty(_logoDataUrl))
@@ -113,7 +116,7 @@
                 }
             }
 
-            <div class="nav-item px-3">
+            <div class="nav-item px-3 herramientas-toggle">
                 <button class="nav-link btn btn-link w-100 text-start d-flex align-items-center gap-1"
                         @onclick="ToggleHerramientas" @onclick:stopPropagation="true" title="Herramientas de trabajo">
                     <i class="bi bi-tools me-2"></i>
@@ -121,21 +124,26 @@
                     <i class="bi @(showHerramientas ? "bi-chevron-up" : "bi-chevron-down") small opacity-75 chevron-icon"></i>
                 </button>
             </div>
-            @if (showHerramientas)
-            {
-                <div class="nav-sub" @onclick:stopPropagation="true">
+            <div class="nav-sub herramientas-sub @(showHerramientas ? "" : "herramientas-sub-collapsed")" @onclick:stopPropagation="true">
+                @if (isSupervisor || isGerenciaOrAdmin)
+                {
                     <div class="nav-item px-3 ps-4">
-                        <NavLink class="nav-link nav-link-sub" href="/attendance/checkin" title="Registro rapido de asistencia">
-                            <i class="bi bi-phone me-2"></i><span class="nav-text">Ponchador</span>
+                        <NavLink class="nav-link nav-link-sub" href="/supervisor" title="Panel de supervisor">
+                            <i class="bi bi-person-badge me-2"></i><span class="nav-text">Panel de Supervisor</span>
                         </NavLink>
                     </div>
-                    <div class="nav-item px-3 ps-4">
-                        <NavLink class="nav-link nav-link-sub" href="/settings/change-password" title="Cambiar contraseña">
-                            <i class="bi bi-key me-2"></i><span class="nav-text">Mi contraseña</span>
-                        </NavLink>
-                    </div>
+                }
+                <div class="nav-item px-3 ps-4">
+                    <NavLink class="nav-link nav-link-sub" href="/attendance/checkin" title="Registro rapido de asistencia">
+                        <i class="bi bi-phone me-2"></i><span class="nav-text">Ponchador</span>
+                    </NavLink>
                 </div>
-            }
+                <div class="nav-item px-3 ps-4">
+                    <NavLink class="nav-link nav-link-sub" href="/settings/change-password" title="Cambiar contraseña">
+                        <i class="bi bi-key me-2"></i><span class="nav-text">Mi contraseña</span>
+                    </NavLink>
+                </div>
+            </div>
         </nav>
     </div>
 </div>
@@ -148,12 +156,14 @@
     private bool showConfig = false;
     private bool showHerramientas = true;
     private bool isGerenciaOrAdmin;
+    private bool isSupervisor;
     private string? _logoDataUrl;
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         isGerenciaOrAdmin = authState.User.IsInRole("Gerencia") || authState.User.IsInRole("Admin");
+        isSupervisor = authState.User.IsInRole("Supervisor");
 
         _logoDataUrl = await SettingsSvc.GetValueAsync("BrandLogoBase64");
         SettingsState.OnChange += OnSettingsChanged;

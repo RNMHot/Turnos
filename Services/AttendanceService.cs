@@ -35,6 +35,18 @@ public class AttendanceService
             .ToListAsync();
     }
 
+    public async Task<List<Attendance>> GetByEventAsync(int eventId)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        return await db.Attendances
+            .Include(a => a.Person)
+            .Include(a => a.Breaks)
+            .Where(a => a.EventId == eventId)
+            .OrderBy(a => a.Person.FullName)
+            .ThenBy(a => a.CheckInDateTime)
+            .ToListAsync();
+    }
+
     public async Task<Attendance?> GetByIdAsync(int id)
     {
         await using var db = await _dbFactory.CreateDbContextAsync();
@@ -112,8 +124,6 @@ public class AttendanceService
     public async Task<(bool Success, string Error, Attendance? Attendance)> StartShiftAsync(int personId, int eventId, DateTime checkIn, string actorUserId)
     {
         await using var db = await _dbFactory.CreateDbContextAsync();
-        if (await db.Attendances.AnyAsync(a => a.PersonId == personId && a.CheckOutDateTime == null))
-            return (false, "La persona ya tiene una asistencia abierta.", null);
 
         var attendance = new Attendance
         {
@@ -262,20 +272,12 @@ public class AttendanceService
         await _audit.LogAsync(actorUserId, "Delete", "AttendanceBreak", breakId, "Break deleted");
     }
 
-    private static async Task<string?> ValidateAttendanceAsync(AppDbContext db, Attendance attendance, int? currentAttendanceId)
+    private static Task<string?> ValidateAttendanceAsync(AppDbContext db, Attendance attendance, int? currentAttendanceId)
     {
         if (attendance.CheckOutDateTime.HasValue && attendance.CheckOutDateTime <= attendance.CheckInDateTime)
-            return "La salida debe ser posterior a la entrada.";
+            return Task.FromResult<string?>("La salida debe ser posterior a la entrada.");
 
-        var hasOpenShift = await db.Attendances.AnyAsync(a =>
-            a.PersonId == attendance.PersonId &&
-            a.AttendanceId != currentAttendanceId &&
-            a.CheckOutDateTime == null);
-
-        if (hasOpenShift)
-            return "La persona ya tiene una asistencia abierta.";
-
-        return null;
+        return Task.FromResult<string?>(null);
     }
 
     private static string? ValidateBreakWindow(Attendance attendance, DateTime breakStartUtc, DateTime? breakEndUtc, int? currentBreakId)

@@ -44,7 +44,8 @@ builder.Services.ConfigureApplicationCookie(options =>
 
 // Blazor
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+    .AddInteractiveServerComponents()
+    .AddHubOptions(o => o.MaximumReceiveMessageSize = 15 * 1024 * 1024);
 
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddAuthorizationCore(options =>
@@ -75,6 +76,8 @@ builder.Services.AddScoped<LocationService>();
 builder.Services.AddScoped<EventService>();
 builder.Services.AddScoped<AssignmentService>();
 builder.Services.AddScoped<AttendanceService>();
+builder.Services.AddScoped<EventCommentService>();
+builder.Services.AddScoped<EventContractService>();
 builder.Services.AddScoped<AvailabilityService>();
 builder.Services.AddScoped<WhatsAppService>();
 builder.Services.AddScoped<CalendarService>();

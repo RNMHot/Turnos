@@ -361,3 +361,7 @@ a, .btn-link { color: var(--color-accent); }
     .personnel-panel { width: 140px; min-width: 120px; }
     .week-grid { grid-auto-rows: 48px; }
 }
+
+/* MudDatePicker/MudTimePicker popovers render at the anchor's width unless forced wider —
+   without this the calendar/clock dialog gets clipped when the field itself is narrow. */
+.mud-picker-popover-paper { min-width: 310px !important; }

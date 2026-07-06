@@ -17,6 +17,8 @@ public class Person
 
     public bool Active { get; set; } = true;
 
+    public bool SignInEnabled { get; set; } = true;
+
     public bool Deleted { get; set; }
 
     public bool IsMassGroup { get; set; }

@@ -1,5 +1,8 @@
 @inherits LayoutComponentBase
 @attribute [Authorize(Policy = "AppAccess")]
+@implements IDisposable
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
 
 <MudThemeProvider Theme="_theme" />
 <MudPopoverProvider />
@@ -17,7 +20,7 @@
                 <button class="sidebar-toggle-btn" @onclick="ToggleSidebar" title="Alternar menú">
                     <i class="bi bi-list"></i>
                 </button>
-                <span class="fw-bold text-white">Turnos — Personal de Eventos</span>
+                <span class="fw-bold text-white">@TopRowTitle</span>
             </div>
             <AuthorizeView>
                 <Authorized>
@@ -41,6 +44,18 @@
 
 @code {
     private bool _sidebarCollapsed = false;
+    private bool _isUjier = false;
+
+    private string TopRowTitle
+    {
+        get
+        {
+            if (!_isUjier) return "Turnos — Manejo de Eventos";
+            if (Nav.Uri.Contains("/attendance/checkin", StringComparison.OrdinalIgnoreCase)) return "Registro de Asistencia";
+            if (Nav.Uri.Contains("/supervisor", StringComparison.OrdinalIgnoreCase)) return "Panel de Supervisor";
+            return "Turnos — Manejo de Eventos";
+        }
+    }
 
     private readonly MudTheme _theme = new()
     {
@@ -59,4 +74,16 @@
     };
 
     private void ToggleSidebar() => _sidebarCollapsed = !_sidebarCollapsed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _isUjier = !(authState.User.IsInRole("Gerencia") || authState.User.IsInRole("Admin"));
+
+        Nav.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Nav.LocationChanged -= OnLocationChanged;
 }

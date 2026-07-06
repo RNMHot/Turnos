@@ -1,5 +1,6 @@
 @inject AssignmentService AssignmentSvc
 @inject PersonService PersonSvc
+@inject EventContractService ContractSvc
 @inject IDialogService DialogService
 @inject AppSettingsState SettingsState
 
@@ -10,27 +11,36 @@
     <DialogContent>
         <MudDivider Class="mb-3" Style="border-top-width:2px; opacity:0.6;" />
         <MudGrid Spacing="1">
-            <MudItem xs="12">
+            <MudItem xs="12" sm="6">
                 <MudText><strong>Cliente:</strong> @Ev.Company?.Name</MudText>
             </MudItem>
-            <MudItem xs="12">
-                <MudText><strong>Hora:</strong> @SettingsState.ToDisplay(Ev.StartDateTime).ToString("MMM d, h:mm tt") – @SettingsState.ToDisplay(Ev.EndDateTime).ToString("h:mm tt")</MudText>
-            </MudItem>
-            <MudItem xs="12">
+            <MudItem xs="12" sm="6">
                 <MudText><strong>Requeridos:</strong> @FormatRequirements(Ev)</MudText>
             </MudItem>
-            <MudItem xs="12">
-                <MudText><strong>Asignados:</strong> @FormatAssigned(Ev)</MudText>
-            </MudItem>
-            <MudItem xs="12">
+            <MudItem xs="12" sm="6">
                 <MudText>
                     <strong>Localización:</strong> @(Ev.Location?.Name ?? "—")
                 </MudText>
             </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudText><strong>Asignados:</strong> @FormatAssigned(Ev)</MudText>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudText><strong>Hora:</strong> @SettingsState.ToDisplay(Ev.StartDateTime).ToString("MMM d, h:mm tt") – @SettingsState.ToDisplay(Ev.EndDateTime).ToString("h:mm tt")</MudText>
+            </MudItem>
             @if (!string.IsNullOrEmpty(Ev.Notes))
             {
-                <MudItem xs="12">
+                <MudItem xs="12" sm="6">
                     <MudText><strong>Notas:</strong> @Ev.Notes</MudText>
+                </MudItem>
+            }
+            @if (!string.IsNullOrEmpty(_contractFileName))
+            {
+                <MudItem xs="12" sm="6">
+                    <MudText>
+                        <strong>Contrato:</strong>
+                        <MudLink Href="@($"/events/{Ev.EventId}/contract")" Target="_blank">@_contractFileName</MudLink>
+                    </MudText>
                 </MudItem>
             }
         </MudGrid>
@@ -39,12 +49,22 @@
         <MudText Typo="Typo.subtitle2" Class="mb-2">Asignados</MudText>
 
         <div style="max-height:280px; overflow-y:auto;">
-            @foreach (var a in Ev.Assignments)
+            @foreach (var a in Ev.Assignments.OrderBy(a => a.Person.FullName))
             {
                 <div class="d-flex align-items-center gap-2 mb-1">
                     <div style="flex:1; background-color:#DDF3E4; border-radius:6px; padding:6px 12px;">
                         <MudText Typo="Typo.body2" Style="color:#1B6E52; font-weight:500">@a.Person.FullName</MudText>
+                        @if (HasCustomTime(a))
+                        {
+                            <MudText Typo="Typo.caption" Style="color:#1B6E52">
+                                @SettingsState.ToDisplay(a.StartDateTime).ToString("h:mm tt") – @SettingsState.ToDisplay(a.EndDateTime).ToString("h:mm tt")
+                            </MudText>
+                        }
                     </div>
+                    <MudIconButton Icon="@Icons.Material.Filled.Schedule"
+                                   Color="@(HasCustomTime(a) ? Color.Warning : Color.Default)"
+                                   Size="Size.Small" title="Cambiar horario"
+                                   OnClick="@(() => EditTimes(a))" />
                     @if (Ev.Location?.Positions?.Any() == true)
                     {
                         <MudSelect T="int?" Value="@a.LocationPositionId"
@@ -101,13 +121,17 @@
     [Parameter] public string CurrentUserId { get; set; } = "";
 
     private List<Role> _allRoles = new();
+    private string? _contractFileName;
+    private bool _dirty;
 
     protected override async Task OnInitializedAsync()
     {
         _allRoles = await PersonSvc.GetRolesAsync();
+        var contractMeta = await ContractSvc.GetMetadataAsync(Ev.EventId);
+        _contractFileName = contractMeta?.FileName;
     }
 
-    private void Close() => MudDialog.Cancel();
+    private void Close() => MudDialog.Close(_dirty ? DialogResult.Ok("refresh") : DialogResult.Cancel());
     private void SendWhatsApp() => MudDialog.Close(DialogResult.Ok("whatsapp"));
 
     private async Task ChangeStatus(Assignment a, AssignmentStatus status)
@@ -121,7 +145,7 @@
     {
         await AssignmentSvc.UpdatePositionAsync(a.AssignmentId, locationPositionId, CurrentUserId);
         a.LocationPositionId = locationPositionId;
-        MudDialog.Close(DialogResult.Ok("refresh"));
+        _dirty = true;
     }
 
     private async Task ChangeRole(Assignment a, int? roleId)
@@ -130,6 +154,29 @@
         a.RoleId = roleId;
         a.Role = _allRoles.FirstOrDefault(r => r.RoleId == roleId);
         MudDialog.Close(DialogResult.Ok("refresh"));
+    }
+
+    private bool HasCustomTime(Assignment a) =>
+        a.StartDateTime != Ev.StartDateTime || a.EndDateTime != Ev.EndDateTime;
+
+    private async Task EditTimes(Assignment a)
+    {
+        var parameters = new DialogParameters<AssignmentTimeDialog>
+        {
+            { x => x.AssignmentId, a.AssignmentId },
+            { x => x.PersonName, a.Person.FullName },
+            { x => x.StartDateTime, a.StartDateTime },
+            { x => x.EndDateTime, a.EndDateTime },
+            { x => x.EventStartDateTime, Ev.StartDateTime },
+            { x => x.EventEndDateTime, Ev.EndDateTime },
+            { x => x.CurrentUserId, CurrentUserId }
+        };
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
+        var result = await DialogService.ShowAsync<AssignmentTimeDialog>("", parameters, options);
+        var dialogResult = await result.Result;
+
+        if (dialogResult is not null && !dialogResult.Canceled)
+            MudDialog.Close(DialogResult.Ok("refresh"));
     }
 
     // Falls back to the person's highest-rank role when the event has no explicit override yet.

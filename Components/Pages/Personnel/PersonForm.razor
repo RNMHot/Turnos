@@ -112,6 +112,10 @@ else
                         <InputCheckbox @bind-Value="person.IsMassGroup" class="form-check-input" id="isMassGroup" />
                         <label class="form-check-label" for="isMassGroup">Pertenece al grupo Masivo</label>
                     </div>
+                    <div class="mb-0 form-check">
+                        <InputCheckbox @bind-Value="person.SignInEnabled" class="form-check-input" id="signInEnabled" />
+                        <label class="form-check-label" for="signInEnabled">Habilitado para ingresar a la aplicación</label>
+                    </div>
                     <div class="mb-3 form-check">
                         <InputCheckbox @bind-Value="person.Active" class="form-check-input" id="active" />
                         <label class="form-check-label" for="active">Activo</label>

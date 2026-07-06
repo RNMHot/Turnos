@@ -25,6 +25,8 @@ public class AppDbContext : IdentityDbContext
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<WhatsAppGroup> WhatsAppGroups => Set<WhatsAppGroup>();
     public DbSet<LocationPosition> LocationPositions => Set<LocationPosition>();
+    public DbSet<EventComment> EventComments => Set<EventComment>();
+    public DbSet<EventContract> EventContracts => Set<EventContract>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -112,6 +114,32 @@ public class AppDbContext : IdentityDbContext
 
         builder.Entity<WhatsAppGroup>().HasQueryFilter(g => !g.Deleted);
         builder.Entity<LocationPosition>().HasQueryFilter(p => !p.Deleted);
+        builder.Entity<EventComment>().HasQueryFilter(c => !c.Deleted);
+
+        builder.Entity<EventComment>()
+            .HasIndex(c => new { c.EventId, c.CreatedAt });
+
+        builder.Entity<EventComment>()
+            .HasOne(c => c.Event)
+            .WithMany()
+            .HasForeignKey(c => c.EventId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<EventComment>()
+            .HasOne(c => c.Person)
+            .WithMany()
+            .HasForeignKey(c => c.PersonId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<EventContract>()
+            .HasIndex(c => c.EventId)
+            .IsUnique();
+
+        builder.Entity<EventContract>()
+            .HasOne(c => c.Event)
+            .WithOne()
+            .HasForeignKey<EventContract>(c => c.EventId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.Entity<LocationPosition>()
             .HasOne(p => p.Location)

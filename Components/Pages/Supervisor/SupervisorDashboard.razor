@@ -1,0 +1,648 @@
+@page "/supervisor"
+@attribute [Authorize(Policy = "AppAccess", Roles = "Supervisor,Gerencia,Admin")]
+@rendermode InteractiveServer
+@inject AssignmentService AssignmentSvc
+@inject AttendanceService AttendanceSvc
+@inject EventService EventSvc
+@inject EventCommentService CommentSvc
+@inject AuthenticationStateProvider AuthState
+@inject AppSettingsState SettingsState
+@inject ISnackbar Snackbar
+
+<PageTitle>Panel de Supervisor - Turnos</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-3 d-none d-md-block">Panel de Supervisor</MudText>
+
+@if (!eventChoices.Any())
+{
+    <MudText Typo="Typo.body2" Color="Color.Secondary">
+        No tiene eventos asignados próximamente.
+    </MudText>
+}
+else
+{
+    <MudPaper Elevation="2" Class="pa-3 mb-3 rounded">
+        <MudSelect T="int?" Value="selectedEventId" ValueChanged="OnEventChanged" Label="Evento"
+                   Placeholder="Seleccione un evento"
+                   Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:460px">
+            @foreach (var ec in eventChoices)
+            {
+                <MudSelectItem T="int?" Value="@((int?)ec.Event.EventId)">
+                    @ec.Event.EventName (@SettingsState.ToDisplay(ec.Event.StartDateTime).ToString("MMM d, h:mm tt"))
+                </MudSelectItem>
+            }
+        </MudSelect>
+    </MudPaper>
+}
+
+@if (selectedEventId is null)
+{
+    <MudText Color="Color.Secondary">Seleccione un evento para continuar.</MudText>
+}
+else if (viewAsSupervisor)
+{
+    @if (selectedEvent is not null)
+    {
+        <MudPaper Elevation="2" Class="pa-3 mb-3 rounded">
+            <MudText Typo="Typo.h6" Class="mb-2">@selectedEvent.EventName</MudText>
+            <MudGrid Spacing="1">
+                <MudItem xs="12" sm="6">
+                    <MudText><strong>Cliente:</strong> @selectedEvent.Company?.Name</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudText><strong>Contacto:</strong> @(selectedEvent.Company?.ContactName ?? "—") @(string.IsNullOrEmpty(selectedEvent.Company?.PhoneNumber) ? "" : $"({selectedEvent.Company.PhoneNumber})")</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudText><strong>Localización:</strong> @(selectedEvent.Location?.Name ?? "—")</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudText><strong>Dirección:</strong> @(selectedEvent.Location?.Address ?? "—")</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudText>
+                        <strong>Hora:</strong> @SettingsState.ToDisplay(selectedEvent.StartDateTime).ToString("MMM d, h:mm tt") – @SettingsState.ToDisplay(selectedEvent.EndDateTime).ToString("h:mm tt")
+                    </MudText>
+                </MudItem>
+                @if (!string.IsNullOrEmpty(selectedEvent.Notes))
+                {
+                    <MudItem xs="12" sm="6">
+                        <MudText><strong>Notas:</strong> @selectedEvent.Notes</MudText>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudPaper>
+
+        <MudPaper Elevation="2" Class="pa-3 mb-3 rounded">
+            <MudText Typo="Typo.subtitle1" Class="mb-2">Asistencia</MudText>
+            @foreach (var personGroup in attendanceRows.GroupBy(r => r.PersonId))
+            {
+                <div class="mb-3 pb-2" style="border-bottom:1px solid #eee">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="fw-semibold">@personGroup.First().PersonName</span>
+                            <span class="small text-muted ms-2">@personGroup.First().RoleName</span>
+                        </div>
+                        <MudIconButton Icon="@Icons.Material.Filled.Add" Size="Size.Small" Color="Color.Primary"
+                                       title="Agregar otro turno"
+                                       OnClick="@(() => AddRowFor(personGroup.Key, personGroup.First().PersonName))" />
+                    </div>
+                    @foreach (var row in personGroup)
+                    {
+                        <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                            <div>
+                                <label class="small text-muted d-flex align-items-center gap-1">
+                                    Entrada
+                                    @if (row.SavedCheckInLocal.HasValue)
+                                    {
+                                        <i class="bi bi-check-circle-fill text-success" title="Guardado en la base de datos"></i>
+                                    }
+                                </label>
+                                <div class="d-flex align-items-center gap-1 @(IsCheckInSavedAndClean(row) ? "saved-clean" : "")">
+                                    <div style="max-width:120px">
+                                        <MudTimePicker @bind-Time="row.CheckInTime" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                       Editable="true" AmPm="true"
+                                                       AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" />
+                                    </div>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" title="Quitar entrada"
+                                                   OnClick="@(() => row.CheckInTime = null)" />
+                                </div>
+                            </div>
+                            <div>
+                                <label class="small text-muted d-flex align-items-center gap-1">
+                                    Salida
+                                    @if (row.SavedCheckOutLocal.HasValue)
+                                    {
+                                        <i class="bi bi-check-circle-fill text-success" title="Guardado en la base de datos"></i>
+                                    }
+                                </label>
+                                <div class="d-flex align-items-center gap-1 @(IsCheckOutSavedAndClean(row) ? "saved-clean" : "")">
+                                    @if (IsMultiDayEvent)
+                                    {
+                                        <div style="max-width:140px">
+                                            <MudDatePicker @bind-Date="row.CheckOutDate" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                           Editable="true" DateFormat="MM/dd"
+                                                           MinDate="EventStartDate" MaxDate="EventEndDate"
+                                                           AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" />
+                                        </div>
+                                    }
+                                    <div style="max-width:120px">
+                                        <MudTimePicker @bind-Time="row.CheckOutTime" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                       Editable="true" AmPm="true"
+                                                       AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" />
+                                    </div>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" title="Quitar salida"
+                                                   OnClick="@(() => { row.CheckOutTime = null; row.CheckOutDate = null; })" />
+                                </div>
+                            </div>
+                            <div style="flex:1; min-width:160px">
+                                <label class="small text-muted d-block">Notas</label>
+                                <input class="form-control form-control-sm" @bind="row.Notes" @bind:event="oninput" />
+                            </div>
+                            <MudIconButton Icon="@Icons.Material.Filled.Save" Color="Color.Success" Size="Size.Small"
+                                           title="Guardar" OnClick="@(() => SaveRow(row))" />
+                        </div>
+                    }
+                </div>
+            }
+            @if (!attendanceRows.Any())
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary">No hay personal asignado a este evento.</MudText>
+            }
+        </MudPaper>
+
+        <MudPaper Elevation="2" Class="pa-3 mb-3 rounded">
+            <MudText Typo="Typo.subtitle1" Class="mb-2">Notas del evento</MudText>
+            @if (currentPersonId.HasValue)
+            {
+                <MudTextField T="string" @bind-Value="newCommentText" Label="Nuevo comentario" Variant="Variant.Outlined"
+                              Lines="2" Margin="Margin.Dense" Class="mb-2" />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                           OnClick="AddComment" Disabled="@string.IsNullOrWhiteSpace(newCommentText)">
+                    Agregar comentario
+                </MudButton>
+                <MudDivider Class="my-3" />
+            }
+            @foreach (var c in comments)
+            {
+                <div class="mb-2">
+                    <div class="small text-muted">● @c.Person.FullName · @SettingsState.ToDisplay(c.CreatedAt).ToString("yyyy-MM-dd h:mm tt")</div>
+                    <div>@c.Text</div>
+                </div>
+            }
+            @if (!comments.Any())
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary">No hay comentarios.</MudText>
+            }
+        </MudPaper>
+    }
+}
+else
+{
+    @if (!string.IsNullOrWhiteSpace(ucStatusMsg))
+    {
+        <div class="alert @(ucStatusOk ? "alert-success" : "alert-danger") py-2">@ucStatusMsg</div>
+    }
+
+    <div class="card shadow-sm mb-3" style="max-width:500px">
+        <div class="card-body">
+            <h6 class="mb-2">Entrada / Salida</h6>
+            <div class="mb-2">
+                <label class="form-label">Hora de entrada</label>
+                <div class="d-flex gap-1">
+                    <MudDatePicker @bind-Date="CheckInDate" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    <MudTimePicker @bind-Time="CheckInTime" Variant="Variant.Outlined" Margin="Margin.Dense" AmPm="true" />
+                </div>
+            </div>
+            <div class="mb-2">
+                <label class="form-label">Hora de salida</label>
+                <div class="d-flex gap-1">
+                    <MudDatePicker @bind-Date="CheckOutDate" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    <MudTimePicker @bind-Time="CheckOutTime" Variant="Variant.Outlined" Margin="Margin.Dense" AmPm="true" />
+                </div>
+            </div>
+
+            <div class="d-grid gap-2">
+                <button class="btn btn-primary" @onclick="RegisterCheckIn" disabled="@(openAttendance is not null)">
+                    Registrar entrada
+                </button>
+                <button class="btn btn-outline-danger" @onclick="RegisterCheckOut" disabled="@(openAttendance is null)">
+                    Registrar salida
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm" style="max-width:500px">
+        <div class="card-body">
+            <h6 class="mb-2">Descansos</h6>
+            <div class="mb-2">
+                <label class="form-label">Inicio descanso</label>
+                <div class="d-flex gap-1">
+                    <MudDatePicker @bind-Date="BreakStartDate" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    <MudTimePicker @bind-Time="BreakStartTime" Variant="Variant.Outlined" Margin="Margin.Dense" AmPm="true" />
+                </div>
+            </div>
+            <div class="mb-2">
+                <label class="form-label">Fin descanso</label>
+                <div class="d-flex gap-1">
+                    <MudDatePicker @bind-Date="BreakEndDate" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    <MudTimePicker @bind-Time="BreakEndTime" Variant="Variant.Outlined" Margin="Margin.Dense" AmPm="true" />
+                </div>
+            </div>
+
+            <div class="d-grid gap-2">
+                <button class="btn btn-outline-secondary" @onclick="StartBreak" disabled="@(openAttendance is null)">
+                    Iniciar descanso
+                </button>
+                <button class="btn btn-outline-secondary" @onclick="EndBreak" disabled="@(openAttendance is null)">
+                    Terminar descanso abierto
+                </button>
+                <button class="btn btn-outline-secondary" @onclick="AddClosedBreak" disabled="@(openAttendance is null)">
+                    Registrar descanso completo
+                </button>
+            </div>
+
+            @if (openAttendance is not null)
+            {
+                <hr />
+                <div class="small text-muted">Turno abierto</div>
+                <div class="fw-semibold">@openAttendance.Event.EventName</div>
+                <div class="small">Entrada: @SettingsState.ToDisplay(openAttendance.CheckInDateTime).ToString("yyyy-MM-dd HH:mm")</div>
+                <div class="small">Descansos: @openAttendance.Breaks.Count</div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private record EventChoice(Event Event, bool IsSupervisor);
+
+    private class AttendanceRow
+    {
+        public int PersonId { get; set; }
+        public string PersonName { get; set; } = "";
+        public string? RoleName { get; set; }
+        public int? AttendanceId { get; set; }
+        public TimeSpan? CheckInTime { get; set; }
+        public TimeSpan? CheckOutTime { get; set; }
+        public DateTime? CheckOutDate { get; set; }
+        public DateTime? SavedCheckInLocal { get; set; }
+        public DateTime? SavedCheckOutLocal { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    private DateTime EventStartDate => SettingsState.ToDisplay(selectedEvent!.StartDateTime).Date;
+    private DateTime EventEndDate => SettingsState.ToDisplay(selectedEvent!.EndDateTime).Date;
+    private bool IsMultiDayEvent => EventEndDate != EventStartDate;
+
+    private DateTime? ComputeCheckIn(AttendanceRow row) =>
+        row.CheckInTime is null ? null : EventStartDate + row.CheckInTime.Value;
+
+    private DateTime? ComputeCheckOut(AttendanceRow row)
+    {
+        if (row.CheckOutTime is null) return null;
+        var date = IsMultiDayEvent ? (row.CheckOutDate ?? EventStartDate) : EventStartDate;
+        return date + row.CheckOutTime.Value;
+    }
+
+    private bool IsCheckInSavedAndClean(AttendanceRow row) =>
+        row.SavedCheckInLocal.HasValue && row.SavedCheckInLocal == ComputeCheckIn(row);
+
+    private bool IsCheckOutSavedAndClean(AttendanceRow row) =>
+        row.SavedCheckOutLocal.HasValue && row.SavedCheckOutLocal == ComputeCheckOut(row);
+
+    private int? currentPersonId;
+    private string userId = "";
+    private bool hasFullAccess;
+    private List<EventChoice> eventChoices = new();
+    private int? selectedEventId;
+    private bool viewAsSupervisor;
+
+    // Supervisor view state
+    private Event? selectedEvent;
+    private List<AttendanceRow> attendanceRows = new();
+    private List<EventComment> comments = new();
+    private string newCommentText = "";
+
+    // Usher self check-in view state
+    private Attendance? openAttendance;
+    private DateTime checkInLocal;
+    private DateTime checkOutLocal;
+    private DateTime breakStartLocal;
+    private DateTime breakEndLocal;
+    private string? ucStatusMsg;
+    private bool ucStatusOk;
+
+    private DateTime? CheckInDate
+    {
+        get => checkInLocal.Date;
+        set => checkInLocal = (value ?? checkInLocal.Date) + checkInLocal.TimeOfDay;
+    }
+    private TimeSpan? CheckInTime
+    {
+        get => checkInLocal.TimeOfDay;
+        set => checkInLocal = checkInLocal.Date + (value ?? TimeSpan.Zero);
+    }
+    private DateTime? CheckOutDate
+    {
+        get => checkOutLocal.Date;
+        set => checkOutLocal = (value ?? checkOutLocal.Date) + checkOutLocal.TimeOfDay;
+    }
+    private TimeSpan? CheckOutTime
+    {
+        get => checkOutLocal.TimeOfDay;
+        set => checkOutLocal = checkOutLocal.Date + (value ?? TimeSpan.Zero);
+    }
+    private DateTime? BreakStartDate
+    {
+        get => breakStartLocal.Date;
+        set => breakStartLocal = (value ?? breakStartLocal.Date) + breakStartLocal.TimeOfDay;
+    }
+    private TimeSpan? BreakStartTime
+    {
+        get => breakStartLocal.TimeOfDay;
+        set => breakStartLocal = breakStartLocal.Date + (value ?? TimeSpan.Zero);
+    }
+    private DateTime? BreakEndDate
+    {
+        get => breakEndLocal.Date;
+        set => breakEndLocal = (value ?? breakEndLocal.Date) + breakEndLocal.TimeOfDay;
+    }
+    private TimeSpan? BreakEndTime
+    {
+        get => breakEndLocal.TimeOfDay;
+        set => breakEndLocal = breakEndLocal.Date + (value ?? TimeSpan.Zero);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        var user = authState.User;
+        hasFullAccess = user.IsInRole("Gerencia") || user.IsInRole("Admin");
+        userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+
+        var personClaim = user.FindFirst(TurnosClaimTypes.PersonId)?.Value;
+        currentPersonId = int.TryParse(personClaim, out var pid) ? pid : null;
+
+        var todayUtc = SettingsState.ToUtc(SettingsState.Today);
+
+        if (currentPersonId.HasValue)
+        {
+            var assignments = await AssignmentSvc.GetAllAsync(personId: currentPersonId.Value);
+            eventChoices = assignments
+                .Where(a => !a.Deleted && a.Status == AssignmentStatus.Asignado
+                            && a.Event.Active && a.Event.EndDateTime >= todayUtc)
+                .GroupBy(a => a.Event.EventId)
+                .Select(g =>
+                {
+                    var a = g.OrderBy(x => x.StartDateTime).First();
+                    var roleName = EffectiveRoleName(a);
+                    return new EventChoice(a.Event, hasFullAccess || roleName == "Supervisor");
+                })
+                .OrderBy(ec => ec.Event.StartDateTime)
+                .ToList();
+        }
+        else
+        {
+            var events = await EventSvc.GetAllAsync(active: true);
+            eventChoices = events
+                .Where(e => e.EndDateTime >= todayUtc)
+                .OrderBy(e => e.StartDateTime)
+                .Select(e => new EventChoice(e, true))
+                .ToList();
+        }
+
+        var nowUtc = DateTime.UtcNow;
+        var toSelect = eventChoices.FirstOrDefault(ec => ec.Event.StartDateTime <= nowUtc && ec.Event.EndDateTime >= nowUtc)
+            ?? eventChoices.FirstOrDefault(ec => ec.Event.StartDateTime > nowUtc)
+            ?? eventChoices.FirstOrDefault();
+
+        if (toSelect is not null)
+            await OnEventChanged(toSelect.Event.EventId);
+    }
+
+    private async Task OnEventChanged(int? eventId)
+    {
+        selectedEventId = eventId;
+        if (eventId is null)
+        {
+            selectedEvent = null;
+            return;
+        }
+
+        var choice = eventChoices.FirstOrDefault(ec => ec.Event.EventId == eventId);
+        viewAsSupervisor = choice?.IsSupervisor ?? false;
+
+        if (viewAsSupervisor)
+            await LoadSupervisorView(eventId.Value);
+        else
+            await LoadUsherView(eventId.Value);
+    }
+
+    private static string? EffectiveRoleName(Assignment a)
+    {
+        if (a.Role is not null) return a.Role.Name;
+        var roleId = AssignmentService.GetHighestRankRoleId(a.Person);
+        return a.Person.PersonRoles.FirstOrDefault(pr => pr.RoleId == roleId)?.Role?.Name;
+    }
+
+    private async Task LoadSupervisorView(int eventId)
+    {
+        selectedEvent = await EventSvc.GetByIdAsync(eventId);
+        if (selectedEvent is null) return;
+
+        var attendances = await AttendanceSvc.GetByEventAsync(eventId);
+        attendanceRows = new List<AttendanceRow>();
+        foreach (var a in selectedEvent.Assignments.OrderBy(x => x.Person.FullName))
+        {
+            var roleName = $"{EffectiveRoleName(a)}{(a.LocationPosition is not null ? $" · {a.LocationPosition.Name}" : "")}";
+            var existing = attendances.Where(at => at.PersonId == a.PersonId).ToList();
+            if (existing.Count == 0)
+            {
+                attendanceRows.Add(new AttendanceRow
+                {
+                    PersonId = a.PersonId,
+                    PersonName = a.Person.FullName,
+                    RoleName = roleName
+                });
+            }
+            else
+            {
+                foreach (var at in existing)
+                {
+                    var checkIn = SettingsState.ToDisplay(at.CheckInDateTime);
+                    DateTime? checkOut = at.CheckOutDateTime.HasValue ? SettingsState.ToDisplay(at.CheckOutDateTime.Value) : null;
+                    attendanceRows.Add(new AttendanceRow
+                    {
+                        PersonId = a.PersonId,
+                        PersonName = a.Person.FullName,
+                        RoleName = roleName,
+                        AttendanceId = at.AttendanceId,
+                        CheckInTime = checkIn.TimeOfDay,
+                        CheckOutTime = checkOut?.TimeOfDay,
+                        CheckOutDate = checkOut?.Date,
+                        SavedCheckInLocal = checkIn,
+                        SavedCheckOutLocal = checkOut,
+                        Notes = at.Notes
+                    });
+                }
+            }
+        }
+
+        comments = await CommentSvc.GetForEventAsync(eventId);
+        newCommentText = "";
+    }
+
+    private void AddRowFor(int personId, string personName)
+    {
+        attendanceRows.Add(new AttendanceRow
+        {
+            PersonId = personId,
+            PersonName = personName
+        });
+    }
+
+    private async Task SaveRow(AttendanceRow row)
+    {
+        if (row.CheckInTime is null)
+        {
+            Snackbar.Add("Debe indicar la hora de entrada.", Severity.Warning);
+            return;
+        }
+
+        if (selectedEventId is null || selectedEvent is null)
+            return;
+
+        var checkIn = ComputeCheckIn(row)!.Value;
+        var checkOut = ComputeCheckOut(row);
+
+        if (row.AttendanceId is null)
+        {
+            var attendance = new Attendance
+            {
+                PersonId = row.PersonId,
+                EventId = selectedEventId.Value,
+                CheckInDateTime = checkIn,
+                CheckOutDateTime = checkOut,
+                Notes = row.Notes
+            };
+            var (success, error, created) = await AttendanceSvc.CreateAsync(attendance, userId);
+            if (!success)
+            {
+                Snackbar.Add(error, Severity.Error);
+                return;
+            }
+        }
+        else
+        {
+            var existing = await AttendanceSvc.GetByIdAsync(row.AttendanceId.Value);
+            if (existing is null)
+            {
+                Snackbar.Add("No se encontró el registro.", Severity.Error);
+                return;
+            }
+
+            existing.CheckInDateTime = checkIn;
+            existing.CheckOutDateTime = checkOut;
+            existing.Notes = row.Notes;
+            var (success, error) = await AttendanceSvc.UpdateAsync(existing, userId);
+            if (!success)
+            {
+                Snackbar.Add(error, Severity.Error);
+                return;
+            }
+        }
+
+        Snackbar.Add("Asistencia guardada.", Severity.Success);
+        await LoadSupervisorView(selectedEventId.Value);
+    }
+
+    private async Task AddComment()
+    {
+        if (string.IsNullOrWhiteSpace(newCommentText) || !currentPersonId.HasValue || selectedEventId is null)
+            return;
+
+        var (success, error, _) = await CommentSvc.AddAsync(selectedEventId.Value, currentPersonId.Value, newCommentText, userId);
+        if (!success)
+        {
+            Snackbar.Add(error, Severity.Error);
+            return;
+        }
+
+        newCommentText = "";
+        comments = await CommentSvc.GetForEventAsync(selectedEventId.Value);
+    }
+
+    private async Task LoadUsherView(int eventId)
+    {
+        checkInLocal = SettingsState.Now;
+        checkOutLocal = SettingsState.Now;
+        breakStartLocal = SettingsState.Now;
+        breakEndLocal = SettingsState.Now.AddMinutes(15);
+        ucStatusMsg = null;
+        await LoadOpenAttendance();
+    }
+
+    private async Task LoadOpenAttendance()
+    {
+        ucStatusMsg = null;
+        if (!currentPersonId.HasValue)
+        {
+            openAttendance = null;
+            return;
+        }
+
+        openAttendance = await AttendanceSvc.GetOpenAttendanceForPersonAsync(currentPersonId.Value);
+    }
+
+    private async Task RegisterCheckIn()
+    {
+        if (!currentPersonId.HasValue || selectedEventId is null)
+        {
+            SetUcStatus(false, "Debe seleccionar un evento.");
+            return;
+        }
+
+        var result = await AttendanceSvc.StartShiftAsync(currentPersonId.Value, selectedEventId.Value, checkInLocal, "employee");
+        SetUcStatus(result.Success, result.Success ? "Entrada registrada." : result.Error);
+        await LoadOpenAttendance();
+    }
+
+    private async Task RegisterCheckOut()
+    {
+        if (openAttendance is null)
+        {
+            SetUcStatus(false, "No hay turno abierto.");
+            return;
+        }
+
+        var result = await AttendanceSvc.EndShiftAsync(openAttendance.AttendanceId, checkOutLocal, "employee");
+        SetUcStatus(result.Success, result.Success ? "Salida registrada." : result.Error);
+        await LoadOpenAttendance();
+    }
+
+    private async Task StartBreak()
+    {
+        if (openAttendance is null)
+        {
+            SetUcStatus(false, "No hay turno abierto.");
+            return;
+        }
+
+        var result = await AttendanceSvc.AddBreakAsync(openAttendance.AttendanceId, breakStartLocal, null, null, "employee");
+        SetUcStatus(result.Success, result.Success ? "Descanso iniciado." : result.Error);
+        await LoadOpenAttendance();
+    }
+
+    private async Task EndBreak()
+    {
+        if (openAttendance is null)
+        {
+            SetUcStatus(false, "No hay turno abierto.");
+            return;
+        }
+
+        var result = await AttendanceSvc.EndOpenBreakAsync(openAttendance.AttendanceId, breakEndLocal, "employee");
+        SetUcStatus(result.Success, result.Success ? "Descanso terminado." : result.Error);
+        await LoadOpenAttendance();
+    }
+
+    private async Task AddClosedBreak()
+    {
+        if (openAttendance is null)
+        {
+            SetUcStatus(false, "No hay turno abierto.");
+            return;
+        }
+
+        var result = await AttendanceSvc.AddBreakAsync(openAttendance.AttendanceId, breakStartLocal, breakEndLocal, null, "employee");
+        SetUcStatus(result.Success, result.Success ? "Descanso registrado." : result.Error);
+        await LoadOpenAttendance();
+    }
+
+    private void SetUcStatus(bool ok, string message)
+    {
+        ucStatusOk = ok;
+        ucStatusMsg = message;
+    }
+}

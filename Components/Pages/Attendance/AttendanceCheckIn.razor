@@ -4,6 +4,7 @@
 @inject AttendanceService AttendanceSvc
 @inject PersonService PersonSvc
 @inject EventService EventSvc
+@inject AssignmentService AssignmentSvc
 @inject AuthenticationStateProvider AuthState
 @inject NavigationManager Nav
 @inject AppSettingsState SettingsState
@@ -11,10 +12,12 @@
 <PageTitle>Registro de asistencia - Turnos</PageTitle>
 
 <div class="checkin-page container py-3">
-    <div class="text-center mb-3">
-        <h5 class="mb-1">Registro de Asistencia</h5>
-        <div class="text-muted small">Uso para movil</div>
-    </div>
+    @if (isGerenciaOrAdmin)
+    {
+        <div class="text-center mb-3">
+            <h5 class="mb-1">Registro de Asistencia</h5>
+        </div>
+    }
 
     @if (!string.IsNullOrWhiteSpace(statusMsg))
     {
@@ -24,7 +27,7 @@
     <div class="card shadow-sm mb-3">
         <div class="card-body">
             <div class="mb-2">
-                <label class="form-label">Persona</label>
+                <label class="form-label">Asignado</label>
                 <input class="form-control" value="@currentPersonName" disabled />
             </div>
             <div class="mb-2">
@@ -115,10 +118,12 @@
 
     private string? statusMsg;
     private bool statusOk;
+    private bool isGerenciaOrAdmin;
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthState.GetAuthenticationStateAsync();
+        isGerenciaOrAdmin = authState.User.IsInRole("Gerencia") || authState.User.IsInRole("Admin");
         var personClaim = authState.User.FindFirst(TurnosClaimTypes.PersonId)?.Value;
         if (!int.TryParse(personClaim, out var personId))
         {
@@ -136,7 +141,15 @@
         breakStartLocal = SettingsState.Now;
         breakEndLocal = SettingsState.Now.AddMinutes(15);
 
-        events = await EventSvc.GetAllAsync(from: SettingsState.Today.AddDays(-1), to: SettingsState.Today.AddDays(14), active: true);
+        var todayUtc = SettingsState.ToUtc(SettingsState.Today);
+        var assignments = await AssignmentSvc.GetAllAsync(personId: personId);
+        events = assignments
+            .Where(a => !a.Deleted && a.Status == AssignmentStatus.Asignado
+                        && a.Event.Active && a.Event.EndDateTime >= todayUtc)
+            .Select(a => a.Event)
+            .DistinctBy(e => e.EventId)
+            .OrderBy(e => e.StartDateTime)
+            .ToList();
         await LoadOpenAttendance();
     }
 

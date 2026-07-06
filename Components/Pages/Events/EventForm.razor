@@ -3,6 +3,7 @@
 @attribute [Authorize(Policy = "AppAccess", Roles = "Gerencia,Admin")]
 @rendermode InteractiveServer
 @inject EventService EventSvc
+@inject EventContractService ContractSvc
 @inject CompanyService CompanySvc
 @inject LocationService LocationSvc
 @inject AuthenticationStateProvider AuthState
@@ -221,6 +222,41 @@
                 <MudTextField @bind-Value="ev.Notes" Label="Notas"
                               Lines="3" Variant="Variant.Outlined" />
             </MudItem>
+            @if (!createMultiple)
+            {
+                <MudItem xs="12">
+                    <MudText Typo="Typo.body2" Class="mb-1">Contrato</MudText>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <MudFileUpload T="IBrowserFile" FilesChanged="OnContractSelected" Accept=".pdf,image/*">
+                            <CustomContent Context="fileUpload">
+                                <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                                           StartIcon="@Icons.Material.Filled.AttachFile"
+                                           OnClick="@(() => fileUpload.OpenFilePickerAsync())">
+                                    @(string.IsNullOrEmpty(contractFileName) ? "Adjuntar contrato" : "Reemplazar contrato")
+                                </MudButton>
+                            </CustomContent>
+                        </MudFileUpload>
+
+                        @if (!string.IsNullOrEmpty(contractFileName))
+                        {
+                            @if (Id != 0 && !contractChanged)
+                            {
+                                <MudLink Href="@($"/events/{Id}/contract")" Target="_blank">@contractFileName</MudLink>
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.body2">@contractFileName</MudText>
+                            }
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                           OnClick="RemoveContract" title="Quitar contrato" />
+                        }
+                    </div>
+                    @if (contractError is not null)
+                    {
+                        <MudAlert Severity="Severity.Error" Dense="true" Class="mt-1">@contractError</MudAlert>
+                    }
+                </MudItem>
+            }
             <MudItem xs="12">
                 <MudCheckBox T="bool" @bind-Value="ev.Active" Label="Activo" />
             </MudItem>
@@ -280,6 +316,14 @@
     private bool createMultiple;
     private string? recurrenceError;
     private string? saveError;
+    private string? contractError;
+    private string? contractFileName;
+    private string? contractContentType;
+    private byte[]? pendingContractData;
+    private bool contractChanged;
+    private bool contractMarkedForRemoval;
+    private static readonly string[] AllowedContractExtensions = { ".pdf", ".jpg", ".jpeg", ".png", ".webp", ".gif" };
+    private const long MaxContractBytes = 10 * 1024 * 1024;
     private string userId = string.Empty;
     private DateTime startLocal;
     private DateTime endLocal;
@@ -301,6 +345,10 @@
             var existing = await EventSvc.GetByIdAsync(Id);
             if (existing is not null)
                 ev = existing;
+
+            var contractMeta = await ContractSvc.GetMetadataAsync(Id);
+            contractFileName = contractMeta?.FileName;
+            contractContentType = contractMeta?.ContentType;
         }
 
         if (string.IsNullOrWhiteSpace(ev.RequiredOtherLabel))
@@ -356,6 +404,46 @@
         endLocal = (_endDate?.Date ?? SettingsState.Today) + (time ?? TimeSpan.Zero);
     }
 
+    private async Task OnContractSelected(IBrowserFile? file)
+    {
+        contractError = null;
+        if (file is null)
+            return;
+
+        var ext = Path.GetExtension(file.Name).ToLowerInvariant();
+        if (!AllowedContractExtensions.Contains(ext))
+        {
+            contractError = "El contrato debe ser un PDF o una imagen (jpg, png, webp, gif).";
+            return;
+        }
+
+        if (file.Size > MaxContractBytes)
+        {
+            contractError = "El archivo no puede superar 10 MB.";
+            return;
+        }
+
+        using var stream = file.OpenReadStream(MaxContractBytes);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+
+        pendingContractData = ms.ToArray();
+        contractFileName = file.Name;
+        contractContentType = file.ContentType;
+        contractChanged = true;
+        contractMarkedForRemoval = false;
+    }
+
+    private void RemoveContract()
+    {
+        pendingContractData = null;
+        contractFileName = null;
+        contractContentType = null;
+        contractError = null;
+        contractChanged = true;
+        contractMarkedForRemoval = true;
+    }
+
     private async Task Save()
     {
         saving = true;
@@ -386,6 +474,14 @@
                     await EventSvc.CreateAsync(ev, userId);
                 else
                     await EventSvc.UpdateAsync(ev, userId);
+
+                if (contractChanged)
+                {
+                    if (contractMarkedForRemoval)
+                        await ContractSvc.RemoveAsync(ev.EventId, userId);
+                    else if (pendingContractData is not null)
+                        await ContractSvc.SaveAsync(ev.EventId, contractFileName!, contractContentType!, pendingContractData, userId);
+                }
             }
 
             Nav.NavigateTo("/events");

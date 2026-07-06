@@ -5,20 +5,21 @@
 
 <PageTitle>Registro de Acciones — Turnos</PageTitle>
 
-<h4 class="mb-3"><i class="bi bi-clock-history me-2"></i>Registro de Acciones</h4>
+<div class="d-flex flex-column" style="height:100%; min-height:0;">
+    <h4 class="mb-3"><i class="bi bi-clock-history me-2"></i>Registro de Acciones</h4>
 
-<div class="d-flex gap-2 mb-3 flex-wrap">
-    <input class="form-control form-control-sm" style="max-width:200px" placeholder="Tipo de entidad…" @bind="filterEntity" @bind:after="Load" />
-    <input type="date" class="form-control form-control-sm" style="max-width:150px" @bind="filterFrom" @bind:after="Load" />
-    <input type="date" class="form-control form-control-sm" style="max-width:150px" @bind="filterTo" @bind:after="Load" />
-</div>
+    <div class="d-flex gap-2 mb-3 flex-wrap">
+        <input class="form-control form-control-sm" style="max-width:200px" placeholder="Tipo de entidad…" @bind="filterEntity" @bind:after="Load" />
+        <input type="date" class="form-control form-control-sm" style="max-width:150px" @bind="filterFrom" @bind:after="Load" />
+        <input type="date" class="form-control form-control-sm" style="max-width:150px" @bind="filterTo" @bind:after="Load" />
+    </div>
 
-<div class="table-responsive">
-    <table class="table table-sm align-middle">
-        <thead class="table-light">
-            <tr><th>Fecha/hora</th><th>Usuario</th><th>Acción</th><th>Opción</th><th>ID</th><th>Detalles</th></tr>
-        </thead>
-        <tbody>
+    <div class="table-responsive flex-grow-1" style="overflow-y:auto; min-height:0;">
+        <table class="table table-sm align-middle">
+            <thead class="table-light" style="position:sticky; top:0; z-index:1;">
+                <tr><th>Fecha/hora</th><th>Usuario</th><th>Acción</th><th>Opción</th><th>ID</th><th>Detalles</th></tr>
+            </thead>
+            <tbody>
             @foreach (var a in logs)
             {
                 <tr>
@@ -38,8 +39,9 @@
             {
                 <tr><td colspan="6" class="text-muted text-center py-4">No hay registros de auditoría.</td></tr>
             }
-        </tbody>
-    </table>
+            </tbody>
+        </table>
+    </div>
 </div>
 
 @code {

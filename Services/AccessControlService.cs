@@ -20,7 +20,7 @@ public class AccessControlService
 
         await using var db = await _dbFactory.CreateDbContextAsync();
         var person = await GetPersonForUserAsync(db, user);
-        return person?.Active == true;
+        return person?.Active == true && person.SignInEnabled;
     }
 
     public async Task<int?> GetPersonIdAsync(IdentityUser user)
@@ -48,8 +48,13 @@ public class AccessControlService
                 .ThenInclude(pr => pr.Role)
             .FirstOrDefaultAsync(p => p.Email != null && user.Email != null && p.Email.ToLower() == user.Email.ToLower());
 
-        if (person?.Active == true && person.PersonRoles.Any(pr => pr.Role.Name == "Gerencia"))
-            roles.Add("Gerencia");
+        if (person?.Active == true)
+        {
+            if (person.PersonRoles.Any(pr => pr.Role.Name == "Gerencia"))
+                roles.Add("Gerencia");
+            if (person.PersonRoles.Any(pr => pr.Role.Name == "Supervisor"))
+                roles.Add("Supervisor");
+        }
 
         return roles;
     }

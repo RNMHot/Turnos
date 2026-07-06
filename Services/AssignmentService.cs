@@ -25,6 +25,7 @@ public class AssignmentService
         var query = db.Assignments
             .Include(a => a.Person).ThenInclude(p => p.PersonRoles).ThenInclude(pr => pr.Role)
             .Include(a => a.Event).ThenInclude(e => e.Company)
+            .Include(a => a.Event).ThenInclude(e => e.Location)
             .Include(a => a.LocationPosition)
             .Include(a => a.Role)
             .AsQueryable();
@@ -130,6 +131,30 @@ public class AssignmentService
         a.RoleId = roleId;
         await db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Update", "Assignment", id, "Role changed for this event");
+    }
+
+    public async Task<(bool Success, string Error)> UpdateTimesAsync(int id, DateTime start, DateTime end, string actorUserId)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var a = await db.Assignments.FindAsync(id);
+        if (a is null) return (false, "Asignación no encontrada.");
+
+        start = ToUtc(start);
+        end = ToUtc(end);
+
+        if (await HasOverlapAsync(db, a.PersonId, start, end, id))
+            return (false, "Esta persona ya tiene otra asignación en ese horario.");
+
+        var person = await db.Persons.Include(p => p.Availabilities).FirstOrDefaultAsync(p => p.PersonId == a.PersonId);
+        if (person is not null && !_availability.IsPersonAvailable(person, start, end))
+            return (false, "Esta persona no está disponible en ese horario.");
+
+        a.StartDateTime = start;
+        a.EndDateTime = end;
+        await db.SaveChangesAsync();
+        await _audit.LogAsync(actorUserId, "Update", "Assignment", id, "Horario personalizado cambiado");
+
+        return (true, string.Empty);
     }
 
     public static int? GetHighestRankRoleId(Person person) =>

@@ -48,14 +48,14 @@ public class WhatsAppService
         try
         {
             var sent = await SendViaApiAsync(group.PhoneNumber, messageBody);
-            log.DeliveryStatus = sent ? "Enviado" : "Fallido";
+            log.DeliveryStatus = sent ? "Enviado" : "Falló";
             await db.SaveChangesAsync();
             return sent;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error al enviar WhatsApp al grupo {GroupId}", groupId);
-            log.DeliveryStatus = "Fallido";
+            log.DeliveryStatus = "Falló";
             await db.SaveChangesAsync();
             return false;
         }
@@ -82,14 +82,14 @@ public class WhatsAppService
         try
         {
             var sent = await SendViaApiAsync(person.PhoneNumber, messageBody);
-            log.DeliveryStatus = sent ? "Enviado" : "Fallido";
+            log.DeliveryStatus = sent ? "Enviado" : "Falló";
             await db.SaveChangesAsync();
             return sent;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error al enviar WhatsApp para la persona {PersonId}", personId);
-            log.DeliveryStatus = "Fallido";
+            log.DeliveryStatus = "Falló";
             await db.SaveChangesAsync();
             return false;
         }
@@ -111,20 +111,40 @@ public class WhatsAppService
     {
         var otherLabel = string.IsNullOrWhiteSpace(ev.RequiredOtherLabel) ? "Otro" : ev.RequiredOtherLabel;
         var staffingText = $"Equipo necesario: Supervisores {ev.RequiredSupervisors}, Ushers {ev.RequiredUshers}, {otherLabel} {ev.RequiredOther}.";
+        var locationText = FormatLocation(ev.Location);
 
         return templateName switch
         {
             "OpenAssignment" =>
                 $"Hola {person.FullName}, ¿estás disponible para {ev.EventName} el {ev.StartDateTime:MMM d 'a las' h:mm tt}? {staffingText} Responde SÍ o NO.",
             "AssignmentNotification" =>
-                $"Hola {person.FullName}, has sido asignado a {ev.EventName} el {ev.StartDateTime:MMM d 'a las' h:mm tt} en {ev.Location}. {staffingText}{(calendarUrl != null ? $" Agregar al calendario: {calendarUrl}" : "")}",
+                $"Hola {person.FullName}, has sido asignado a {ev.EventName} el {ev.StartDateTime:MMM d 'a las' h:mm tt} en {locationText}. {staffingText}{(calendarUrl != null ? $" Agregar al calendario: {calendarUrl}" : "")}",
             "EventReminder" =>
-                $"Recordatorio: {ev.EventName} mañana a las {ev.StartDateTime:h:mm tt} — {ev.Location}. {staffingText} ¡Nos vemos allí!",
+                $"Recordatorio: {ev.EventName} mañana a las {ev.StartDateTime:h:mm tt} — {locationText}. {staffingText} ¡Nos vemos allí!",
             "SupervisorDetails" =>
-                $"Información del supervisor — {ev.EventName}: Ubicación: {ev.Location}. Notas: {ev.Notes}. Inicio: {ev.StartDateTime:MMM d h:mm tt}. {staffingText}",
+                $"Información del supervisor — {ev.EventName}: Ubicación: {locationText}. Notas: {ev.Notes}. Inicio: {ev.StartDateTime:MMM d h:mm tt}. {staffingText}",
+            "EventDetails" =>
+                $"Información del evento: {ev.EventName}\n" +
+                $"Fecha: {ev.StartDateTime:dddd d 'de' MMMM}\n" +
+                $"Horario: {ev.StartDateTime:h:mm tt} a {ev.EndDateTime:h:mm tt}\n" +
+                $"Ubicación: {locationText}\n" +
+                $"Estacionamiento: {(string.IsNullOrWhiteSpace(ev.Location?.ParkingInfo) ? "No especificado" : ev.Location.ParkingInfo)}\n" +
+                (GoogleMapsUrl(ev.Location) is string mapsUrl ? $"GPS: {mapsUrl}\n" : "") +
+                staffingText,
             _ => string.Empty
         };
     }
+
+    private static string FormatLocation(Location? location)
+    {
+        if (location is null) return "Sin ubicación";
+        return string.IsNullOrWhiteSpace(location.Address) ? location.Name : $"{location.Name} ({location.Address})";
+    }
+
+    private static string? GoogleMapsUrl(Location? location)
+        => location?.Latitude is double lat && location.Longitude is double lng
+            ? $"https://maps.google.com/?q={lat},{lng}"
+            : null;
 
     private async Task<bool> SendViaApiAsync(string phoneNumber, string message)
     {

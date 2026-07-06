@@ -96,8 +96,10 @@ public class EventService
         await using var db = await _dbFactory.CreateDbContextAsync();
         return await db.Events
             .Include(e => e.Company)
-            .Include(e => e.Location)
-            .Include(e => e.Assignments).ThenInclude(a => a.Person).ThenInclude(p => p.PersonRoles).ThenInclude(pr => pr.Role)
+            .Include(e => e.Location).ThenInclude(l => l!.Positions)
+            .Include(e => e.Assignments.Where(a => !a.Deleted)).ThenInclude(a => a.Person).ThenInclude(p => p.PersonRoles).ThenInclude(pr => pr.Role)
+            .Include(e => e.Assignments.Where(a => !a.Deleted)).ThenInclude(a => a.LocationPosition)
+            .Include(e => e.Assignments.Where(a => !a.Deleted)).ThenInclude(a => a.Role)
             .FirstOrDefaultAsync(e => e.EventId == id);
     }
 

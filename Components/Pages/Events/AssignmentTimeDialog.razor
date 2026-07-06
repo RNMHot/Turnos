@@ -1,0 +1,127 @@
+@inject AssignmentService AssignmentSvc
+@inject AppSettingsState SettingsState
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Horario de @PersonName</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid Spacing="2">
+            <MudItem xs="6">
+                <MudDatePicker Date="@_startDate" DateChanged="OnStartDateChanged"
+                               Label="Fecha inicio" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            </MudItem>
+            <MudItem xs="6">
+                <MudTimePicker Time="@_startTime" TimeChanged="OnStartTimeChanged"
+                               Label="Hora inicio" Variant="Variant.Outlined" Margin="Margin.Dense" AmPm="true" />
+            </MudItem>
+            <MudItem xs="6">
+                <MudDatePicker Date="@_endDate" DateChanged="OnEndDateChanged"
+                               Label="Fecha fin" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            </MudItem>
+            <MudItem xs="6">
+                <MudTimePicker Time="@_endTime" TimeChanged="OnEndTimeChanged"
+                               Label="Hora fin" Variant="Variant.Outlined" Margin="Margin.Dense" AmPm="true" />
+            </MudItem>
+        </MudGrid>
+        @if (_error is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-2" Dense="true">@_error</MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="ResetToEventTimes" Variant="Variant.Text">Usar horario del evento</MudButton>
+        <MudButton OnClick="Close" Variant="Variant.Text">Cancelar</MudButton>
+        <MudButton OnClick="Save" Color="Color.Primary" Variant="Variant.Filled" Disabled="@_saving">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public int AssignmentId { get; set; }
+    [Parameter] public string PersonName { get; set; } = "";
+    [Parameter] public DateTime StartDateTime { get; set; }
+    [Parameter] public DateTime EndDateTime { get; set; }
+    [Parameter] public DateTime EventStartDateTime { get; set; }
+    [Parameter] public DateTime EventEndDateTime { get; set; }
+    [Parameter] public string CurrentUserId { get; set; } = "";
+
+    private DateTime _startLocal;
+    private DateTime _endLocal;
+    private DateTime? _startDate;
+    private TimeSpan? _startTime;
+    private DateTime? _endDate;
+    private TimeSpan? _endTime;
+    private string? _error;
+    private bool _saving;
+
+    protected override void OnInitialized()
+    {
+        _startLocal = SettingsState.ToDisplay(StartDateTime);
+        _endLocal = SettingsState.ToDisplay(EndDateTime);
+        SyncPickersFromLocal();
+    }
+
+    private void SyncPickersFromLocal()
+    {
+        _startDate = _startLocal.Date;
+        _startTime = _startLocal.TimeOfDay;
+        _endDate = _endLocal.Date;
+        _endTime = _endLocal.TimeOfDay;
+    }
+
+    private void ResetToEventTimes()
+    {
+        _startLocal = SettingsState.ToDisplay(EventStartDateTime);
+        _endLocal = SettingsState.ToDisplay(EventEndDateTime);
+        SyncPickersFromLocal();
+    }
+
+    private void OnStartDateChanged(DateTime? date)
+    {
+        _startDate = date;
+        _startLocal = (date?.Date ?? _startLocal.Date) + (_startTime ?? TimeSpan.Zero);
+    }
+
+    private void OnStartTimeChanged(TimeSpan? time)
+    {
+        _startTime = time;
+        _startLocal = (_startDate?.Date ?? _startLocal.Date) + (time ?? TimeSpan.Zero);
+    }
+
+    private void OnEndDateChanged(DateTime? date)
+    {
+        _endDate = date;
+        _endLocal = (date?.Date ?? _endLocal.Date) + (_endTime ?? TimeSpan.Zero);
+    }
+
+    private void OnEndTimeChanged(TimeSpan? time)
+    {
+        _endTime = time;
+        _endLocal = (_endDate?.Date ?? _endLocal.Date) + (time ?? TimeSpan.Zero);
+    }
+
+    private async Task Save()
+    {
+        if (_endLocal <= _startLocal)
+        {
+            _error = "La hora de fin debe ser posterior a la hora de inicio.";
+            return;
+        }
+
+        _saving = true;
+        _error = null;
+
+        var (success, errMsg) = await AssignmentSvc.UpdateTimesAsync(
+            AssignmentId, SettingsState.ToUtc(_startLocal), SettingsState.ToUtc(_endLocal), CurrentUserId);
+
+        _saving = false;
+
+        if (success)
+            MudDialog.Close(DialogResult.Ok(true));
+        else
+            _error = errMsg;
+    }
+
+    private void Close() => MudDialog.Cancel();
+}

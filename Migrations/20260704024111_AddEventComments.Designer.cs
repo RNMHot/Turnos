@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Turnos.Data;
 
@@ -11,9 +12,11 @@ using Turnos.Data;
 namespace Turnos.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260704024111_AddEventComments")]
+    partial class AddEventComments
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -564,42 +567,6 @@ namespace Turnos.Migrations
                     b.ToTable("EventComments");
                 });
 
-            modelBuilder.Entity("Turnos.Models.EventContract", b =>
-                {
-                    b.Property<int>("EventContractId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EventContractId"));
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<byte[]>("Data")
-                        .IsRequired()
-                        .HasColumnType("varbinary(max)");
-
-                    b.Property<int>("EventId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<DateTime>("UploadedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("EventContractId");
-
-                    b.HasIndex("EventId")
-                        .IsUnique();
-
-                    b.ToTable("EventContracts");
-                });
-
             modelBuilder.Entity("Turnos.Models.Location", b =>
                 {
                     b.Property<int>("LocationId")
@@ -746,9 +713,6 @@ namespace Turnos.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
-
-                    b.Property<bool>("SignInEnabled")
-                        .HasColumnType("bit");
 
                     b.HasKey("PersonId");
 
@@ -1031,17 +995,6 @@ namespace Turnos.Migrations
                     b.Navigation("Event");
 
                     b.Navigation("Person");
-                });
-
-            modelBuilder.Entity("Turnos.Models.EventContract", b =>
-                {
-                    b.HasOne("Turnos.Models.Event", "Event")
-                        .WithOne()
-                        .HasForeignKey("Turnos.Models.EventContract", "EventId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Event");
                 });
 
             modelBuilder.Entity("Turnos.Models.LocationPosition", b =>
