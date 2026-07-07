@@ -9,3 +9,7 @@
 .checkin-page .btn {
     min-height: 44px;
 }
+
+.saved-clean ::deep input.mud-input-root {
+    color: var(--mud-palette-success) !important;
+}

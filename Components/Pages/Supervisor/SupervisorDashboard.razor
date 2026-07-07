@@ -37,7 +37,10 @@ else
 
 @if (selectedEventId is null)
 {
-    <MudText Color="Color.Secondary">Seleccione un evento para continuar.</MudText>
+    @if (eventChoices.Any())
+    {
+        <MudText Color="Color.Secondary">Seleccione un evento para continuar.</MudText>
+    }
 }
 else if (viewAsSupervisor)
 {

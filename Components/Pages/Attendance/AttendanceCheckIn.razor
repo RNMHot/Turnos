@@ -3,10 +3,8 @@
 @rendermode InteractiveServer
 @inject AttendanceService AttendanceSvc
 @inject PersonService PersonSvc
-@inject EventService EventSvc
 @inject AssignmentService AssignmentSvc
 @inject AuthenticationStateProvider AuthState
-@inject NavigationManager Nav
 @inject AppSettingsState SettingsState
 
 <PageTitle>Registro de asistencia - Turnos</PageTitle>
@@ -26,104 +24,225 @@
 
     <div class="card shadow-sm mb-3">
         <div class="card-body">
-            <div class="mb-2">
-                <label class="form-label">Asignado</label>
-                <input class="form-control" value="@currentPersonName" disabled />
-            </div>
-            <div class="mb-2">
-                <label class="form-label">Evento</label>
-                <select class="form-select" @bind="selectedEventId">
-                    <option value="0">Seleccione evento</option>
-                    @foreach (var e in events)
-                    {
-                        <option value="@e.EventId">@e.EventName (@SettingsState.ToDisplay(e.StartDateTime).ToString("MMM d, h:mm tt"))</option>
-                    }
-                </select>
-            </div>
-        </div>
-    </div>
-
-    <div class="card shadow-sm mb-3">
-        <div class="card-body">
-            <h6 class="mb-2">Entrada / Salida</h6>
-            <div class="mb-2">
-                <label class="form-label">Hora de entrada</label>
-                <input type="datetime-local" class="form-control" @bind="checkInLocal" />
-            </div>
-            <div class="mb-2">
-                <label class="form-label">Hora de salida</label>
-                <input type="datetime-local" class="form-control" @bind="checkOutLocal" />
-            </div>
-
-            <div class="d-grid gap-2">
-                <button class="btn btn-primary" @onclick="RegisterCheckIn" disabled="@(selectedPersonId == 0 || selectedEventId == 0 || openAttendance is not null)">
-                    Registrar entrada
-                </button>
-                <button class="btn btn-outline-danger" @onclick="RegisterCheckOut" disabled="@(openAttendance is null)">
-                    Registrar salida
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <h6 class="mb-2">Descansos</h6>
-            <div class="mb-2">
-                <label class="form-label">Inicio descanso</label>
-                <input type="datetime-local" class="form-control" @bind="breakStartLocal" />
-            </div>
-            <div class="mb-2">
-                <label class="form-label">Fin descanso</label>
-                <input type="datetime-local" class="form-control" @bind="breakEndLocal" />
-            </div>
-
-            <div class="d-grid gap-2">
-                <button class="btn btn-outline-secondary" @onclick="StartBreak" disabled="@(openAttendance is null)">
-                    Iniciar descanso
-                </button>
-                <button class="btn btn-outline-secondary" @onclick="EndBreak" disabled="@(openAttendance is null)">
-                    Terminar descanso abierto
-                </button>
-                <button class="btn btn-outline-secondary" @onclick="AddClosedBreak" disabled="@(openAttendance is null)">
-                    Registrar descanso completo
-                </button>
-            </div>
-
-            @if (openAttendance is not null)
+            <h6 class="mb-2">Mis turnos</h6>
+            @if (!myAssignments.Any())
             {
-                <hr />
-                <div class="small text-muted">Turno abierto</div>
-                <div class="fw-semibold">@openAttendance.Event.EventName</div>
-                <div class="small">Entrada: @SettingsState.ToDisplay(openAttendance.CheckInDateTime).ToString("yyyy-MM-dd HH:mm")</div>
-                <div class="small">Descansos: @openAttendance.Breaks.Count</div>
+                <div class="small text-muted">No tiene turnos pendientes.</div>
+            }
+            else
+            {
+                @foreach (var a in myAssignments)
+                {
+                    var canEnterTime = a.Status is AssignmentStatus.Asignado or AssignmentStatus.Confirmado;
+                    var needsResponse = a.Status is AssignmentStatus.Ofrecido or AssignmentStatus.Aceptado or AssignmentStatus.Denegado;
+
+                    <div @key="a.AssignmentId" class="border rounded p-2 mb-2 @(selectedAssignment?.AssignmentId == a.AssignmentId ? "border-primary bg-light" : "")"
+                         style="@(canEnterTime ? "cursor:pointer" : "")"
+                         @onclick="@(() => SelectAssignment(a))">
+                        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                            <div>
+                                <div class="fw-semibold">@a.Event.EventName</div>
+                                <div class="small text-muted">
+                                    @SettingsState.ToDisplay(a.Event.StartDateTime).ToString("MMM d, h:mm tt") – @SettingsState.ToDisplay(a.Event.EndDateTime).ToString("h:mm tt")
+                                </div>
+                            </div>
+                            <span class="badge @GetStatusBadgeClass(a.Status)">@a.Status</span>
+                        </div>
+
+                        @if (needsResponse)
+                        {
+                            <div class="d-flex gap-2 mt-2" @onclick:stopPropagation="true">
+                                <button class="btn flex-fill fw-bold py-2 @(a.Status == AssignmentStatus.Aceptado ? "btn-success" : "btn-outline-success")"
+                                        disabled="@respondingIds.Contains(a.AssignmentId)"
+                                        @onclick="() => RespondToOffer(a, AssignmentStatus.Aceptado)">
+                                    Aceptar
+                                </button>
+                                <button class="btn flex-fill fw-bold py-2 @(a.Status == AssignmentStatus.Denegado ? "btn-danger" : "btn-outline-danger")"
+                                        disabled="@respondingIds.Contains(a.AssignmentId)"
+                                        @onclick="() => RespondToOffer(a, AssignmentStatus.Denegado)">
+                                    Denegar
+                                </button>
+                            </div>
+                        }
+                    </div>
+                }
             }
         </div>
     </div>
+
+    @if (selectedAssignment is not null)
+    {
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <h6 class="mb-2">Horario — @selectedAssignment.Event.EventName</h6>
+                <div class="mb-2">
+                    <label class="small text-muted d-flex align-items-center gap-1">
+                        Hora de entrada
+                        @if (savedCheckInLocal.HasValue)
+                        {
+                            <i class="bi bi-check-circle-fill text-success" title="Guardado en la base de datos"></i>
+                        }
+                    </label>
+                    <div class="@(IsCheckInSavedAndClean ? "saved-clean" : "")" style="max-width:160px">
+                        <MudTimePicker @bind-Time="checkInTime" Variant="Variant.Outlined" Margin="Margin.Dense" Editable="true" AmPm="true" />
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <label class="small text-muted d-flex align-items-center gap-1">
+                        Hora de salida
+                        @if (savedCheckOutLocal.HasValue)
+                        {
+                            <i class="bi bi-check-circle-fill text-success" title="Guardado en la base de datos"></i>
+                        }
+                    </label>
+                    <div class="d-flex gap-1 @(IsCheckOutSavedAndClean ? "saved-clean" : "")">
+                        @if (IsMultiDayEvent)
+                        {
+                            <div style="max-width:140px">
+                                <MudDatePicker @bind-Date="checkOutDate" Variant="Variant.Outlined" Margin="Margin.Dense" Editable="true" DateFormat="MM/dd"
+                                               MinDate="EventStartDate" MaxDate="EventEndDate" />
+                            </div>
+                        }
+                        <div style="max-width:160px">
+                            <MudTimePicker @bind-Time="checkOutTime" Variant="Variant.Outlined" Margin="Margin.Dense" Editable="true" AmPm="true" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-grid">
+                    <button class="btn btn-primary fw-bold py-2" @onclick="SaveSchedule">
+                        Registrar horario
+                    </button>
+                </div>
+
+                <div class="mb-3">
+                    <button class="btn btn-link p-0" @onclick="() => showBreakCard = !showBreakCard">
+                        @(showBreakCard ? "Ocultar descanso" : "Ingresar período de alimentos")
+                    </button>
+                </div>
+            </div>
+        </div>
+
+
+        @if (showBreakCard)
+        {
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h6 class="mb-2">Descanso</h6>
+                    <div class="mb-2">
+                        <label class="small text-muted d-flex align-items-center gap-1">
+                            Inicio descanso
+                            @if (savedBreakStartLocal.HasValue)
+                            {
+                                <i class="bi bi-check-circle-fill text-success" title="Guardado en la base de datos"></i>
+                            }
+                        </label>
+                        <div class="@(IsBreakStartSavedAndClean ? "saved-clean" : "")" style="max-width:160px">
+                            <MudTimePicker @bind-Time="breakStartTime" Variant="Variant.Outlined" Margin="Margin.Dense" Editable="true" AmPm="true" />
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="small text-muted d-flex align-items-center gap-1">
+                            Fin descanso
+                            @if (savedBreakEndLocal.HasValue)
+                            {
+                                <i class="bi bi-check-circle-fill text-success" title="Guardado en la base de datos"></i>
+                            }
+                        </label>
+                        <div class="d-flex gap-1 @(IsBreakEndSavedAndClean ? "saved-clean" : "")">
+                            @if (IsMultiDayEvent)
+                            {
+                                <div style="max-width:140px">
+                                    <MudDatePicker @bind-Date="breakEndDate" Variant="Variant.Outlined" Margin="Margin.Dense" Editable="true" DateFormat="MM/dd"
+                                                   MinDate="EventStartDate" MaxDate="EventEndDate" />
+                                </div>
+                            }
+                            <div style="max-width:160px">
+                                <MudTimePicker @bind-Time="breakEndTime" Variant="Variant.Outlined" Margin="Margin.Dense" Editable="true" AmPm="true" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button class="btn btn-outline-secondary fw-bold py-2" @onclick="SaveBreak">
+                            Registrar descanso
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    }
 </div>
 
 @code {
-    private List<Person> people = new();
-    private List<Event> events = new();
-    private int selectedPersonId;
-    private int selectedEventId;
+    private List<Assignment> myAssignments = new();
+    private readonly HashSet<int> respondingIds = new();
+    private Assignment? selectedAssignment;
     private int? currentPersonId;
     private string currentPersonName = "";
-    private Attendance? openAttendance;
+    private string actorUserId = "";
 
-    private DateTime checkInLocal;
-    private DateTime checkOutLocal;
-    private DateTime breakStartLocal;
-    private DateTime breakEndLocal;
+    private int? attendanceId;
+    private TimeSpan? checkInTime;
+    private TimeSpan? checkOutTime;
+    private DateTime? checkOutDate;
+    private DateTime? savedCheckInLocal;
+    private DateTime? savedCheckOutLocal;
+
+    private bool showBreakCard;
+    private int? breakId;
+    private TimeSpan? breakStartTime;
+    private TimeSpan? breakEndTime;
+    private DateTime? breakEndDate;
+    private DateTime? savedBreakStartLocal;
+    private DateTime? savedBreakEndLocal;
 
     private string? statusMsg;
     private bool statusOk;
     private bool isGerenciaOrAdmin;
 
+    private static readonly AssignmentStatus[] RelevantStatuses =
+    {
+        AssignmentStatus.Ofrecido,
+        AssignmentStatus.Aceptado,
+        AssignmentStatus.Denegado,
+        AssignmentStatus.Asignado,
+        AssignmentStatus.Confirmado
+    };
+
+    private DateTime EventStartDate => selectedAssignment is null ? SettingsState.Today : SettingsState.ToDisplay(selectedAssignment.Event.StartDateTime).Date;
+    private DateTime EventEndDate => selectedAssignment is null ? SettingsState.Today : SettingsState.ToDisplay(selectedAssignment.Event.EndDateTime).Date;
+    private bool IsMultiDayEvent => EventEndDate != EventStartDate;
+
+    private DateTime? ComputeCheckIn() => checkInTime is null ? null : EventStartDate + checkInTime.Value;
+
+    private DateTime? ComputeCheckOut()
+    {
+        if (checkOutTime is null) return null;
+        var date = IsMultiDayEvent ? (checkOutDate ?? EventStartDate) : EventStartDate;
+        return date + checkOutTime.Value;
+    }
+
+    private DateTime? ComputeBreakStart() => breakStartTime is null ? null : EventStartDate + breakStartTime.Value;
+
+    private DateTime? ComputeBreakEnd()
+    {
+        if (breakEndTime is null) return null;
+        var date = IsMultiDayEvent ? (breakEndDate ?? EventStartDate) : EventStartDate;
+        return date + breakEndTime.Value;
+    }
+
+    private bool IsCheckInSavedAndClean => savedCheckInLocal.HasValue && savedCheckInLocal == ComputeCheckIn();
+    private bool IsCheckOutSavedAndClean => savedCheckOutLocal.HasValue && savedCheckOutLocal == ComputeCheckOut();
+    private bool IsBreakStartSavedAndClean => savedBreakStartLocal.HasValue && savedBreakStartLocal == ComputeBreakStart();
+    private bool IsBreakEndSavedAndClean => savedBreakEndLocal.HasValue && savedBreakEndLocal == ComputeBreakEnd();
+
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthState.GetAuthenticationStateAsync();
         isGerenciaOrAdmin = authState.User.IsInRole("Gerencia") || authState.User.IsInRole("Admin");
+        actorUserId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+
         var personClaim = authState.User.FindFirst(TurnosClaimTypes.PersonId)?.Value;
         if (!int.TryParse(personClaim, out var personId))
         {
@@ -132,103 +251,259 @@
         }
 
         currentPersonId = personId;
-        selectedPersonId = personId;
-        people = await PersonSvc.GetAllAsync(active: true);
-        currentPersonName = people.FirstOrDefault(p => p.PersonId == personId)?.FullName ?? "Colaborador";
+        var person = await PersonSvc.GetByIdAsync(personId);
+        currentPersonName = person?.FullName ?? "Colaborador";
 
-        checkInLocal = SettingsState.Now;
-        checkOutLocal = SettingsState.Now;
-        breakStartLocal = SettingsState.Now;
-        breakEndLocal = SettingsState.Now.AddMinutes(15);
+        await LoadAssignments();
+    }
+
+    private async Task LoadAssignments()
+    {
+        if (!currentPersonId.HasValue) return;
 
         var todayUtc = SettingsState.ToUtc(SettingsState.Today);
-        var assignments = await AssignmentSvc.GetAllAsync(personId: personId);
-        events = assignments
-            .Where(a => !a.Deleted && a.Status == AssignmentStatus.Asignado
-                        && a.Event.Active && a.Event.EndDateTime >= todayUtc)
-            .Select(a => a.Event)
-            .DistinctBy(e => e.EventId)
-            .OrderBy(e => e.StartDateTime)
+        var assignments = await AssignmentSvc.GetAllAsync(personId: currentPersonId.Value);
+        myAssignments = assignments
+            .Where(a => !a.Deleted && a.Event.Active && a.Event.EndDateTime >= todayUtc && RelevantStatuses.Contains(a.Status))
+            .OrderBy(a => a.Event.StartDateTime)
             .ToList();
-        await LoadOpenAttendance();
     }
 
-    private async Task LoadOpenAttendance()
+    private async Task SelectAssignment(Assignment a)
     {
-        statusMsg = null;
-        if (!currentPersonId.HasValue)
+        if (a.Status is not (AssignmentStatus.Asignado or AssignmentStatus.Confirmado))
+            return;
+
+        selectedAssignment = a;
+        await LoadAttendanceForSelectedAssignment();
+    }
+
+    private async Task LoadAttendanceForSelectedAssignment()
+    {
+        attendanceId = null;
+        checkInTime = SettingsState.Now.TimeOfDay;
+        checkOutTime = null;
+        checkOutDate = null;
+        savedCheckInLocal = null;
+        savedCheckOutLocal = null;
+
+        breakId = null;
+        breakStartTime = null;
+        breakEndTime = null;
+        breakEndDate = null;
+        savedBreakStartLocal = null;
+        savedBreakEndLocal = null;
+        showBreakCard = false;
+
+        if (selectedAssignment is null || !currentPersonId.HasValue) return;
+
+        var attendances = await AttendanceSvc.GetByEventAsync(selectedAssignment.EventId);
+        var existing = attendances.FirstOrDefault(at => at.PersonId == currentPersonId.Value && !at.Deleted);
+        if (existing is null) return;
+
+        attendanceId = existing.AttendanceId;
+        var checkIn = SettingsState.ToDisplay(existing.CheckInDateTime);
+        checkInTime = checkIn.TimeOfDay;
+        savedCheckInLocal = checkIn;
+
+        if (existing.CheckOutDateTime.HasValue)
         {
-            openAttendance = null;
+            var checkOut = SettingsState.ToDisplay(existing.CheckOutDateTime.Value);
+            checkOutTime = checkOut.TimeOfDay;
+            checkOutDate = checkOut.Date;
+            savedCheckOutLocal = checkOut;
+        }
+
+        var lastBreak = existing.Breaks.Where(b => !b.Deleted).OrderByDescending(b => b.BreakStartDateTime).FirstOrDefault();
+        if (lastBreak is null) return;
+
+        breakId = lastBreak.AttendanceBreakId;
+        var breakStart = SettingsState.ToDisplay(lastBreak.BreakStartDateTime);
+        breakStartTime = breakStart.TimeOfDay;
+        savedBreakStartLocal = breakStart;
+
+        if (lastBreak.BreakEndDateTime.HasValue)
+        {
+            var breakEnd = SettingsState.ToDisplay(lastBreak.BreakEndDateTime.Value);
+            breakEndTime = breakEnd.TimeOfDay;
+            breakEndDate = breakEnd.Date;
+            savedBreakEndLocal = breakEnd;
+        }
+    }
+
+    private async Task RespondToOffer(Assignment a, AssignmentStatus status)
+    {
+        if (!respondingIds.Add(a.AssignmentId))
+            return;
+
+        try
+        {
+            await AssignmentSvc.UpdateStatusAsync(a.AssignmentId, status, actorUserId);
+            await LoadAssignments();
+            SetStatus(true, status == AssignmentStatus.Aceptado ? "Turno aceptado." : "Turno rechazado.");
+        }
+        catch (Exception ex)
+        {
+            SetStatus(false, $"Error al actualizar el turno: {ex.Message}");
+        }
+        finally
+        {
+            respondingIds.Remove(a.AssignmentId);
+        }
+    }
+
+    private async Task SaveSchedule()
+    {
+        if (!currentPersonId.HasValue || selectedAssignment is null)
+        {
+            SetStatus(false, "Debe seleccionar un turno.");
             return;
         }
 
-        openAttendance = await AttendanceSvc.GetOpenAttendanceForPersonAsync(currentPersonId.Value);
-    }
-
-    private async Task RegisterCheckIn()
-    {
-        if (!currentPersonId.HasValue || selectedEventId == 0)
+        var checkIn = ComputeCheckIn();
+        if (checkIn is null)
         {
-            SetStatus(false, "Debe seleccionar persona y evento.");
+            SetStatus(false, "Debe indicar la hora de entrada.");
             return;
         }
 
-        var result = await AttendanceSvc.StartShiftAsync(currentPersonId.Value, selectedEventId, checkInLocal, "employee");
-        SetStatus(result.Success, result.Success ? "Entrada registrada." : result.Error);
-        await LoadOpenAttendance();
-    }
-
-    private async Task RegisterCheckOut()
-    {
-        if (openAttendance is null)
+        var checkOut = ComputeCheckOut();
+        if (checkOut.HasValue && checkOut.Value <= checkIn.Value)
         {
-            SetStatus(false, "No hay turno abierto.");
+            SetStatus(false, "La salida debe ser posterior a la entrada.");
             return;
         }
 
-        var result = await AttendanceSvc.EndShiftAsync(openAttendance.AttendanceId, checkOutLocal, "employee");
-        SetStatus(result.Success, result.Success ? "Salida registrada." : result.Error);
-        await LoadOpenAttendance();
+        if (attendanceId is null)
+        {
+            var attendance = new Attendance
+            {
+                PersonId = currentPersonId.Value,
+                EventId = selectedAssignment.EventId,
+                CheckInDateTime = checkIn.Value,
+                CheckOutDateTime = checkOut
+            };
+            var (success, error, created) = await AttendanceSvc.CreateAsync(attendance, "employee");
+            if (!success)
+            {
+                SetStatus(false, error);
+                return;
+            }
+            attendanceId = created!.AttendanceId;
+        }
+        else
+        {
+            var existing = await AttendanceSvc.GetByIdAsync(attendanceId.Value);
+            if (existing is null)
+            {
+                SetStatus(false, "No se encontró el registro.");
+                return;
+            }
+            existing.CheckInDateTime = checkIn.Value;
+            existing.CheckOutDateTime = checkOut;
+            var (success, error) = await AttendanceSvc.UpdateAsync(existing, "employee");
+            if (!success)
+            {
+                SetStatus(false, error);
+                return;
+            }
+        }
+
+        savedCheckInLocal = checkIn;
+        savedCheckOutLocal = checkOut;
+        SetStatus(true, "Horario registrado.");
     }
 
-    private async Task StartBreak()
+    private bool IsBreakWithinShift(DateTime start, DateTime? end)
     {
-        if (openAttendance is null)
+        if (selectedAssignment is null) return false;
+
+        var windowStart = ComputeCheckIn() ?? SettingsState.ToDisplay(selectedAssignment.Event.StartDateTime);
+        var windowEnd = ComputeCheckOut() ?? SettingsState.ToDisplay(selectedAssignment.Event.EndDateTime);
+
+        if (start < windowStart || start > windowEnd) return false;
+        if (end.HasValue && (end.Value < windowStart || end.Value > windowEnd)) return false;
+
+        return true;
+    }
+
+    private async Task SaveBreak()
+    {
+        if (selectedAssignment is null)
         {
-            SetStatus(false, "No hay turno abierto.");
+            SetStatus(false, "Debe seleccionar un turno.");
             return;
         }
 
-        var result = await AttendanceSvc.AddBreakAsync(openAttendance.AttendanceId, breakStartLocal, null, null, "employee");
-        SetStatus(result.Success, result.Success ? "Descanso iniciado." : result.Error);
-        await LoadOpenAttendance();
-    }
-
-    private async Task EndBreak()
-    {
-        if (openAttendance is null)
+        if (attendanceId is null)
         {
-            SetStatus(false, "No hay turno abierto.");
+            SetStatus(false, "Debe registrar primero su horario de entrada.");
             return;
         }
 
-        var result = await AttendanceSvc.EndOpenBreakAsync(openAttendance.AttendanceId, breakEndLocal, "employee");
-        SetStatus(result.Success, result.Success ? "Descanso terminado." : result.Error);
-        await LoadOpenAttendance();
-    }
-
-    private async Task AddClosedBreak()
-    {
-        if (openAttendance is null)
+        var start = ComputeBreakStart();
+        if (start is null)
         {
-            SetStatus(false, "No hay turno abierto.");
+            SetStatus(false, "Debe indicar la hora de inicio del descanso.");
             return;
         }
 
-        var result = await AttendanceSvc.AddBreakAsync(openAttendance.AttendanceId, breakStartLocal, breakEndLocal, null, "employee");
-        SetStatus(result.Success, result.Success ? "Descanso registrado." : result.Error);
-        await LoadOpenAttendance();
+        var end = ComputeBreakEnd();
+        if (end.HasValue && end.Value <= start.Value)
+        {
+            SetStatus(false, "El fin del descanso debe ser posterior al inicio.");
+            return;
+        }
+
+        if (!IsBreakWithinShift(start.Value, end))
+        {
+            SetStatus(false, "El descanso debe estar dentro del horario del evento o del horario registrado.");
+            return;
+        }
+
+        if (breakId is null)
+        {
+            var (success, error, created) = await AttendanceSvc.AddBreakAsync(attendanceId.Value, start.Value, end, null, "employee");
+            if (!success)
+            {
+                SetStatus(false, error);
+                return;
+            }
+            breakId = created!.AttendanceBreakId;
+        }
+        else
+        {
+            var attendance = await AttendanceSvc.GetByIdAsync(attendanceId.Value);
+            var existingBreak = attendance?.Breaks.FirstOrDefault(b => b.AttendanceBreakId == breakId.Value);
+            if (existingBreak is null)
+            {
+                SetStatus(false, "No se encontró el descanso.");
+                return;
+            }
+            existingBreak.BreakStartDateTime = start.Value;
+            existingBreak.BreakEndDateTime = end;
+            var (success, error) = await AttendanceSvc.UpdateBreakAsync(existingBreak, "employee");
+            if (!success)
+            {
+                SetStatus(false, error);
+                return;
+            }
+        }
+
+        savedBreakStartLocal = start;
+        savedBreakEndLocal = end;
+        SetStatus(true, "Descanso registrado.");
     }
+
+    private static string GetStatusBadgeClass(AssignmentStatus status) => status switch
+    {
+        AssignmentStatus.Confirmado => "bg-primary",
+        AssignmentStatus.Asignado => "bg-success",
+        AssignmentStatus.Aceptado => "bg-info text-dark",
+        AssignmentStatus.Denegado => "bg-danger",
+        AssignmentStatus.Ofrecido => "bg-warning text-dark",
+        _ => "bg-secondary"
+    };
 
     private void SetStatus(bool ok, string message)
     {

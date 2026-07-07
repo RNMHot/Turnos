@@ -115,9 +115,12 @@
                                         <div class="text-muted" style="font-size:10px">
                                             <i class="bi bi-person-plus me-1"></i>Arrastrar o clic para asignar
                                         </div>
-                                        @foreach (var a in ev.Assignments)
+                                        @foreach (var (a, idx) in ev.Assignments.Select((a, i) => (a, i)))
                                         {
-                                            <div class="assignment-badge" @onclick:stopPropagation="true">@a.Person.FullName</div>
+                                            <div class="assignment-badge" @onclick:stopPropagation="true">
+                                                <span class="assignment-badge-number">@(idx + 1).</span>
+                                                <span class="assignment-badge-name">@a.Person.FullName</span>
+                                            </div>
                                         }
                                     </div>
                                 </div>
@@ -349,7 +352,7 @@
     {
         var requiredTotal = ev.RequiredSupervisors + ev.RequiredUshers + ev.RequiredOther;
         var assignedTotal = ev.Assignments.Count(a =>
-            a.Status == AssignmentStatus.Disponible ||
+            a.Status == AssignmentStatus.Aceptado ||
             a.Status == AssignmentStatus.Asignado ||
             a.Status == AssignmentStatus.Confirmado);
 

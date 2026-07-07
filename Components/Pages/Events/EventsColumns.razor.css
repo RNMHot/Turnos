@@ -124,6 +124,15 @@
     margin-bottom: 0.45rem;
 }
 
+.assignment-number {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #7A8695;
+    min-width: 1.5rem;
+    text-align: right;
+    flex-shrink: 0;
+}
+
 .assignment-name {
     font-size: 0.82rem;
     font-weight: 600;

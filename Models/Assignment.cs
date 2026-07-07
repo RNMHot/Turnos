@@ -2,11 +2,12 @@ namespace Turnos.Models;
 
 public enum AssignmentStatus
 {
-    Disponible = 0,   // Persona respondió que está disponible
-    Ofrecido = 1,     // Turno ofrecido, esperando respuesta
-    Asignado = 4,     // Adjudicado oficialmente y notificado
-    Confirmado = 5,   // Confirmación/recordatorio enviado y reconfirmado
-    Candidato = 8     // En consideración; aún no notificado
+    Candidato = 0,    // Asignado a un evento durante la planificación; aún no notificado
+    Ofrecido = 1,     // Se notificó a la persona la disponibilidad del evento y se le dio la opción de participar
+    Aceptado = 2,     // La persona aceptó la oferta de participar en el turno
+    Denegado = 3,     // La persona rechazó la oferta de participar en el turno
+    Asignado = 4,     // Se fijó a la persona para participar en el turno
+    Confirmado = 5    // La persona asignada confirmó tener conocimiento de su asignación
 }
 
 public class Assignment

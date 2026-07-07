@@ -87,12 +87,13 @@
                                 }
                                 else
                                 {
-                                    @foreach (var a in ev.Assignments.OrderBy(a => a.Person.FullName))
+                                    @foreach (var (a, idx) in ev.Assignments.OrderBy(a => a.Person.FullName).Select((a, i) => (a, i)))
                                     {
                                         <div class="assignment-row d-flex align-items-center justify-content-between gap-2"
                                              @onclick:stopPropagation="true">
                                             <div class="d-flex flex-column">
                                                 <div class="d-flex align-items-center gap-2">
+                                                    <span class="assignment-number">@(idx + 1).</span>
                                                     <span class="assignment-name">@a.Person.FullName</span>
                                                     @if (a.LocationPosition is not null)
                                                     {
@@ -310,7 +311,7 @@
     {
         var requiredTotal = ev.RequiredSupervisors + ev.RequiredUshers + ev.RequiredOther;
         var assignedTotal = ev.Assignments.Count(a =>
-            a.Status == AssignmentStatus.Disponible ||
+            a.Status == AssignmentStatus.Aceptado ||
             a.Status == AssignmentStatus.Asignado ||
             a.Status == AssignmentStatus.Confirmado);
 
@@ -324,7 +325,8 @@
     {
         AssignmentStatus.Confirmado => Color.Success,
         AssignmentStatus.Asignado   => Color.Primary,
-        AssignmentStatus.Disponible => Color.Info,
+        AssignmentStatus.Aceptado   => Color.Info,
+        AssignmentStatus.Denegado   => Color.Error,
         AssignmentStatus.Ofrecido   => Color.Warning,
         AssignmentStatus.Candidato  => Color.Default,
         _ => Color.Default

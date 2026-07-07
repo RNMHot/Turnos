@@ -344,12 +344,25 @@ a, .btn-link { color: var(--color-accent); }
 .event-company { opacity: 0.75; }
 
 .assignment-badge {
-    display: block;
+    display: flex;
+    align-items: baseline;
+    gap: 3px;
     background: rgba(0,0,0,0.12);
     border-radius: 3px;
     padding: 1px 4px;
     margin-bottom: 2px;
     font-size: 0.68rem;
+}
+
+.assignment-badge-number {
+    min-width: 1.1rem;
+    text-align: right;
+    flex-shrink: 0;
+    opacity: 0.75;
+}
+
+.assignment-badge-name {
+    flex: 1;
 }
 
 /* Sidebar */
