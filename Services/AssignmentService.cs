@@ -58,8 +58,11 @@ public class AssignmentService
         assignment.StartDateTime = ToUtc(assignment.StartDateTime);
         assignment.EndDateTime = ToUtc(assignment.EndDateTime);
 
-        if (await HasOverlapAsync(db, assignment.PersonId, assignment.StartDateTime, assignment.EndDateTime))
-            return (false, "Esta persona ya está asignada a este evento.");
+        var overlap = await GetOverlapAsync(db, assignment.PersonId, assignment.StartDateTime, assignment.EndDateTime);
+        if (overlap is not null)
+            return (false, overlap.EventId == assignment.EventId
+                ? "Esta persona ya está asignada a este evento."
+                : "Esta persona ya está asignada a un evento que entra en conflicto con este.");
 
         var person = await db.Persons
             .Include(p => p.Availabilities)
@@ -86,8 +89,11 @@ public class AssignmentService
         assignment.StartDateTime = ToUtc(assignment.StartDateTime);
         assignment.EndDateTime = ToUtc(assignment.EndDateTime);
 
-        if (await HasOverlapAsync(db, assignment.PersonId, assignment.StartDateTime, assignment.EndDateTime, assignment.AssignmentId))
-            return (false, "Esta persona ya está asignada a este evento.");
+        var overlap = await GetOverlapAsync(db, assignment.PersonId, assignment.StartDateTime, assignment.EndDateTime, assignment.AssignmentId);
+        if (overlap is not null)
+            return (false, overlap.EventId == assignment.EventId
+                ? "Esta persona ya está asignada a este evento."
+                : "Esta persona ya está asignada a un evento que entra en conflicto con este.");
 
         db.Assignments.Update(assignment);
         await db.SaveChangesAsync();
@@ -173,7 +179,7 @@ public class AssignmentService
             .Select(pr => (int?)pr.RoleId)
             .FirstOrDefault();
 
-    private static async Task<bool> HasOverlapAsync(AppDbContext db, int personId, DateTime start, DateTime end, int? excludeId = null)
+    private static async Task<Assignment?> GetOverlapAsync(AppDbContext db, int personId, DateTime start, DateTime end, int? excludeId = null)
     {
         var query = db.Assignments.Where(a =>
             a.PersonId == personId &&
@@ -183,8 +189,11 @@ public class AssignmentService
         if (excludeId.HasValue)
             query = query.Where(a => a.AssignmentId != excludeId.Value);
 
-        return await query.AnyAsync();
+        return await query.FirstOrDefaultAsync();
     }
+
+    private static async Task<bool> HasOverlapAsync(AppDbContext db, int personId, DateTime start, DateTime end, int? excludeId = null) =>
+        await GetOverlapAsync(db, personId, start, end, excludeId) is not null;
 
     public async Task<bool> IsValidAssignment(int personId, DateTime start, DateTime end, int? excludeId = null)
     {

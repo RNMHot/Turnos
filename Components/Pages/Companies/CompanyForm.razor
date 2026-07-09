@@ -6,6 +6,7 @@
 @inject CompanyDocumentService DocumentSvc
 @inject AuthenticationStateProvider AuthState
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <PageTitle>@(Id == 0 ? "Nuevo Cliente" : "Editar Cliente") — Turnos</PageTitle>
 
@@ -14,7 +15,7 @@
     <h4 class="mb-0">@(Id == 0 ? "Nuevo Cliente" : "Editar Cliente")</h4>
 </div>
 
-<EditForm Model="company" OnValidSubmit="Save">
+<EditForm Model="company" OnValidSubmit="Save" id="company-form">
     <DataAnnotationsValidator />
 
     <ValidationSummary class="text-danger mb-3" />
@@ -102,6 +103,11 @@
     private bool documentMarkedForRemoval;
     private static readonly string[] AllowedDocumentExtensions = { ".pdf", ".jpg", ".jpeg", ".png", ".webp", ".gif" };
     private const long MaxDocumentBytes = 10 * 1024 * 1024;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await JS.InvokeVoidAsync("preventEnterSubmit", "company-form");
+    }
 
     protected override async Task OnInitializedAsync()
     {

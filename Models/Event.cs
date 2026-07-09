@@ -6,6 +6,7 @@ public class Event
 {
     public int EventId { get; set; }
 
+    [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar un cliente")]
     public int CompanyId { get; set; }
     public Company Company { get; set; } = null!;
 

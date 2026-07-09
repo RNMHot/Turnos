@@ -20,262 +20,263 @@
     <MudText Typo="Typo.h5">@(Id == 0 ? "Nuevo Evento" : "Editar Evento")</MudText>
 </div>
 
-<MudPaper Elevation="2" Class="pa-4 rounded" Style="max-width:700px">
-    <EditForm Model="ev" OnValidSubmit="Save">
+    <EditForm Model="ev" OnValidSubmit="Save" id="event-form">
         <DataAnnotationsValidator />
-
-        <MudGrid Spacing="3">
-            <MudItem xs="12">
-                <MudTextField @bind-Value="ev.EventName" For="() => ev.EventName"
-                              Label="Nombre de evento *"
-                              Variant="Variant.Outlined" Margin="Margin.Dense" />
-            </MudItem>
-            <MudItem xs="12" sm="6">
-                <MudSelect T="int" @bind-Value="ev.CompanyId" For="() => ev.CompanyId"
-                           Label="Cliente *" Variant="Variant.Outlined" Margin="Margin.Dense">
-                    <MudSelectItem T="int" Value="0">— Seleccionar cliente —</MudSelectItem>
-                    @foreach (var c in companies)
-                    {
-                        <MudSelectItem T="int" Value="@c.CompanyId">@c.Name</MudSelectItem>
-                    }
-                </MudSelect>
-            </MudItem>
-            <MudItem xs="12" sm="6">
-                <MudSelect T="int?" @bind-Value="ev.LocationId" Label="Localización"
-                           Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
-                    @foreach (var l in locations)
-                    {
-                        <MudSelectItem T="int?" Value="@((int?)l.LocationId)">@l.Name</MudSelectItem>
-                    }
-                </MudSelect>
-            </MudItem>
-
-            @if (!createMultiple)
-            {
-                <MudItem xs="12" sm="6" md="3">
-                    <MudDatePicker Date="@_startDate" DateChanged="OnStartDateChanged"
-                                   Label="Fecha inicio" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                </MudItem>
-                <MudItem xs="12" sm="6" md="3">
-                    <AppTimePicker Time="@_startTime" TimeChanged="OnStartTimeChanged"
-                                   Label="Hora inicio" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                   AmPm="true" />
-                </MudItem>
-                <MudItem xs="12" sm="6" md="3">
-                    <MudDatePicker Date="@_endDate" DateChanged="OnEndDateChanged"
-                                   Label="Fecha fin" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                </MudItem>
-                <MudItem xs="12" sm="6" md="3">
-                    <AppTimePicker Time="@_endTime" TimeChanged="OnEndTimeChanged"
-                                   Label="Hora fin" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                   AmPm="true" />
-                </MudItem>
-            }
-
-            <MudItem xs="12" sm="4">
-                <MudNumericField T="int" @bind-Value="ev.RequiredSupervisors"
-                                 For="() => ev.RequiredSupervisors"
-                                 Label="Supervisores" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
-            </MudItem>
-            <MudItem xs="12" sm="4">
-                <MudNumericField T="int" @bind-Value="ev.RequiredUshers"
-                                 For="() => ev.RequiredUshers"
-                                 Label="Ushers" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
-            </MudItem>
-            <MudItem xs="12" sm="4">
-                @if (editingOtherLabel)
-                {
-                    <MudTextField @bind-Value="ev.RequiredOtherLabel"
-                                  AutoFocus="true"
-                                  OnBlur="@(_ => StopEditingOtherLabel())"
-                                  OnKeyDown="OnOtherLabelKeyDown"
-                                  Label="Etiqueta"
-                                  Variant="Variant.Outlined" Margin="Margin.Dense" />
-                }
-                else
-                {
-                    <div @ondblclick="StartEditingOtherLabel" title="Doble clic para editar la etiqueta">
-                        <MudNumericField T="int" @bind-Value="ev.RequiredOther"
-                                         For="() => ev.RequiredOther"
-                                         Label="@OtherLabelText"
-                                         Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
-                    </div>
-                }
-            </MudItem>
-
-            @if (Id == 0)
-            {
-                <MudItem xs="12">
-                    <MudCheckBox T="bool" @bind-Value="createMultiple"
-                                 Label="Crear varias ocurrencias" />
-                </MudItem>
-            }
-
-            @if (createMultiple && Id == 0)
-            {
-                <MudItem xs="12">
-                    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
-                        Puedes agregar una o más reglas. Cada regla puede usar un horario diferente.
-                        Se crearán <strong>@PreviewCount evento(s)</strong> en total.
-                    </MudAlert>
-                    @if (recurrenceError is not null)
-                    {
-                        <MudAlert Severity="Severity.Error" Dense="true">@recurrenceError</MudAlert>
-                    }
-                </MudItem>
-
-                <MudItem xs="12">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <MudText Typo="Typo.subtitle2">Reglas de recurrencia</MudText>
-                        <MudButton Variant="Variant.Outlined" Color="Color.Primary"
-                                   StartIcon="@Icons.Material.Filled.Add" Size="Size.Small"
-                                   OnClick="AddRecurrenceRule">Agregar regla</MudButton>
-                    </div>
-
-                    @for (var i = 0; i < recurrenceRules.Count; i++)
-                    {
-                        var rule = recurrenceRules[i];
-                        var ruleIndex = i;
-                        <MudPaper Outlined="true" Class="pa-3 mb-3" @key="rule">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <MudText Typo="Typo.subtitle2">Regla @(ruleIndex + 1)</MudText>
-                                @if (recurrenceRules.Count > 1)
-                                {
-                                    <MudButton Variant="Variant.Outlined" Color="Color.Error"
-                                               Size="Size.Small"
-                                               OnClick="@(() => RemoveRecurrenceRule(rule))">Quitar</MudButton>
-                                }
-                            </div>
-
-                            <MudGrid Spacing="2">
-                                <MudItem xs="12" sm="4">
-                                    <MudSelect T="RecurrenceRuleKind" @bind-Value="rule.Kind"
-                                               Label="Tipo" Variant="Variant.Outlined" Margin="Margin.Dense">
-                                        <MudSelectItem Value="RecurrenceRuleKind.SingleDate">Un día</MudSelectItem>
-                                        <MudSelectItem Value="RecurrenceRuleKind.WeekdaysInRange">Días de la semana en rango</MudSelectItem>
-                                        <MudSelectItem Value="RecurrenceRuleKind.SpecificDates">Fechas específicas</MudSelectItem>
-                                    </MudSelect>
-                                </MudItem>
-                                <MudItem xs="12" sm="4">
-                                    <AppTimePicker Time="@ParseRuleTime(rule.StartTimeText)"
-                                                   TimeChanged="@(t => rule.StartTimeText = FormatRuleTime(t, rule.StartTimeText))"
-                                                   Label="Hora inicio" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                                   AmPm="true" />
-                                </MudItem>
-                                <MudItem xs="12" sm="4">
-                                    <AppTimePicker Time="@ParseRuleTime(rule.EndTimeText)"
-                                                   TimeChanged="@(t => rule.EndTimeText = FormatRuleTime(t, rule.EndTimeText))"
-                                                   Label="Hora fin" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                                   AmPm="true" />
-                                </MudItem>
-
-                                @if (rule.Kind == RecurrenceRuleKind.SingleDate)
-                                {
-                                    <MudItem xs="12" sm="6">
-                                        <MudDatePicker Date="@((DateTime?)rule.SingleDate)"
-                                                       DateChanged="@(d => { if (d.HasValue) rule.SingleDate = d.Value.Date; })"
-                                                       Label="Fecha" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                                    </MudItem>
-                                }
-                                else if (rule.Kind == RecurrenceRuleKind.WeekdaysInRange)
-                                {
-                                    <MudItem xs="12" sm="6">
-                                        <MudDatePicker Date="@((DateTime?)rule.RangeStartDate)"
-                                                       DateChanged="@(d => { if (d.HasValue) rule.RangeStartDate = d.Value.Date; })"
-                                                       Label="Desde" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                                    </MudItem>
-                                    <MudItem xs="12" sm="6">
-                                        <MudDatePicker Date="@((DateTime?)rule.RangeEndDate)"
-                                                       DateChanged="@(d => { if (d.HasValue) rule.RangeEndDate = d.Value.Date; })"
-                                                       Label="Hasta" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                                    </MudItem>
-                                    <MudItem xs="12">
-                                        <MudText Typo="Typo.body2" Class="mb-1">Días de la semana</MudText>
-                                        <div class="d-flex flex-wrap gap-2">
-                                            @foreach (var day in DaysOrdered)
-                                            {
-                                                <MudCheckBox T="bool" Value="@rule.Days.Contains(day)"
-                                                             ValueChanged="@(v => ToggleRuleDay(rule, day, v))"
-                                                             Label="@DayName(day)" Dense="true" />
-                                            }
-                                        </div>
-                                    </MudItem>
-                                }
-                                else if (rule.Kind == RecurrenceRuleKind.SpecificDates)
-                                {
-                                    <MudItem xs="12">
-                                        <MudTextField T="string" Value="@rule.SpecificDatesText"
-                                                      ValueChanged="@(v => rule.SpecificDatesText = v ?? string.Empty)"
-                                                      Lines="3" Label="Fechas"
-                                                      Placeholder="Una fecha por línea o separadas por coma: 2026-07-03, 2026-07-04"
-                                                      HelperText="Formato: AAAA-MM-DD. Una por línea o separadas por coma."
-                                                      Variant="Variant.Outlined" />
-                                    </MudItem>
-                                }
-                            </MudGrid>
-                        </MudPaper>
-                    }
-                </MudItem>
-            }
-
-            <MudItem xs="12">
-                <MudTextField @bind-Value="ev.Notes" Label="Notas"
-                              Lines="3" Variant="Variant.Outlined" />
-            </MudItem>
-            @if (!createMultiple)
-            {
-                <MudItem xs="12">
-                    <MudText Typo="Typo.body2" Class="mb-1">Contrato</MudText>
-                    <div class="d-flex align-items-center gap-2 flex-wrap">
-                        <MudFileUpload T="IBrowserFile" FilesChanged="OnContractSelected" Accept=".pdf,image/*">
-                            <CustomContent Context="fileUpload">
-                                <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
-                                           StartIcon="@Icons.Material.Filled.AttachFile"
-                                           OnClick="@(() => fileUpload.OpenFilePickerAsync())">
-                                    @(string.IsNullOrEmpty(contractFileName) ? "Adjuntar contrato" : "Reemplazar contrato")
-                                </MudButton>
-                            </CustomContent>
-                        </MudFileUpload>
-
-                        @if (!string.IsNullOrEmpty(contractFileName))
-                        {
-                            @if (Id != 0 && !contractChanged)
-                            {
-                                <MudLink Href="@($"/events/{Id}/contract")" Target="_blank">@contractFileName</MudLink>
-                            }
-                            else
-                            {
-                                <MudText Typo="Typo.body2">@contractFileName</MudText>
-                            }
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
-                                           OnClick="RemoveContract" title="Quitar contrato" />
-                        }
-                    </div>
-                    @if (contractError is not null)
-                    {
-                        <MudAlert Severity="Severity.Error" Dense="true" Class="mt-1">@contractError</MudAlert>
-                    }
-                </MudItem>
-            }
-            <MudItem xs="12">
-                <MudCheckBox T="bool" @bind-Value="ev.Active" Label="Activo" />
-            </MudItem>
-        </MudGrid>
 
         @if (saveError is not null)
         {
-            <MudAlert Severity="Severity.Error" Class="mt-3">@saveError</MudAlert>
+            <MudAlert Severity="Severity.Error" Class="mb-3">@saveError</MudAlert>
         }
 
-        <div class="d-flex gap-2 mt-4">
-            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"
+        <div class="d-flex gap-2 mb-3">
+            <MudButton ButtonType="ButtonType.Submit" class="btn btn-primary" Variant="Variant.Filled"
                        Color="Color.Primary" Disabled="@saving">
                 @(saving ? "Guardando…" : "Guardar")
             </MudButton>
             <MudButton Variant="Variant.Outlined" OnClick="GoBack">Cancelar</MudButton>
         </div>
+
+        <MudPaper Elevation="2" Class="pa-4 rounded" Style="max-width:700px">
+            <MudGrid Spacing="3">
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="ev.EventName" For="() => ev.EventName"
+                                Label="Nombre de evento *"
+                                Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="int" @bind-Value="ev.CompanyId" For="() => ev.CompanyId"
+                            Label="Cliente *" Variant="Variant.Outlined" Margin="Margin.Dense">
+                        <MudSelectItem T="int" Value="0">— Seleccionar cliente —</MudSelectItem>
+                        @foreach (var c in companies)
+                        {
+                            <MudSelectItem T="int" Value="@c.CompanyId">@c.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="int?" @bind-Value="ev.LocationId" Label="Localización"
+                            Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                        @foreach (var l in locations)
+                        {
+                            <MudSelectItem T="int?" Value="@((int?)l.LocationId)">@l.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                @if (!createMultiple)
+                {
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudDatePicker Date="@_startDate" DateChanged="OnStartDateChanged"
+                                    Label="Fecha inicio" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        <AppTimePicker Time="@_startTime" TimeChanged="OnStartTimeChanged"
+                                    Label="Hora inicio" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                    AmPm="true" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudDatePicker Date="@_endDate" DateChanged="OnEndDateChanged"
+                                    Label="Fecha fin" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        <AppTimePicker Time="@_endTime" TimeChanged="OnEndTimeChanged"
+                                    Label="Hora fin" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                    AmPm="true" />
+                    </MudItem>
+                }
+
+                <MudItem xs="12" sm="4">
+                    <MudNumericField T="int" @bind-Value="ev.RequiredSupervisors"
+                                    For="() => ev.RequiredSupervisors"
+                                    Label="Supervisores" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudNumericField T="int" @bind-Value="ev.RequiredUshers"
+                                    For="() => ev.RequiredUshers"
+                                    Label="Ushers" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    @if (editingOtherLabel)
+                    {
+                        <MudTextField @bind-Value="ev.RequiredOtherLabel"
+                                    Immediate="true"
+                                    AutoFocus="true"
+                                    OnBlur="@(_ => StopEditingOtherLabel())"
+                                    OnKeyDown="OnOtherLabelKeyDown"
+                                    Label="Etiqueta"
+                                    Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    }
+                    else
+                    {
+                        <div @ondblclick="StartEditingOtherLabel" title="Doble clic para editar la etiqueta">
+                            <MudNumericField T="int" @bind-Value="ev.RequiredOther"
+                                            For="() => ev.RequiredOther"
+                                            Label="@OtherLabelText"
+                                            Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                        </div>
+                    }
+                </MudItem>
+
+                @if (Id == 0)
+                {
+                    <MudItem xs="12">
+                        <MudCheckBox T="bool" @bind-Value="createMultiple"
+                                    Label="Crear varias ocurrencias" />
+                    </MudItem>
+                }
+
+                @if (createMultiple && Id == 0)
+                {
+                    <MudItem xs="12">
+                        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
+                            Puedes agregar una o más reglas. Cada regla puede usar un horario diferente.
+                            Se crearán <strong>@PreviewCount evento(s)</strong> en total.
+                        </MudAlert>
+                        @if (recurrenceError is not null)
+                        {
+                            <MudAlert Severity="Severity.Error" Dense="true">@recurrenceError</MudAlert>
+                        }
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <MudText Typo="Typo.subtitle2">Reglas de recurrencia</MudText>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                    StartIcon="@Icons.Material.Filled.Add" Size="Size.Small"
+                                    OnClick="AddRecurrenceRule">Agregar regla</MudButton>
+                        </div>
+
+                        @for (var i = 0; i < recurrenceRules.Count; i++)
+                        {
+                            var rule = recurrenceRules[i];
+                            var ruleIndex = i;
+                            <MudPaper Outlined="true" Class="pa-3 mb-3" @key="rule">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <MudText Typo="Typo.subtitle2">Regla @(ruleIndex + 1)</MudText>
+                                    @if (recurrenceRules.Count > 1)
+                                    {
+                                        <MudButton Variant="Variant.Outlined" Color="Color.Error"
+                                                Size="Size.Small"
+                                                OnClick="@(() => RemoveRecurrenceRule(rule))">Quitar</MudButton>
+                                    }
+                                </div>
+
+                                <MudGrid Spacing="2">
+                                    <MudItem xs="12" sm="4">
+                                        <MudSelect T="RecurrenceRuleKind" @bind-Value="rule.Kind"
+                                                Label="Tipo" Variant="Variant.Outlined" Margin="Margin.Dense">
+                                            <MudSelectItem Value="RecurrenceRuleKind.SingleDate">Un día</MudSelectItem>
+                                            <MudSelectItem Value="RecurrenceRuleKind.WeekdaysInRange">Días de la semana en rango</MudSelectItem>
+                                            <MudSelectItem Value="RecurrenceRuleKind.SpecificDates">Fechas específicas</MudSelectItem>
+                                        </MudSelect>
+                                    </MudItem>
+                                    <MudItem xs="12" sm="4">
+                                        <AppTimePicker Time="@ParseRuleTime(rule.StartTimeText)"
+                                                    TimeChanged="@(t => rule.StartTimeText = FormatRuleTime(t, rule.StartTimeText))"
+                                                    Label="Hora inicio" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                    AmPm="true" />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="4">
+                                        <AppTimePicker Time="@ParseRuleTime(rule.EndTimeText)"
+                                                    TimeChanged="@(t => rule.EndTimeText = FormatRuleTime(t, rule.EndTimeText))"
+                                                    Label="Hora fin" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                    AmPm="true" />
+                                    </MudItem>
+
+                                    @if (rule.Kind == RecurrenceRuleKind.SingleDate)
+                                    {
+                                        <MudItem xs="12" sm="6">
+                                            <MudDatePicker Date="@((DateTime?)rule.SingleDate)"
+                                                        DateChanged="@(d => { if (d.HasValue) rule.SingleDate = d.Value.Date; })"
+                                                        Label="Fecha" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                        </MudItem>
+                                    }
+                                    else if (rule.Kind == RecurrenceRuleKind.WeekdaysInRange)
+                                    {
+                                        <MudItem xs="12" sm="6">
+                                            <MudDatePicker Date="@((DateTime?)rule.RangeStartDate)"
+                                                        DateChanged="@(d => { if (d.HasValue) rule.RangeStartDate = d.Value.Date; })"
+                                                        Label="Desde" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudDatePicker Date="@((DateTime?)rule.RangeEndDate)"
+                                                        DateChanged="@(d => { if (d.HasValue) rule.RangeEndDate = d.Value.Date; })"
+                                                        Label="Hasta" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                        </MudItem>
+                                        <MudItem xs="12">
+                                            <MudText Typo="Typo.body2" Class="mb-1">Días de la semana</MudText>
+                                            <div class="d-flex flex-wrap gap-2">
+                                                @foreach (var day in DaysOrdered)
+                                                {
+                                                    <MudCheckBox T="bool" Value="@rule.Days.Contains(day)"
+                                                                ValueChanged="@(v => ToggleRuleDay(rule, day, v))"
+                                                                Label="@DayName(day)" Dense="true" />
+                                                }
+                                            </div>
+                                        </MudItem>
+                                    }
+                                    else if (rule.Kind == RecurrenceRuleKind.SpecificDates)
+                                    {
+                                        <MudItem xs="12">
+                                            <MudTextField T="string" Value="@rule.SpecificDatesText"
+                                                        ValueChanged="@(v => rule.SpecificDatesText = v ?? string.Empty)"
+                                                        Lines="3" Label="Fechas"
+                                                        Placeholder="Una fecha por línea o separadas por coma: 2026-07-03, 2026-07-04"
+                                                        HelperText="Formato: AAAA-MM-DD. Una por línea o separadas por coma."
+                                                        Variant="Variant.Outlined" />
+                                        </MudItem>
+                                    }
+                                </MudGrid>
+                            </MudPaper>
+                        }
+                    </MudItem>
+                }
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="ev.Notes" Label="Notas"
+                                Lines="3" Variant="Variant.Outlined" />
+                </MudItem>
+                @if (!createMultiple)
+                {
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.body2" Class="mb-1">Contrato</MudText>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <MudFileUpload T="IBrowserFile" FilesChanged="OnContractSelected" Accept=".pdf,image/*">
+                                <CustomContent Context="fileUpload">
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                                            StartIcon="@Icons.Material.Filled.AttachFile"
+                                            OnClick="@(() => fileUpload.OpenFilePickerAsync())">
+                                        @(string.IsNullOrEmpty(contractFileName) ? "Adjuntar contrato" : "Reemplazar contrato")
+                                    </MudButton>
+                                </CustomContent>
+                            </MudFileUpload>
+
+                            @if (!string.IsNullOrEmpty(contractFileName))
+                            {
+                                @if (Id != 0 && !contractChanged)
+                                {
+                                    <MudLink Href="@($"/events/{Id}/contract")" Target="_blank">@contractFileName</MudLink>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.body2">@contractFileName</MudText>
+                                }
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                            OnClick="RemoveContract" title="Quitar contrato" />
+                            }
+                        </div>
+                        @if (contractError is not null)
+                        {
+                            <MudAlert Severity="Severity.Error" Dense="true" Class="mt-1">@contractError</MudAlert>
+                        }
+                    </MudItem>
+                }
+                <MudItem xs="12">
+                    <MudCheckBox T="bool" @bind-Value="ev.Active" Label="Activo" />
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
     </EditForm>
-</MudPaper>
 
 @code {
     [Parameter] public int Id { get; set; }
@@ -332,6 +333,12 @@
     private DateTime? _endDate;
     private TimeSpan? _endTime;
     private readonly List<RecurrenceRuleEditor> recurrenceRules = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await JS.InvokeVoidAsync("preventEnterSubmit", "event-form");
+    }
 
     protected override async Task OnInitializedAsync()
     {

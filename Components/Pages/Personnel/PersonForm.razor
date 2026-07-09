@@ -5,6 +5,7 @@
 @inject PersonService PersonSvc
 @inject AuthenticationStateProvider AuthState
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <PageTitle>@(Id == 0 ? "Nueva Persona" : "Editar Persona") — Turnos</PageTitle>
 
@@ -19,7 +20,7 @@
 }
 else
 {
-    <EditForm Model="person" OnValidSubmit="Save">
+    <EditForm Model="person" OnValidSubmit="Save" id="person-form">
         <DataAnnotationsValidator />
 
         @if (!string.IsNullOrEmpty(saveError))
@@ -165,6 +166,12 @@ else
     private string newPassword = "";
     private string confirmPassword = "";
     private bool confirmingDelete;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!loading)
+            await JS.InvokeVoidAsync("preventEnterSubmit", "person-form");
+    }
 
     protected override async Task OnInitializedAsync()
     {

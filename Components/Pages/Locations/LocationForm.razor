@@ -5,6 +5,7 @@
 @inject LocationService LocationSvc
 @inject AuthenticationStateProvider AuthState
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <PageTitle>@(Id == 0 ? "Nueva Localidad" : "Editar Localidad") — Turnos</PageTitle>
 
@@ -13,7 +14,7 @@
     <h4 class="mb-0">@(Id == 0 ? "Nueva Localidad" : "Editar Localidad")</h4>
 </div>
 
-<EditForm Model="loc" OnValidSubmit="Save">
+<EditForm Model="loc" OnValidSubmit="Save" id="location-form">
     <DataAnnotationsValidator />
 
     <ValidationSummary class="text-danger mb-3" />
@@ -134,6 +135,11 @@ else
     private string newPositionName = "";
     private bool saving;
     private string userId = "";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await JS.InvokeVoidAsync("preventEnterSubmit", "location-form");
+    }
 
     protected override async Task OnInitializedAsync()
     {
