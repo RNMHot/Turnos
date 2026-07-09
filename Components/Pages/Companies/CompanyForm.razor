@@ -3,6 +3,7 @@
 @attribute [Authorize(Policy = "AppAccess", Roles = "Gerencia,Admin")]
 @rendermode InteractiveServer
 @inject CompanyService CompanySvc
+@inject CompanyDocumentService DocumentSvc
 @inject AuthenticationStateProvider AuthState
 @inject NavigationManager Nav
 
@@ -46,9 +47,41 @@
                 <label class="form-label">Email</label>
                 <InputText @bind-Value="company.Email" class="form-control" type="email" />
             </div>
-            <div class="mb-0">
+            <div class="mb-3">
                 <label class="form-label">Notas</label>
                 <InputTextArea @bind-Value="company.Notes" class="form-control" rows="3" />
+            </div>
+            <div class="mb-0">
+                <label class="form-label d-block">Registro de comerciante</label>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <MudFileUpload T="IBrowserFile" FilesChanged="OnDocumentSelected" Accept=".pdf,image/*">
+                        <CustomContent Context="fileUpload">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.AttachFile"
+                                       OnClick="@(() => fileUpload.OpenFilePickerAsync())">
+                                @(string.IsNullOrEmpty(documentFileName) ? "Adjuntar registro" : "Reemplazar registro")
+                            </MudButton>
+                        </CustomContent>
+                    </MudFileUpload>
+
+                    @if (!string.IsNullOrEmpty(documentFileName))
+                    {
+                        @if (Id != 0 && !documentChanged)
+                        {
+                            <MudLink Href="@($"/companies/{Id}/document")" Target="_blank">@documentFileName</MudLink>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2">@documentFileName</MudText>
+                        }
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                       OnClick="RemoveDocument" title="Quitar registro" />
+                    }
+                </div>
+                @if (documentError is not null)
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true" Class="mt-1">@documentError</MudAlert>
+                }
             </div>
         </div>
     </div>
@@ -61,6 +94,15 @@
     private bool saving;
     private string userId = "";
 
+    private string? documentError;
+    private string? documentFileName;
+    private string? documentContentType;
+    private byte[]? pendingDocumentData;
+    private bool documentChanged;
+    private bool documentMarkedForRemoval;
+    private static readonly string[] AllowedDocumentExtensions = { ".pdf", ".jpg", ".jpeg", ".png", ".webp", ".gif" };
+    private const long MaxDocumentBytes = 10 * 1024 * 1024;
+
     protected override async Task OnInitializedAsync()
     {
         var auth = await AuthState.GetAuthenticationStateAsync();
@@ -69,7 +111,51 @@
         {
             var existing = await CompanySvc.GetByIdAsync(Id);
             if (existing is not null) company = existing;
+
+            var documentMeta = await DocumentSvc.GetMetadataAsync(Id);
+            documentFileName = documentMeta?.FileName;
+            documentContentType = documentMeta?.ContentType;
         }
+    }
+
+    private async Task OnDocumentSelected(IBrowserFile? file)
+    {
+        documentError = null;
+        if (file is null)
+            return;
+
+        var ext = Path.GetExtension(file.Name).ToLowerInvariant();
+        if (!AllowedDocumentExtensions.Contains(ext))
+        {
+            documentError = "El archivo debe ser un PDF o una imagen (jpg, png, webp, gif).";
+            return;
+        }
+
+        if (file.Size > MaxDocumentBytes)
+        {
+            documentError = "El archivo no puede superar 10 MB.";
+            return;
+        }
+
+        using var stream = file.OpenReadStream(MaxDocumentBytes);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+
+        pendingDocumentData = ms.ToArray();
+        documentFileName = file.Name;
+        documentContentType = file.ContentType;
+        documentChanged = true;
+        documentMarkedForRemoval = false;
+    }
+
+    private void RemoveDocument()
+    {
+        pendingDocumentData = null;
+        documentFileName = null;
+        documentContentType = null;
+        documentError = null;
+        documentChanged = true;
+        documentMarkedForRemoval = true;
     }
 
     private async Task Save()
@@ -77,6 +163,15 @@
         saving = true;
         if (Id == 0) await CompanySvc.CreateAsync(company, userId);
         else await CompanySvc.UpdateAsync(company, userId);
+
+        if (documentChanged)
+        {
+            if (documentMarkedForRemoval)
+                await DocumentSvc.RemoveAsync(company.CompanyId, userId);
+            else if (pendingDocumentData is not null)
+                await DocumentSvc.SaveAsync(company.CompanyId, documentFileName!, documentContentType!, pendingDocumentData, userId);
+        }
+
         Nav.NavigateTo("/companies");
     }
 }

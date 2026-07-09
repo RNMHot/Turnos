@@ -19,9 +19,9 @@
                 {
                     var assigned = _assignedIds.Contains(person.PersonId);
                     <MudChip T="string" OnClick="@(() => Pick(person))"
-                             Color="@GetRoleColor(person)" Variant="@(assigned ? Variant.Outlined : Variant.Filled)"
+                             Variant="@(assigned ? Variant.Outlined : Variant.Filled)"
                              Icon="@(assigned ? Icons.Material.Filled.Check : Icons.Material.Filled.Person)"
-                             Class="mb-1" Style="@($"cursor:pointer;width:100%;justify-content:flex-start;{(assigned ? "opacity:0.6" : "")}")">
+                             Class="mb-1" Style="@($"{GetRoleStyle(person)}cursor:pointer;width:100%;justify-content:flex-start;{(assigned ? "opacity:0.6" : "")}")">
                         @person.FullName
                     </MudChip>
                 }
@@ -63,16 +63,16 @@
 
     private void Close() => MudDialog.Close();
 
-    private static Color GetRoleColor(Person p)
+    private static string GetRoleStyle(Person p)
     {
         var roles = p.PersonRoles.Select(r => r.Role?.Name).ToList();
         bool isUsher = roles.Contains("Ujier");
         bool isSup = roles.Contains("Supervisor");
         return (isUsher, isSup) switch
         {
-            (true, true) => Color.Tertiary,
-            (false, true) => Color.Secondary,
-            _ => Color.Primary
+            (true, true) => "background:#EDF0F4;border:1px solid #5B6F86;color:#2A3A4A;",
+            (false, true) => "background:#FAF0E3;border:1px solid #C97832;color:#7A4A1E;",
+            _ => "background:#E0F0F1;border:1px solid #2D8C91;color:#1A5558;"
         };
     }
 }

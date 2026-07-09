@@ -19,6 +19,8 @@ public class Person
 
     public bool SignInEnabled { get; set; } = true;
 
+    public bool PendingApproval { get; set; }
+
     public bool Deleted { get; set; }
 
     public bool IsMassGroup { get; set; }

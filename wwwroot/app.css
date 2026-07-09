@@ -363,7 +363,29 @@ a, .btn-link { color: var(--color-accent); }
 
 .assignment-badge-name {
     flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
+
+.assignment-badge-status {
+    flex-shrink: 0;
+    margin-left: 2px;
+    padding: 0 3px;
+    border-radius: 2px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    line-height: 1.4;
+    color: #fff;
+}
+
+.status-success { background: var(--color-success); }
+.status-primary { background: var(--color-primary); }
+.status-info    { background: var(--color-info); }
+.status-error   { background: var(--color-error); }
+.status-warning { background: var(--color-warning); }
+.status-default { background: var(--color-text-secondary); }
 
 /* Sidebar */
 .sidebar { background-color: var(--color-primary); }

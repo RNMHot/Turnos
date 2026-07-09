@@ -138,7 +138,8 @@
     {
         await AssignmentSvc.UpdateStatusAsync(a.AssignmentId, status, CurrentUserId);
         a.Status = status;
-        MudDialog.Close(DialogResult.Ok("refresh"));
+        //MudDialog.Close(DialogResult.Ok("refresh"));
+        _dirty = true;
     }
 
     private async Task ChangePosition(Assignment a, int? locationPositionId)
@@ -153,7 +154,8 @@
         await AssignmentSvc.UpdateRoleAsync(a.AssignmentId, roleId, CurrentUserId);
         a.RoleId = roleId;
         a.Role = _allRoles.FirstOrDefault(r => r.RoleId == roleId);
-        MudDialog.Close(DialogResult.Ok("refresh"));
+        //MudDialog.Close(DialogResult.Ok("refresh"));
+        _dirty = true;
     }
 
     private bool HasCustomTime(Assignment a) =>
@@ -176,7 +178,8 @@
         var dialogResult = await result.Result;
 
         if (dialogResult is not null && !dialogResult.Canceled)
-            MudDialog.Close(DialogResult.Ok("refresh"));
+            _dirty = true;
+//          MudDialog.Close(DialogResult.Ok("refresh"));
     }
 
     // Falls back to the person's highest-rank role when the event has no explicit override yet.

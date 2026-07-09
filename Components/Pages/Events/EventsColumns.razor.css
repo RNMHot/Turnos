@@ -133,9 +133,37 @@
     flex-shrink: 0;
 }
 
+.assignment-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.assignment-name-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.assignment-name-group {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+    overflow: hidden;
+}
+
 .assignment-name {
     font-size: 0.82rem;
     font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.assignment-status-badge {
+    flex-shrink: 0;
 }
 
 /* Event staffing status */

@@ -40,6 +40,7 @@
                    Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:150px">
             <MudSelectItem T="string" Value="@("true")">Activos</MudSelectItem>
             <MudSelectItem T="string" Value="@("false")">Inactivos</MudSelectItem>
+            <MudSelectItem T="string" Value="@("pending")">Pendientes por aprobar</MudSelectItem>
         </MudSelect>
         <MudSelect T="string" @bind-Value="filterGroup" @bind-Value:after="Load" Placeholder="Grupo"
                    Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:150px">
@@ -78,13 +79,33 @@
             </MudChip>
         </MudTd>
         <MudTd DataLabel="Estatus">
-            <MudChip T="string" Color="@(context.Active ? Color.Success : Color.Secondary)" Size="Size.Small"
-                     Variant="Variant.Filled" Class="ma-0">
-                @(context.Active ? "Activo" : "Inactivo")
-            </MudChip>
+            @if (context.PendingApproval)
+            {
+                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Filled" Class="ma-0">
+                    Pendiente por aprobar
+                </MudChip>
+            }
+            else
+            {
+                <MudChip T="string" Color="@(context.Active ? Color.Success : Color.Secondary)" Size="Size.Small"
+                         Variant="Variant.Filled" Class="ma-0">
+                    @(context.Active ? "Activo" : "Inactivo")
+                </MudChip>
+            }
         </MudTd>
         <MudTd DataLabel="">
             <div style="display:flex; align-items:center; justify-content:flex-end">
+                @if (context.PendingApproval)
+                {
+                    <MudTooltip Text="Aprobar registro">
+                        <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Success"
+                                       Size="Size.Small" OnClick="() => ConfirmApprove(context)" />
+                    </MudTooltip>
+                    <MudTooltip Text="Rechazar registro">
+                        <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Error"
+                                       Size="Size.Small" OnClick="() => ConfirmReject(context)" />
+                    </MudTooltip>
+                }
                 <MudTooltip Text="Manejar disponibilidad">
                     <MudIconButton Icon="@Icons.Material.Filled.CalendarMonth" Color="Color.Info"
                                    Size="Size.Small" Href="@($"/personnel/{context.PersonId}/availability")" />
@@ -134,9 +155,42 @@
     {
         loading = true;
         bool? active = filterActive == "true" ? true : filterActive == "false" ? false : null;
+        bool? pendingApproval = filterActive == "pending" ? true : null;
         bool? isMassGroup = filterGroup == "mass" ? true : filterGroup == "regular" ? false : null;
-        persons = await PersonSvc.GetAllAsync(search, filterRoleId, active, isMassGroup);
+        persons = await PersonSvc.GetAllAsync(search, filterRoleId, active, isMassGroup, pendingApproval);
         loading = false;
+    }
+
+    private async Task ConfirmApprove(Person p)
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Aprobar Registro",
+            $"¿Desea aprobar el registro de {p.FullName}? Podrá ingresar a la aplicación.",
+            yesText: "Sí, aprobar",
+            cancelText: "No");
+
+        if (confirmed == true)
+        {
+            await PersonSvc.ApproveAsync(p.PersonId, userId);
+            Snackbar.Add("Registro aprobado", Severity.Success);
+            await Load();
+        }
+    }
+
+    private async Task ConfirmReject(Person p)
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Rechazar Registro",
+            $"¿Desea rechazar el registro de {p.FullName}? Esta acción no se puede deshacer.",
+            yesText: "Sí, rechazar",
+            cancelText: "No");
+
+        if (confirmed == true)
+        {
+            await PersonSvc.RejectAsync(p.PersonId, userId);
+            Snackbar.Add("Registro rechazado", Severity.Info);
+            await Load();
+        }
     }
 
     private async Task ConfirmDeactivate(Person p)

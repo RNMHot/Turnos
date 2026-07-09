@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Turnos.Models;
 
@@ -9,6 +10,9 @@ public class AuditLog
 
     [MaxLength(450)]
     public string UserId { get; set; } = string.Empty;
+
+    [NotMapped]
+    public string UserName { get; set; } = string.Empty;
 
     [MaxLength(100)]
     public string Action { get; set; } = string.Empty;

@@ -1,0 +1,39 @@
+@* MudTimePicker wrapper that requires an explicit Aceptar/Cancelar action to close,
+   instead of only closing after every field (hour, minute, AM/PM) has been touched or by clicking outside.
+   Parameters are declared explicitly (not splatted via @attributes) because MudBlazor's internal
+   parameter-change tracking casts unmatched attribute values to their declared CLR type, and a splatted
+   bool like Editable="true" arrives boxed as a string, crashing the circuit with an InvalidCastException.
+   The Aceptar button lives in this component's own render tree, so clicking it triggers a re-render of
+   THIS component (not just the caller) before the caller gets a chance to re-render with the new value.
+   _time is updated synchronously in OnTimeChanged so that re-render pushes the fresh value instead of
+   the stale Time parameter, which would otherwise revert the just-committed change. *@
+<MudTimePicker Time="_time" TimeChanged="OnTimeChanged"
+               Label="@Label" Variant="Variant" Margin="Margin" AmPm="AmPm" Editable="Editable"
+               AnchorOrigin="AnchorOrigin" TransformOrigin="TransformOrigin">
+    <PickerActions>
+        <MudButton OnClick="@(() => context.CloseAsync(false))">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" OnClick="@(() => context.CloseAsync(true))">Aceptar</MudButton>
+    </PickerActions>
+</MudTimePicker>
+
+@code {
+    private TimeSpan? _time;
+
+    [Parameter] public TimeSpan? Time { get; set; }
+    [Parameter] public EventCallback<TimeSpan?> TimeChanged { get; set; }
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public Variant Variant { get; set; } = Variant.Text;
+    [Parameter] public Margin Margin { get; set; } = Margin.None;
+    [Parameter] public bool AmPm { get; set; }
+    [Parameter] public bool Editable { get; set; }
+    [Parameter] public Origin AnchorOrigin { get; set; } = Origin.BottomLeft;
+    [Parameter] public Origin TransformOrigin { get; set; } = Origin.TopLeft;
+
+    protected override void OnParametersSet() => _time = Time;
+
+    private async Task OnTimeChanged(TimeSpan? time)
+    {
+        _time = time;
+        await TimeChanged.InvokeAsync(time);
+    }
+}

@@ -40,10 +40,20 @@ public class AuditService
         if (to.HasValue)
             query = query.Where(a => a.Timestamp <= to.Value);
 
-        return await query
+        var logs = await query
             .OrderByDescending(a => a.Timestamp)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
+
+        var userIds = logs.Select(a => a.UserId).Distinct().ToList();
+        var userNames = await db.Users
+            .Where(u => userIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.UserName ?? u.Email ?? u.Id);
+
+        foreach (var log in logs)
+            log.UserName = userNames.GetValueOrDefault(log.UserId, log.UserId);
+
+        return logs;
     }
 }

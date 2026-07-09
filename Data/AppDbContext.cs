@@ -27,6 +27,8 @@ public class AppDbContext : IdentityDbContext
     public DbSet<LocationPosition> LocationPositions => Set<LocationPosition>();
     public DbSet<EventComment> EventComments => Set<EventComment>();
     public DbSet<EventContract> EventContracts => Set<EventContract>();
+    public DbSet<CompanyDocument> CompanyDocuments => Set<CompanyDocument>();
+    public DbSet<UserSession> UserSessions => Set<UserSession>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -139,6 +141,19 @@ public class AppDbContext : IdentityDbContext
             .HasOne(c => c.Event)
             .WithOne()
             .HasForeignKey<EventContract>(c => c.EventId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<UserSession>()
+            .HasIndex(s => new { s.UserId, s.LoginAt });
+
+        builder.Entity<CompanyDocument>()
+            .HasIndex(d => d.CompanyId)
+            .IsUnique();
+
+        builder.Entity<CompanyDocument>()
+            .HasOne(d => d.Company)
+            .WithOne()
+            .HasForeignKey<CompanyDocument>(d => d.CompanyId)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.Entity<LocationPosition>()

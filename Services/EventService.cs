@@ -9,12 +9,14 @@ public class EventService
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly AuditService _audit;
     private readonly AppSettingsState _settings;
+    private readonly ScheduleChangeNotifier _notifier;
 
-    public EventService(IDbContextFactory<AppDbContext> dbFactory, AuditService audit, AppSettingsState settings)
+    public EventService(IDbContextFactory<AppDbContext> dbFactory, AuditService audit, AppSettingsState settings, ScheduleChangeNotifier notifier)
     {
         _dbFactory = dbFactory;
         _audit = audit;
         _settings = settings;
+        _notifier = notifier;
     }
 
     public async Task<List<Event>> GetAllAsync(string? search = null, int? companyId = null,
@@ -111,6 +113,7 @@ public class EventService
         db.Events.Add(ev);
         await db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Create", "Event", ev.EventId, $"Created {ev.EventName}");
+        _notifier.NotifyChanged();
         return ev;
     }
 
@@ -122,6 +125,7 @@ public class EventService
         db.Events.Update(ev);
         await db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Update", "Event", ev.EventId, $"Updated {ev.EventName}");
+        _notifier.NotifyChanged();
     }
 
     private DateTime ToUtc(DateTime value) =>
@@ -136,5 +140,6 @@ public class EventService
         ev.Deleted = true;
         await db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Delete", "Event", id, $"Deleted {ev.EventName}");
+        _notifier.NotifyChanged();
     }
 }

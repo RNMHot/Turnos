@@ -112,6 +112,14 @@
                                 <i class="bi bi-clock-history me-2"></i><span class="nav-text">Auditoría</span>
                             </NavLink>
                         </div>
+                        @if (isAdmin)
+                        {
+                            <div class="nav-item px-3 ps-4">
+                                <NavLink class="nav-link nav-link-sub" href="/settings/user-sessions">
+                                    <i class="bi bi-person-lines-fill me-2"></i><span class="nav-text">Sesiones de usuario</span>
+                                </NavLink>
+                            </div>
+                        }
                     </div>
                 }
             }
@@ -139,6 +147,11 @@
                     </NavLink>
                 </div>
                 <div class="nav-item px-3 ps-4">
+                    <NavLink class="nav-link nav-link-sub" href="/my-availability" title="Registrar mi no-disponibilidad">
+                        <i class="bi bi-calendar-x me-2"></i><span class="nav-text">Mi disponibilidad</span>
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3 ps-4">
                     <NavLink class="nav-link nav-link-sub" href="/settings/change-password" title="Cambiar contraseña">
                         <i class="bi bi-key me-2"></i><span class="nav-text">Mi contraseña</span>
                     </NavLink>
@@ -157,6 +170,7 @@
     private bool showHerramientas = true;
     private bool isGerenciaOrAdmin;
     private bool isSupervisor;
+    private bool isAdmin;
     private string? _logoDataUrl;
 
     protected override async Task OnInitializedAsync()
@@ -164,6 +178,7 @@
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         isGerenciaOrAdmin = authState.User.IsInRole("Gerencia") || authState.User.IsInRole("Admin");
         isSupervisor = authState.User.IsInRole("Supervisor");
+        isAdmin = authState.User.IsInRole("Admin");
 
         _logoDataUrl = await SettingsSvc.GetValueAsync("BrandLogoBase64");
         SettingsState.OnChange += OnSettingsChanged;

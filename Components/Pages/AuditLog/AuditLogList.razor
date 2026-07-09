@@ -24,7 +24,7 @@
             {
                 <tr>
                     <td class="text-nowrap">@a.Timestamp.ToString("MMM d, HH:mm")</td>
-                    <td class="text-muted small">@a.UserId[..Math.Min(12, a.UserId.Length)]…</td>
+                    <td class="text-muted small">@a.UserName</td>
                     <td>
                         <span class="badge @(a.Action == "Create" ? "bg-success" : a.Action == "Delete" ? "bg-danger" : "bg-primary")">
                             @a.Action

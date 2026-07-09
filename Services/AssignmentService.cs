@@ -10,13 +10,15 @@ public class AssignmentService
     private readonly AuditService _audit;
     private readonly AvailabilityService _availability;
     private readonly AppSettingsState _settings;
+    private readonly ScheduleChangeNotifier _notifier;
 
-    public AssignmentService(IDbContextFactory<AppDbContext> dbFactory, AuditService audit, AvailabilityService availability, AppSettingsState settings)
+    public AssignmentService(IDbContextFactory<AppDbContext> dbFactory, AuditService audit, AvailabilityService availability, AppSettingsState settings, ScheduleChangeNotifier notifier)
     {
         _dbFactory = dbFactory;
         _audit = audit;
         _availability = availability;
         _settings = settings;
+        _notifier = notifier;
     }
 
     public async Task<List<Assignment>> GetAllAsync(int? eventId = null, int? personId = null)
@@ -73,6 +75,7 @@ public class AssignmentService
         await db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Create", "Assignment", assignment.AssignmentId,
             $"Assigned person {assignment.PersonId} to event {assignment.EventId}");
+        _notifier.NotifyChanged();
 
         return (true, string.Empty);
     }
@@ -89,6 +92,7 @@ public class AssignmentService
         db.Assignments.Update(assignment);
         await db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Update", "Assignment", assignment.AssignmentId, "Updated assignment");
+        _notifier.NotifyChanged();
 
         return (true, string.Empty);
     }
@@ -101,6 +105,7 @@ public class AssignmentService
         a.Deleted = true;
         await db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Delete", "Assignment", id, "Deleted assignment");
+        _notifier.NotifyChanged();
     }
 
     public async Task UpdateStatusAsync(int id, AssignmentStatus status, string actorUserId)
@@ -111,6 +116,7 @@ public class AssignmentService
         a.Status = status;
         await db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Update", "Assignment", id, $"Status changed to {status}");
+        _notifier.NotifyChanged();
     }
 
     public async Task UpdatePositionAsync(int id, int? locationPositionId, string actorUserId)
@@ -121,6 +127,7 @@ public class AssignmentService
         a.LocationPositionId = locationPositionId;
         await db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Update", "Assignment", id, "Position changed");
+        _notifier.NotifyChanged();
     }
 
     public async Task UpdateRoleAsync(int id, int? roleId, string actorUserId)
@@ -131,6 +138,7 @@ public class AssignmentService
         a.RoleId = roleId;
         await db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Update", "Assignment", id, "Role changed for this event");
+        _notifier.NotifyChanged();
     }
 
     public async Task<(bool Success, string Error)> UpdateTimesAsync(int id, DateTime start, DateTime end, string actorUserId)
@@ -153,6 +161,7 @@ public class AssignmentService
         a.EndDateTime = end;
         await db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Update", "Assignment", id, "Horario personalizado cambiado");
+        _notifier.NotifyChanged();
 
         return (true, string.Empty);
     }

@@ -1,6 +1,7 @@
 @page "/"
 @attribute [Authorize(Policy = "AppAccess", Roles = "Gerencia,Admin")]
 @rendermode InteractiveServer
+@implements IDisposable
 @inject EventService EventSvc
 @inject PersonService PersonSvc
 @inject AssignmentService AssignmentSvc
@@ -10,6 +11,7 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject AppSettingsState SettingsState
+@inject ScheduleChangeNotifier ChangeNotifier
 @using System.Globalization
 @using Turnos.Components.Pages.Events
 
@@ -117,9 +119,10 @@
                                         </div>
                                         @foreach (var (a, idx) in ev.Assignments.Select((a, i) => (a, i)))
                                         {
-                                            <div class="assignment-badge" @onclick:stopPropagation="true">
+                                            <div class="assignment-badge" @onclick:stopPropagation="true" title="@a.Status">
                                                 <span class="assignment-badge-number">@(idx + 1).</span>
                                                 <span class="assignment-badge-name">@a.Person.FullName</span>
+                                                <span class="assignment-badge-status @GetStatusBadgeClass(a.Status)">@GetStatusBadgeCode(a.Status)</span>
                                             </div>
                                         }
                                     </div>
@@ -152,7 +155,22 @@
         weekStart = GetMonday(SettingsState.Today);
         var authState = await AuthState.GetAuthenticationStateAsync();
         currentUserId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+        ChangeNotifier.Changed += OnScheduleChanged;
         await LoadData();
+    }
+
+    private async void OnScheduleChanged()
+    {
+        await InvokeAsync(async () =>
+        {
+            await LoadData();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        ChangeNotifier.Changed -= OnScheduleChanged;
     }
 
     private async Task LoadData()
@@ -359,6 +377,28 @@
         var staffClass = assignedTotal >= requiredTotal ? "event-staffed" : "event-unstaffed";
         return ev.Active ? staffClass : $"{staffClass} event-inactive";
     }
+
+    private static string GetStatusBadgeCode(AssignmentStatus status) => status switch
+    {
+        AssignmentStatus.Confirmado => "CON",
+        AssignmentStatus.Asignado   => "ASI",
+        AssignmentStatus.Aceptado   => "ACE",
+        AssignmentStatus.Denegado   => "DEN",
+        AssignmentStatus.Ofrecido   => "OFR",
+        AssignmentStatus.Candidato  => "CAN",
+        _ => "?"
+    };
+
+    private static string GetStatusBadgeClass(AssignmentStatus status) => status switch
+    {
+        AssignmentStatus.Confirmado => "status-success",
+        AssignmentStatus.Asignado   => "status-primary",
+        AssignmentStatus.Aceptado   => "status-info",
+        AssignmentStatus.Denegado   => "status-error",
+        AssignmentStatus.Ofrecido   => "status-warning",
+        AssignmentStatus.Candidato  => "status-default",
+        _ => "status-default"
+    };
 
     private static string FormatRequirements(Event ev)
     {

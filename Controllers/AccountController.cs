@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
+using Turnos.Services;
 
 namespace Turnos.Controllers;
 
@@ -10,15 +11,39 @@ public class AccountController : Controller
     private readonly SignInManager<IdentityUser> _signInManager;
     private readonly UserManager<IdentityUser> _userManager;
     private readonly Turnos.Services.AccessControlService _accessControl;
+    private readonly PersonService _personService;
+    private readonly UserSessionService _userSessions;
 
     public AccountController(
         SignInManager<IdentityUser> signInManager,
         UserManager<IdentityUser> userManager,
-        Turnos.Services.AccessControlService accessControl)
+        Turnos.Services.AccessControlService accessControl,
+        PersonService personService,
+        UserSessionService userSessions)
     {
         _signInManager = signInManager;
         _userManager = userManager;
         _accessControl = accessControl;
+        _personService = personService;
+        _userSessions = userSessions;
+    }
+
+    [HttpPost("register-submit")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Register(
+        string fullName, string email, string phoneNumber, string password, string confirmPassword)
+    {
+        if (string.IsNullOrWhiteSpace(fullName) || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(phoneNumber))
+            return Redirect("/account/register?error=" + Uri.EscapeDataString("Todos los campos son obligatorios."));
+
+        if (password != confirmPassword)
+            return Redirect("/account/register?error=" + Uri.EscapeDataString("Las contraseñas no coinciden."));
+
+        var (success, error) = await _personService.RegisterAsync(fullName.Trim(), email.Trim(), phoneNumber.Trim(), password);
+        if (!success)
+            return Redirect("/account/register?error=" + Uri.EscapeDataString(error));
+
+        return Redirect("/account/registered");
     }
 
     [HttpPost("signin")]
@@ -32,9 +57,13 @@ public class AccountController : Controller
             var user = await _userManager.FindByEmailAsync(email);
             if (user is null || !await _accessControl.HasAppAccessAsync(user))
             {
+                var pending = user is not null && await _accessControl.IsPendingApprovalAsync(user);
                 await _signInManager.SignOutAsync();
-                return Redirect("/account/login?denied=1&returnUrl=" + Uri.EscapeDataString(returnUrl ?? ""));
+                var deniedReason = pending ? "2" : "1";
+                return Redirect($"/account/login?denied={deniedReason}&returnUrl=" + Uri.EscapeDataString(returnUrl ?? ""));
             }
+
+            await StartUserSessionAsync(user);
 
             if (await _accessControl.MustChangePasswordAsync(user))
                 return RedirectAfterAuth("/account/change-password?returnUrl=" + Uri.EscapeDataString(returnUrl ?? ""));
@@ -52,6 +81,24 @@ public class AccountController : Controller
         }
 
         return Redirect("/account/login?error=1&returnUrl=" + Uri.EscapeDataString(returnUrl ?? ""));
+    }
+
+    private async Task StartUserSessionAsync(IdentityUser user)
+    {
+        string? personName = null;
+        var personId = await _accessControl.GetPersonIdAsync(user);
+        if (personId.HasValue)
+        {
+            var person = await _personService.GetByIdAsync(personId.Value);
+            personName = person?.FullName;
+        }
+        else if (string.Equals(user.Email, TurnosClaimTypes.AdminEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            personName = "Administrador";
+        }
+
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        await _userSessions.StartSessionAsync(user.Id, user.Email ?? "", personName, ipAddress);
     }
 
     [HttpPost("change-password")]
@@ -105,6 +152,10 @@ public class AccountController : Controller
     [HttpGet("signout")]
     public async Task<IActionResult> SignOutUser()
     {
+        var user = await _userManager.GetUserAsync(User);
+        if (user is not null)
+            await _userSessions.EndSessionAsync(user.Id);
+
         await _signInManager.SignOutAsync();
         return Redirect("/account/login");
     }

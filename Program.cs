@@ -78,12 +78,16 @@ builder.Services.AddScoped<AssignmentService>();
 builder.Services.AddScoped<AttendanceService>();
 builder.Services.AddScoped<EventCommentService>();
 builder.Services.AddScoped<EventContractService>();
+builder.Services.AddScoped<CompanyDocumentService>();
 builder.Services.AddScoped<AvailabilityService>();
 builder.Services.AddScoped<WhatsAppService>();
 builder.Services.AddScoped<CalendarService>();
 builder.Services.AddScoped<ExcelExportService>();
 builder.Services.AddScoped<AppSettingService>();
+builder.Services.AddScoped<UserSessionService>();
+builder.Services.AddScoped<Microsoft.AspNetCore.Components.Server.Circuits.CircuitHandler, TurnosCircuitHandler>();
 builder.Services.AddSingleton<AppSettingsState>();
+builder.Services.AddSingleton<ScheduleChangeNotifier>();
 
 var app = builder.Build();
 

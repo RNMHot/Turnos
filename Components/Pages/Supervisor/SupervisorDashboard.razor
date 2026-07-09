@@ -102,7 +102,7 @@ else if (viewAsSupervisor)
                                 </label>
                                 <div class="d-flex align-items-center gap-1 @(IsCheckInSavedAndClean(row) ? "saved-clean" : "")">
                                     <div style="max-width:120px">
-                                        <MudTimePicker @bind-Time="row.CheckInTime" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                        <AppTimePicker @bind-Time="row.CheckInTime" Variant="Variant.Outlined" Margin="Margin.Dense"
                                                        Editable="true" AmPm="true"
                                                        AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" />
                                     </div>
@@ -129,7 +129,7 @@ else if (viewAsSupervisor)
                                         </div>
                                     }
                                     <div style="max-width:120px">
-                                        <MudTimePicker @bind-Time="row.CheckOutTime" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                        <AppTimePicker @bind-Time="row.CheckOutTime" Variant="Variant.Outlined" Margin="Margin.Dense"
                                                        Editable="true" AmPm="true"
                                                        AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" />
                                     </div>
@@ -193,14 +193,14 @@ else
                 <label class="form-label">Hora de entrada</label>
                 <div class="d-flex gap-1">
                     <MudDatePicker @bind-Date="CheckInDate" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                    <MudTimePicker @bind-Time="CheckInTime" Variant="Variant.Outlined" Margin="Margin.Dense" AmPm="true" />
+                    <AppTimePicker @bind-Time="CheckInTime" Variant="Variant.Outlined" Margin="Margin.Dense" AmPm="true" />
                 </div>
             </div>
             <div class="mb-2">
                 <label class="form-label">Hora de salida</label>
                 <div class="d-flex gap-1">
                     <MudDatePicker @bind-Date="CheckOutDate" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                    <MudTimePicker @bind-Time="CheckOutTime" Variant="Variant.Outlined" Margin="Margin.Dense" AmPm="true" />
+                    <AppTimePicker @bind-Time="CheckOutTime" Variant="Variant.Outlined" Margin="Margin.Dense" AmPm="true" />
                 </div>
             </div>
 
@@ -222,14 +222,14 @@ else
                 <label class="form-label">Inicio descanso</label>
                 <div class="d-flex gap-1">
                     <MudDatePicker @bind-Date="BreakStartDate" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                    <MudTimePicker @bind-Time="BreakStartTime" Variant="Variant.Outlined" Margin="Margin.Dense" AmPm="true" />
+                    <AppTimePicker @bind-Time="BreakStartTime" Variant="Variant.Outlined" Margin="Margin.Dense" AmPm="true" />
                 </div>
             </div>
             <div class="mb-2">
                 <label class="form-label">Fin descanso</label>
                 <div class="d-flex gap-1">
                     <MudDatePicker @bind-Date="BreakEndDate" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                    <MudTimePicker @bind-Time="BreakEndTime" Variant="Variant.Outlined" Margin="Margin.Dense" AmPm="true" />
+                    <AppTimePicker @bind-Time="BreakEndTime" Variant="Variant.Outlined" Margin="Margin.Dense" AmPm="true" />
                 </div>
             </div>
 

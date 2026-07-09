@@ -12,7 +12,7 @@
                                Label="Fecha inicio" Variant="Variant.Outlined" Margin="Margin.Dense" />
             </MudItem>
             <MudItem xs="6">
-                <MudTimePicker Time="@_startTime" TimeChanged="OnStartTimeChanged"
+                <AppTimePicker Time="@_startTime" TimeChanged="OnStartTimeChanged"
                                Label="Hora inicio" Variant="Variant.Outlined" Margin="Margin.Dense" AmPm="true" />
             </MudItem>
             <MudItem xs="6">
@@ -20,7 +20,7 @@
                                Label="Fecha fin" Variant="Variant.Outlined" Margin="Margin.Dense" />
             </MudItem>
             <MudItem xs="6">
-                <MudTimePicker Time="@_endTime" TimeChanged="OnEndTimeChanged"
+                <AppTimePicker Time="@_endTime" TimeChanged="OnEndTimeChanged"
                                Label="Hora fin" Variant="Variant.Outlined" Margin="Margin.Dense" AmPm="true" />
             </MudItem>
         </MudGrid>

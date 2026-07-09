@@ -84,7 +84,7 @@
                         }
                     </label>
                     <div class="@(IsCheckInSavedAndClean ? "saved-clean" : "")" style="max-width:160px">
-                        <MudTimePicker @bind-Time="checkInTime" Variant="Variant.Outlined" Margin="Margin.Dense" Editable="true" AmPm="true" />
+                        <AppTimePicker @bind-Time="checkInTime" Variant="Variant.Outlined" Margin="Margin.Dense" Editable="true" AmPm="true" />
                     </div>
                 </div>
                 <div class="mb-2">
@@ -104,7 +104,7 @@
                             </div>
                         }
                         <div style="max-width:160px">
-                            <MudTimePicker @bind-Time="checkOutTime" Variant="Variant.Outlined" Margin="Margin.Dense" Editable="true" AmPm="true" />
+                            <AppTimePicker @bind-Time="checkOutTime" Variant="Variant.Outlined" Margin="Margin.Dense" Editable="true" AmPm="true" />
                         </div>
                     </div>
                 </div>
@@ -138,7 +138,7 @@
                             }
                         </label>
                         <div class="@(IsBreakStartSavedAndClean ? "saved-clean" : "")" style="max-width:160px">
-                            <MudTimePicker @bind-Time="breakStartTime" Variant="Variant.Outlined" Margin="Margin.Dense" Editable="true" AmPm="true" />
+                            <AppTimePicker @bind-Time="breakStartTime" Variant="Variant.Outlined" Margin="Margin.Dense" Editable="true" AmPm="true" />
                         </div>
                     </div>
                     <div class="mb-2">
@@ -158,7 +158,7 @@
                                 </div>
                             }
                             <div style="max-width:160px">
-                                <MudTimePicker @bind-Time="breakEndTime" Variant="Variant.Outlined" Margin="Margin.Dense" Editable="true" AmPm="true" />
+                                <AppTimePicker @bind-Time="breakEndTime" Variant="Variant.Outlined" Margin="Margin.Dense" Editable="true" AmPm="true" />
                             </div>
                         </div>
                     </div>

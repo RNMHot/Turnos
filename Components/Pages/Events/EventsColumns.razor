@@ -1,6 +1,7 @@
 @page "/events-columns"
 @attribute [Authorize(Policy = "AppAccess", Roles = "Gerencia,Admin")]
 @rendermode InteractiveServer
+@implements IDisposable
 @inject EventService EventSvc
 @inject PersonService PersonSvc
 @inject AssignmentService AssignmentSvc
@@ -8,6 +9,7 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject AppSettingsState SettingsState
+@inject ScheduleChangeNotifier ChangeNotifier
 
 <PageTitle>Events Board - Turnos</PageTitle>
 
@@ -91,16 +93,18 @@
                                     {
                                         <div class="assignment-row d-flex align-items-center justify-content-between gap-2"
                                              @onclick:stopPropagation="true">
-                                            <div class="d-flex flex-column">
-                                                <div class="d-flex align-items-center gap-2">
-                                                    <span class="assignment-number">@(idx + 1).</span>
-                                                    <span class="assignment-name">@a.Person.FullName</span>
-                                                    @if (a.LocationPosition is not null)
-                                                    {
-                                                        <span class="small text-muted">(@a.LocationPosition.Name)</span>
-                                                    }
+                                            <div class="assignment-info d-flex flex-column">
+                                                <div class="assignment-name-row">
+                                                    <div class="assignment-name-group">
+                                                        <span class="assignment-number">@(idx + 1).</span>
+                                                        <span class="assignment-name">@a.Person.FullName</span>
+                                                        @if (a.LocationPosition is not null)
+                                                        {
+                                                            <span class="small text-muted text-truncate">(@a.LocationPosition.Name)</span>
+                                                        }
+                                                    </div>
                                                     <MudChip T="string" Color="@GetStatusColor(a.Status)"
-                                                             Size="Size.Small" Variant="Variant.Filled" Class="ma-0">
+                                                             Size="Size.Small" Variant="Variant.Filled" Class="ma-0 assignment-status-badge">
                                                         @a.Status
                                                     </MudChip>
                                                 </div>
@@ -145,7 +149,22 @@
     {
         var authState = await AuthState.GetAuthenticationStateAsync();
         currentUserId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+        ChangeNotifier.Changed += OnScheduleChanged;
         await LoadData();
+    }
+
+    private async void OnScheduleChanged()
+    {
+        await InvokeAsync(async () =>
+        {
+            await LoadData();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        ChangeNotifier.Changed -= OnScheduleChanged;
     }
 
     private async Task LoadData()

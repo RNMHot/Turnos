@@ -1,0 +1,62 @@
+@page "/account/register"
+@layout Turnos.Components.Layout.EmptyLayout
+@inject IAntiforgery Antiforgery
+@inject IHttpContextAccessor HttpContextAccessor
+
+@* SSR only — no @rendermode. Form posts to AccountController which handles cookies. *@
+
+@{
+    var tokens = Antiforgery.GetAndStoreTokens(HttpContextAccessor.HttpContext!);
+    var error = HttpContextAccessor.HttpContext!.Request.Query["error"].ToString();
+}
+
+<PageTitle>Registro — Turnos</PageTitle>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+
+<div class="d-flex justify-content-center align-items-center vh-100 bg-light">
+    <div class="card shadow-sm" style="width:420px">
+        <div class="card-body p-4">
+            <h4 class="mb-1 fw-bold">
+                <i class="bi bi-calendar-week text-primary me-2"></i>Turnos
+            </h4>
+            <p class="text-muted mb-4">Crear una cuenta nueva</p>
+
+            @if (!string.IsNullOrEmpty(error))
+            {
+                <div class="alert alert-danger py-2">@error</div>
+            }
+
+            <form method="post" action="/account/register-submit">
+                <input type="hidden" name="@tokens.FormFieldName" value="@tokens.RequestToken" />
+
+                <div class="mb-3">
+                    <label class="form-label">Nombre completo</label>
+                    <input type="text" name="fullName" class="form-control" required />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <input type="email" name="email" class="form-control" autocomplete="username" required />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Número de teléfono</label>
+                    <input type="tel" name="phoneNumber" class="form-control" placeholder="+1 555 000 0000" required />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Contraseña</label>
+                    <input type="password" name="password" class="form-control" autocomplete="new-password" required minlength="8" />
+                    <div class="form-text">Mínimo 8 caracteres, con al menos un número y un carácter especial.</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Confirmar contraseña</label>
+                    <input type="password" name="confirmPassword" class="form-control" autocomplete="new-password" required minlength="8" />
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Registrarme</button>
+            </form>
+
+            <div class="text-center mt-3">
+                <a href="/account/login">¿Ya tienes cuenta? Inicia sesión</a>
+            </div>
+        </div>
+    </div>
+</div>

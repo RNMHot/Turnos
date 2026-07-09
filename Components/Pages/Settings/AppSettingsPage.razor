@@ -1,6 +1,7 @@
 @page "/settings"
 @attribute [Authorize(Policy = "AppAccess", Roles = "Gerencia,Admin")]
 @rendermode InteractiveServer
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Configuración — Turnos</PageTitle>
 
@@ -40,4 +41,22 @@
         <div class="settings-item-title"><i class="bi bi-envelope me-2"></i>Cuenta de correo electrónico</div>
         <div class="settings-item-desc">Configurar la cuenta de correo electrónico usada para enviar eMails.</div>
     </a>
+
+    @if (isAdmin)
+    {
+        <a href="/settings/user-sessions" class="settings-list-item">
+            <div class="settings-item-title"><i class="bi bi-person-lines-fill me-2"></i>Sesiones de usuario</div>
+            <div class="settings-item-desc">Ver quién ha iniciado sesión, cuándo, y quién está conectado en este momento.</div>
+        </a>
+    }
 </div>
+
+@code {
+    private bool isAdmin;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        isAdmin = authState.User.IsInRole("Admin");
+    }
+}

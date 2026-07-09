@@ -23,6 +23,13 @@ public class AccessControlService
         return person?.Active == true && person.SignInEnabled;
     }
 
+    public async Task<bool> IsPendingApprovalAsync(IdentityUser user)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var person = await GetPersonForUserAsync(db, user);
+        return person?.PendingApproval == true;
+    }
+
     public async Task<int?> GetPersonIdAsync(IdentityUser user)
     {
         await using var db = await _dbFactory.CreateDbContextAsync();
