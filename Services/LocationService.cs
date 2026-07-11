@@ -53,6 +53,23 @@ public class LocationService
         return pos;
     }
 
+    public async Task MovePositionAsync(int locationId, int positionId, bool moveUp, string actorUserId)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var list = await db.LocationPositions
+            .Where(p => p.LocationId == locationId && !p.Deleted)
+            .OrderBy(p => p.DisplayOrder).ThenBy(p => p.Name)
+            .ToListAsync();
+
+        var idx = list.FindIndex(p => p.LocationPositionId == positionId);
+        var swapIdx = moveUp ? idx - 1 : idx + 1;
+        if (idx < 0 || swapIdx < 0 || swapIdx >= list.Count) return;
+
+        (list[idx].DisplayOrder, list[swapIdx].DisplayOrder) = (list[swapIdx].DisplayOrder, list[idx].DisplayOrder);
+        await db.SaveChangesAsync();
+        await _audit.LogAsync(actorUserId, "Update", "LocationPosition", positionId, $"Reordered position '{list[idx].Name}'");
+    }
+
     public async Task DeletePositionAsync(int positionId, string actorUserId)
     {
         await using var db = await _dbFactory.CreateDbContextAsync();

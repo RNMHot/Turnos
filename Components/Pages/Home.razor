@@ -97,9 +97,11 @@
                             {
                                 var heightPx = GetEventHeightPx(ev);
                                 var posStyle = GetEventPositionStyle(ev);
+                                <!-- Event -->
                                 <div class="event-block @GetEventClass(ev)"
                                      style="height:@(heightPx.ToString("F0"))px;@posStyle"
                                      @ondblclick:stopPropagation="true">
+                                     <!-- Event Details Area -->
                                     <div class="event-info-area" @onclick="() => OpenEventDetail(ev)">
                                         <div class="event-name">@ev.EventName</div>
                                         <div class="event-company small">@ev.Company?.Name</div>
@@ -110,6 +112,7 @@
                                             @FormatRequirements(ev)
                                         </div>
                                     </div>
+                                    <!-- Event Persons Area -->
                                     <div class="event-assignments small mt-1"
                                          style="cursor:pointer"
                                          @onclick="() => OnAssignmentsAreaClick(ev)"
@@ -156,7 +159,7 @@
         var authState = await AuthState.GetAuthenticationStateAsync();
         currentUserId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
         ChangeNotifier.Changed += OnScheduleChanged;
-        await LoadData();
+        await LoadData(snapToNearestEventIfEmpty: true);
     }
 
     private async void OnScheduleChanged()
@@ -173,11 +176,11 @@
         ChangeNotifier.Changed -= OnScheduleChanged;
     }
 
-    private async Task LoadData()
+    private async Task LoadData(bool snapToNearestEventIfEmpty = false)
     {
         weekEvents = await EventSvc.GetForWeekAsync(weekStart);
 
-        if (!weekEvents.Any())
+        if (snapToNearestEventIfEmpty && !weekEvents.Any())
         {
             var allActiveEvents = await EventSvc.GetActiveWithAssignmentsAsync();
             var nearestEvent = allActiveEvents

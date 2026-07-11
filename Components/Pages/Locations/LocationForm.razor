@@ -92,15 +92,32 @@
             else
             {
                 <ul class="list-group mb-3">
-                    @foreach (var pos in positions)
+                    @for (var i = 0; i < positions.Count; i++)
                     {
+                        var pos = positions[i];
+                        var isFirst = i == 0;
+                        var isLast = i == positions.Count - 1;
                         <li class="list-group-item d-flex justify-content-between align-items-center py-2">
                             <span>@pos.Name</span>
-                            <button type="button" class="btn btn-outline-danger btn-sm"
-                                    @onclick="() => DeletePosition(pos.LocationPositionId)"
-                                    title="Eliminar posición">
-                                <i class="bi bi-trash"></i>
-                            </button>
+                            <div class="d-flex gap-1">
+                                <button type="button" class="btn btn-outline-secondary btn-sm"
+                                        disabled="@isFirst"
+                                        @onclick="() => MovePosition(pos.LocationPositionId, true)"
+                                        title="Subir">
+                                    <i class="bi bi-arrow-up"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm"
+                                        disabled="@isLast"
+                                        @onclick="() => MovePosition(pos.LocationPositionId, false)"
+                                        title="Bajar">
+                                    <i class="bi bi-arrow-down"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger btn-sm"
+                                        @onclick="() => DeletePosition(pos.LocationPositionId)"
+                                        title="Eliminar posición">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
                         </li>
                     }
                 </ul>
@@ -186,5 +203,11 @@ else
     {
         await LocationSvc.DeletePositionAsync(positionId, userId);
         positions.RemoveAll(p => p.LocationPositionId == positionId);
+    }
+
+    private async Task MovePosition(int positionId, bool moveUp)
+    {
+        await LocationSvc.MovePositionAsync(Id, positionId, moveUp, userId);
+        positions = await LocationSvc.GetPositionsAsync(Id);
     }
 }
