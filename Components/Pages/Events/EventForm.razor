@@ -45,8 +45,8 @@
                 </MudItem>
                 <MudItem xs="12" sm="6">
                     <MudSelect T="int" @bind-Value="ev.CompanyId" For="() => ev.CompanyId"
-                            Label="Cliente *" Variant="Variant.Outlined" Margin="Margin.Dense">
-                        <MudSelectItem T="int" Value="0">— Seleccionar cliente —</MudSelectItem>
+                            Label="Cliente" Variant="Variant.Outlined" Margin="Margin.Dense">
+                        <MudSelectItem T="int" Value="0">- Seleccionar cliente -</MudSelectItem>
                         @foreach (var c in companies)
                         {
                             <MudSelectItem T="int" Value="@c.CompanyId">@c.Name</MudSelectItem>
@@ -457,6 +457,9 @@
         saveError = null;
         try
         {
+            if (ev.CompanyId <= 0)
+                ev.CompanyId = (await CompanySvc.GetOrCreateGenericAsync(userId)).CompanyId;
+
             if (Id == 0 && createMultiple)
             {
                 var occurrences = BuildOccurrences();

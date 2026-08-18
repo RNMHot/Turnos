@@ -100,11 +100,18 @@
       "Bash(sqlcmd -S \"tcp:turnossql91713.database.windows.net,1433\" -d TurnosDb -U turnosadmin -P 'Turnos459663aA#' -Q \"SELECT EventId, EventName, StartDateTime, EndDateTime, Deleted FROM Events WHERE EventId IN \\(1,2\\)\" -C)",
       "Bash(sqlcmd -S \"tcp:turnossql91713.database.windows.net,1433\" -d TurnosDb -U turnosadmin -P 'Turnos459663aA#' -Q \"UPDATE Attendances SET Deleted = 1 WHERE AttendanceId = 4\" -C)",
       "Bash(grep -n \"AllowedOrigins\\\\|urls\\\\|ASPNETCORE_URLS\" Properties/launchSettings.json appsettings*.json)",
-      "Bash(timeout 8 bash -c \"echo > /dev/tcp/turnossql91713.database.windows.net/1433\")"
+      "Bash(timeout 8 bash -c \"echo > /dev/tcp/turnossql91713.database.windows.net/1433\")",
+      "Bash(dotnet --list-sdks)",
+      "Bash(dotnet nuget *)",
+      "Bash(curl -s \"https://api.nuget.org/v3-flatcontainer/mudblazor/index.json\")",
+      "Bash(dotnet restore *)",
+      "Read(//c/Users/RNM/OneDrive/Personal/MyApps/**)",
+      "Bash(env)"
     ],
     "additionalDirectories": [
       "C:\\Users\\RNM\\AppData\\Local\\Temp\\claude\\c--Users-RNM-OneDrive-Personal-MyApps-PeopleUshers-Turnos-Turnos\\05e3a84d-2167-4182-8cf8-f7e4838ffda5\\scratchpad\\buildcheck",
-      "C:\\Users\\RNM\\AppData\\Local\\Temp\\claude\\c--Users-RNM-OneDrive-Personal-MyApps-PeopleUshers-Turnos-Turnos\\38d11a2c-14d9-4176-97d3-6a331ad9f400\\scratchpad\\buildout"
+      "C:\\Users\\RNM\\AppData\\Local\\Temp\\claude\\c--Users-RNM-OneDrive-Personal-MyApps-PeopleUshers-Turnos-Turnos\\38d11a2c-14d9-4176-97d3-6a331ad9f400\\scratchpad\\buildout",
+      "C:\\Users\\RNM\\OneDrive\\Personal\\MyApps\\PeopleUshers\\Turnos"
     ]
   }
 }

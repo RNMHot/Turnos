@@ -6,6 +6,8 @@ namespace Turnos.Services;
 
 public class CompanyService
 {
+    public const string GenericCompanyName = "Cliente no identificado";
+
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly AuditService _audit;
 
@@ -13,6 +15,20 @@ public class CompanyService
     {
         _dbFactory = dbFactory;
         _audit = audit;
+    }
+
+    public async Task<Company> GetOrCreateGenericAsync(string actorUserId)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var existing = await db.Companies.FirstOrDefaultAsync(c => c.Name == GenericCompanyName);
+        if (existing is not null)
+            return existing;
+
+        var company = new Company { Name = GenericCompanyName };
+        db.Companies.Add(company);
+        await db.SaveChangesAsync();
+        await _audit.LogAsync(actorUserId, "Create", "Company", company.CompanyId, $"Created {company.Name}");
+        return company;
     }
 
     public async Task<List<Company>> GetAllAsync(string? search = null)

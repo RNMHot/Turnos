@@ -138,6 +138,11 @@ public class EventService
         if (ev is null) return;
         ev.Active = false;
         ev.Deleted = true;
+
+        var assignments = await db.Assignments.Where(a => a.EventId == id && !a.Deleted).ToListAsync();
+        foreach (var a in assignments)
+            a.Deleted = true;
+
         await db.SaveChangesAsync();
         await _audit.LogAsync(actorUserId, "Delete", "Event", id, $"Deleted {ev.EventName}");
         _notifier.NotifyChanged();

@@ -12,14 +12,31 @@
     overflow: hidden;
 }
 
+/* Personnel panel — toggled via the personnel-toggle-btn button at any screen size */
 .personnel-panel {
     width: 200px;
     min-width: 180px;
     flex-shrink: 0;
     border-right: 1px solid #D8DEE6;
-    display: flex;
+    display: none;
     flex-direction: column;
     min-height: 0;
+}
+
+.personnel-panel.panel-visible {
+    display: flex;
+}
+
+/* Invisible spacer so the toolbar above aligns with the events columns, not the personnel panel */
+.personnel-panel-spacer {
+    width: 200px;
+    min-width: 180px;
+    flex-shrink: 0;
+    display: none;
+}
+
+.personnel-panel-spacer.panel-visible {
+    display: block;
 }
 
 .panel-header {
@@ -179,6 +196,11 @@
 
 @media (max-width: 767.98px) {
     .personnel-panel {
+        width: 140px;
+        min-width: 120px;
+    }
+
+    .personnel-panel-spacer {
         width: 140px;
         min-width: 120px;
     }

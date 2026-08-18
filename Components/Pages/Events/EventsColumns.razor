@@ -6,6 +6,7 @@
 @inject PersonService PersonSvc
 @inject AssignmentService AssignmentSvc
 @inject AuthenticationStateProvider AuthState
+@inject IJSRuntime JS
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject AppSettingsState SettingsState
@@ -14,12 +15,19 @@
 <PageTitle>Events Board - Turnos</PageTitle>
 
 <div class="events-columns-container">
-    <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
-        <MudText Typo="Typo.h5">Eventos Activos</MudText>
+    <div class="d-flex align-items-center mb-3">
+        <MudIconButton Icon="@(personnelPanelVisible ? Icons.Material.Filled.Close : Icons.Material.Filled.Groups)"
+                       Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                       Class="personnel-toggle-btn me-2" OnClick="TogglePersonnelPanel"
+                       title="@(personnelPanelVisible ? "Ocultar personal" : "Mostrar personal")" />
+        <div class="personnel-panel-spacer @(personnelPanelVisible ? "panel-visible" : "")"></div>
+        <div id="BodyTopRow" class="d-flex align-items-center gap-2 flex-wrap">
+            <MudText Typo="Typo.h5">Eventos Activos</MudText>
+        </div>
     </div>
 
     <div class="events-columns-board">
-        <div class="personnel-panel">
+        <div class="personnel-panel @(personnelPanelVisible ? "panel-visible" : "")">
             <div class="panel-header">
                 <MudToggleGroup T="string" Value="@personnelFilter" ValueChanged="OnPersonnelFilterChanged"
                                  Color="Color.Primary" Size="Size.Small" Delimiters="false" Class="mb-1 personnel-filter-toggle">
@@ -144,6 +152,8 @@
     private bool showMessageModal;
     private int? messageEventId;
     private string currentUserId = "";
+    private bool personnelPanelVisible = true;
+    private const int SmallScreenMaxWidth = 1024;
 
     protected override async Task OnInitializedAsync()
     {
@@ -151,6 +161,19 @@
         currentUserId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
         ChangeNotifier.Changed += OnScheduleChanged;
         await LoadData();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var isSmallScreen = await JS.InvokeAsync<bool>("isSmallScreen", SmallScreenMaxWidth);
+            if (isSmallScreen)
+            {
+                personnelPanelVisible = false;
+                StateHasChanged();
+            }
+        }
     }
 
     private async void OnScheduleChanged()
@@ -199,6 +222,8 @@
         personSearch = val;
         FilterPersonnel();
     }
+
+    private void TogglePersonnelPanel() => personnelPanelVisible = !personnelPanelVisible;
 
     private void OnPersonDragStart(Person person) => draggedPerson = person;
 

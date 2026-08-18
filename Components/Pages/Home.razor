@@ -19,18 +19,25 @@
 
 <div class="schedule-container">
     <!-- Top toolbar -->
-    <div class="d-flex align-items-center gap-2 mb-3">
-        <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Variant="Variant.Outlined"
-                       Color="Color.Secondary" Size="Size.Small" OnClick="PrevWeek" />
-        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="GoToday">Hoy</MudButton>
-        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Variant="Variant.Outlined"
-                       Color="Color.Secondary" Size="Size.Small" OnClick="NextWeek" />
-        <MudText Typo="Typo.subtitle1" Class="fw-semibold ms-2">@WeekLabel</MudText>
+    <div class="d-flex align-items-center mb-3">
+        <MudIconButton Icon="@(personnelPanelVisible ? Icons.Material.Filled.Close : Icons.Material.Filled.Groups)"
+                       Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                       Class="personnel-toggle-btn me-2" OnClick="TogglePersonnelPanel"
+                       title="@(personnelPanelVisible ? "Ocultar personal" : "Mostrar personal")" />
+        <div class="personnel-panel-spacer @(personnelPanelVisible ? "panel-visible" : "")"></div>
+        <div id="CalendarButtons" class="d-flex align-items-center gap-2">
+            <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Variant="Variant.Outlined"
+                           Color="Color.Secondary" Size="Size.Small" OnClick="PrevWeek" />
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="GoToday">Hoy</MudButton>
+            <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Variant="Variant.Outlined"
+                           Color="Color.Secondary" Size="Size.Small" OnClick="NextWeek" />
+            <MudText Typo="Typo.subtitle1" Class="fw-semibold ms-2 week-label">@WeekLabel</MudText>
+        </div>
     </div>
 
     <div class="schedule-board">
         <!-- Left panel: personnel list -->
-        <div class="personnel-panel">
+        <div class="personnel-panel @(personnelPanelVisible ? "panel-visible" : "")">
             <div class="panel-header">
                 <MudToggleGroup T="string" Value="@personnelFilter" ValueChanged="OnPersonnelFilterChanged"
                                  Color="Color.Primary" Size="Size.Small" Delimiters="false" Class="mb-1 personnel-filter-toggle">
@@ -152,6 +159,10 @@
     private bool showMessageModal;
     private int? messageEventId;
     private string currentUserId = "";
+    private bool personnelPanelVisible = true;
+    private bool isSmallScreen;
+    private bool scrollToTodayPending = true;
+    private const int SmallScreenMaxWidth = 1024;
 
     protected override async Task OnInitializedAsync()
     {
@@ -160,6 +171,25 @@
         currentUserId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
         ChangeNotifier.Changed += OnScheduleChanged;
         await LoadData(snapToNearestEventIfEmpty: true);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            isSmallScreen = await JS.InvokeAsync<bool>("isSmallScreen", SmallScreenMaxWidth);
+            if (isSmallScreen)
+            {
+                personnelPanelVisible = false;
+                StateHasChanged();
+            }
+        }
+
+        if (isSmallScreen && scrollToTodayPending)
+        {
+            scrollToTodayPending = false;
+            await JS.InvokeVoidAsync("scrollWeekGridToToday");
+        }
     }
 
     private async void OnScheduleChanged()
@@ -223,11 +253,13 @@
         FilterPersonnel();
     }
 
+    private void TogglePersonnelPanel() => personnelPanelVisible = !personnelPanelVisible;
+
     private string WeekLabel => $"{weekStart:MMM d} – {weekStart.AddDays(6):MMM d, yyyy}";
 
     private async Task PrevWeek() { weekStart = weekStart.AddDays(-7); await LoadData(); }
     private async Task NextWeek() { weekStart = weekStart.AddDays(7); await LoadData(); }
-    private async Task GoToday() { weekStart = GetMonday(SettingsState.Today); await LoadData(); }
+    private async Task GoToday() { weekStart = GetMonday(SettingsState.Today); scrollToTodayPending = true; await LoadData(); }
 
     private static DateTime GetMonday(DateTime date)
     {

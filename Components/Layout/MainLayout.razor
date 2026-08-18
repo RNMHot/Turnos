@@ -3,6 +3,8 @@
 @implements IDisposable
 @inject NavigationManager Nav
 @inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
 
 <MudThemeProvider Theme="_theme" />
 <MudPopoverProvider />
@@ -43,6 +45,8 @@
 </div>
 
 @code {
+    private const int SmallScreenMaxWidth = 1024;
+
     private bool _sidebarCollapsed = false;
     private bool _isUjier = false;
 
@@ -84,6 +88,24 @@
     }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e) => InvokeAsync(StateHasChanged);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var isSmallScreen = await JS.InvokeAsync<bool>("isSmallScreen", SmallScreenMaxWidth);
+            if (isSmallScreen)
+            {
+                _sidebarCollapsed = true;
+                StateHasChanged();
+            }
+            else
+            {
+                // Wide screens: center notifications instead of the default right-edge placement used on phones/tablets
+                Snackbar.Configuration.PositionClass = Defaults.Classes.Position.TopCenter;
+            }
+        }
+    }
 
     public void Dispose() => Nav.LocationChanged -= OnLocationChanged;
 }
